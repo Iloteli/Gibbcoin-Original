@@ -1,0 +1,15 @@
+{
+  "name": "GIBB Coin – Campus Wallet",
+  "short_name": "GIBB Coin",
+  "description": "GIBB Coins sicher senden, empfangen und gemeinsam verwalten.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#070b0a",
+  "theme_color": "#070b0a",
+  "lang": "de-CH",
+  "categories": ["education", "finance", "utilities"],
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
