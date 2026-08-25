@@ -6,7 +6,7 @@ const responseHeaders = {
   "Content-Type": "application/json",
 };
 
-const passwordResetRedirect = "https://gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site/?password-reset=1";
+const passwordResetRedirect = "https://gibb-coin.kbb8vy5sjy.workers.dev/?password-reset=1";
 
 type AuthorizationResult = {
   ok?: boolean;
