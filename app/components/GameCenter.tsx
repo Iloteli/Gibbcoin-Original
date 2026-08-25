@@ -67,6 +67,7 @@ type GameResult = {
   balance: number;
 };
 type SecureResult = { ok?: boolean; error?: string };
+type PrankAdminState = { ok: boolean; enabled: boolean; win_chance: number };
 
 type Props = {
   role: Role;
@@ -173,9 +174,11 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
   const [error, setError] = useState("");
   const [animationKey, setAnimationKey] = useState(0);
   const [adminPin, setAdminPin] = useState("");
-  const [adminBusy, setAdminBusy] = useState<SettingKey | null>(null);
+  const [adminBusy, setAdminBusy] = useState<SettingKey | "coin_flip_prank" | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
   const [adminError, setAdminError] = useState("");
+  const [prankAdminState, setPrankAdminState] = useState<PrankAdminState | null>(null);
+  const [prankWinChance, setPrankWinChance] = useState(1);
   const activeRoundRef = useRef(false);
   const pendingLiveRefreshRef = useRef(false);
   const dinoRef = useRef<DinoState | null>(null);
@@ -468,6 +471,41 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
     else await loadState();
   }
 
+  const loadPrankAdminState = useCallback(async () => {
+    if (role !== "admin" && role !== "super_admin") return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data, error: rpcError } = await supabase.rpc("get_coin_flip_prank_admin_state");
+    if (rpcError) return;
+    const next = data as PrankAdminState;
+    if (!next?.ok) return;
+    setPrankAdminState(next);
+    setPrankWinChance(next.win_chance);
+  }, [role]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadPrankAdminState(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadPrankAdminState]);
+
+  async function savePrankSettings(enabled: boolean) {
+    if (!/^\d{4}$/.test(adminPin)) { setAdminError("Gib zuerst deinen vierstelligen Admin-PIN ein."); return; }
+    if (!Number.isInteger(prankWinChance) || prankWinChance < 0 || prankWinChance > 100) { setAdminError("Die Gewinnchance muss zwischen 0 und 100 Prozent liegen."); return; }
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setAdminBusy("coin_flip_prank"); setAdminError(""); setAdminMessage("");
+    const { data, error: rpcError } = await supabase.rpc("admin_set_coin_flip_prank", {
+      p_enabled: enabled,
+      p_win_chance: prankWinChance,
+      p_pin: adminPin,
+    });
+    setAdminBusy(null); setAdminPin("");
+    const result = data as SecureResult | null;
+    if (rpcError || !result?.ok) { setAdminError(pinError(result?.error ?? rpcError?.message)); return; }
+    setAdminMessage(`Münzwurf-Spaßmodus ${enabled ? "aktiviert" : "deaktiviert"}: ${prankWinChance} % Gewinn, ${100 - prankWinChance} % Verlust.`);
+    await loadPrankAdminState();
+  }
+
   function renderStage() {
     if (selectedGame === "dino_run") {
       const finishedScore = lastResult?.game_key === "dino_run" ? Number(lastResult.result.score ?? 0) : 0;
@@ -539,7 +577,7 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
         <aside className="game-history"><div className="game-history-head"><div><span>LETZTE RUNDEN</span><h3>Deine Spielhistorie</h3></div><b>{state?.recent_rounds.length ?? 0}</b></div><div className="game-history-list">{(state?.recent_rounds ?? []).length === 0 && <p className="empty">Noch keine Runde gespielt.</p>}{(state?.recent_rounds ?? []).map((round) => <article key={round.id}><span className={`history-icon ${round.payout > round.wager ? "won" : ""}`}>{games.find((game) => game.key === round.game_key)?.icon}</span><div><strong>{gameName(round.game_key)}</strong><small>{resultText(round)} · {new Date(round.created_at).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</small></div><b className={round.payout > round.wager ? "positive" : round.payout < round.wager ? "negative" : ""}>{round.payout - round.wager > 0 ? "+" : ""}{round.payout - round.wager}</b></article>)}</div><p className="game-rules-note">Nur virtuelle GIBB Coins. Kein Kauf, keine Auszahlung, kein Echtgeld.</p></aside>
       </div>
 
-      {isAdmin && <div className="game-admin"><div className="game-admin-intro"><span>ADMIN-STEUERUNG</span><h3>Spiele aktivieren oder deaktivieren</h3><p>Jede Änderung wird geschützt gespeichert und im Admin-Protokoll festgehalten.</p></div><div className="game-admin-pin"><label htmlFor="game-admin-pin">4-stelliger Admin-PIN</label><input id="game-admin-pin" className="input" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" value={adminPin} onChange={(event) => setAdminPin(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="••••" /></div><div className="game-switches">{(state?.settings ?? []).map((setting) => <button type="button" role="switch" aria-checked={setting.enabled} className={setting.enabled ? "on" : ""} disabled={adminBusy !== null} key={setting.game_key} onClick={() => void toggleGame(setting)}><span><b>{setting.label}</b><small>{setting.enabled ? "Aktiv" : "Deaktiviert"}</small></span><i aria-hidden="true"><em /></i>{adminBusy === setting.game_key && <u>Lädt …</u>}</button>)}</div>{adminMessage && <p className="message success-message" role="status">✓ {adminMessage}</p>}{adminError && <p className="message error" role="alert">{adminError}</p>}</div>}
+      {isAdmin && <div className="game-admin"><div className="game-admin-intro"><span>ADMIN-STEUERUNG</span><h3>Spiele aktivieren oder deaktivieren</h3><p>Jede Änderung wird geschützt gespeichert und im Admin-Protokoll festgehalten.</p></div><div className="game-admin-pin"><label htmlFor="game-admin-pin">4-stelliger Admin-PIN</label><input id="game-admin-pin" className="input" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" value={adminPin} onChange={(event) => setAdminPin(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="••••" /></div><div className="game-switches">{(state?.settings ?? []).map((setting) => <button type="button" role="switch" aria-checked={setting.enabled} className={setting.enabled ? "on" : ""} disabled={adminBusy !== null} key={setting.game_key} onClick={() => void toggleGame(setting)}><span><b>{setting.label}</b><small>{setting.enabled ? "Aktiv" : "Deaktiviert"}</small></span><i aria-hidden="true"><em /></i>{adminBusy === setting.game_key && <u>Lädt …</u>}</button>)}</div>{prankAdminState && <div className="coin-prank-admin"><div><span>ADMIN &amp; OWNER · SPASSMODUS</span><strong>Münzwurf-Chancen</strong><small>Nur hier sichtbar · verändert weder Wallet noch Coin-Statistiken</small></div><label htmlFor="coin-prank-win-chance">Gewinn <b>{prankWinChance} %</b> · Verlust <b>{100 - prankWinChance} %</b></label><input id="coin-prank-win-chance" type="range" min={0} max={100} step={1} value={prankWinChance} disabled={adminBusy !== null} onChange={(event) => setPrankWinChance(Number(event.target.value))} /><div><button type="button" className={prankAdminState.enabled ? "secondary compact" : "primary compact"} disabled={adminBusy !== null} onClick={() => void savePrankSettings(!prankAdminState.enabled)}>{adminBusy === "coin_flip_prank" ? "Speichert …" : prankAdminState.enabled ? "Spaßmodus ausschalten" : "Spaßmodus einschalten"}</button><button type="button" className="secondary compact" disabled={adminBusy !== null || prankWinChance === prankAdminState.win_chance} onClick={() => void savePrankSettings(prankAdminState.enabled)}>Chance speichern</button></div></div>}{adminMessage && <p className="message success-message" role="status">✓ {adminMessage}</p>}{adminError && <p className="message error" role="alert">{adminError}</p>}</div>}
     </section>
   );
 }
