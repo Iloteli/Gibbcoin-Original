@@ -63,6 +63,8 @@ export function GroupWallets({ onChanged }: Props) {
   const [joinCode, setJoinCode] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
   const [depositNote, setDepositNote] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [withdrawNote, setWithdrawNote] = useState("");
   const [payoutAmount, setPayoutAmount] = useState("");
   const [payoutUserId, setPayoutUserId] = useState("");
   const [payoutNote, setPayoutNote] = useState("");
@@ -162,6 +164,18 @@ export function GroupWallets({ onChanged }: Props) {
     await refreshGroup(selectedId, true);
   }
 
+  async function withdraw(event: React.FormEvent) {
+    event.preventDefault(); setError(""); setMessage(""); setBusy("withdraw");
+    const supabase = getSupabase();
+    const { error: withdrawError } = supabase
+      ? await supabase.rpc("withdraw_group_coins", { p_group_id: selectedId, p_amount: Number(withdrawAmount), p_note: withdrawNote || null })
+      : { error: { message: "client_unavailable" } };
+    setBusy("");
+    if (withdrawError) { setError(groupError(withdrawError.message)); return; }
+    setWithdrawAmount(""); setWithdrawNote(""); setMessage("Coins wurden in dein persönliches Wallet gelegt.");
+    await refreshGroup(selectedId, true);
+  }
+
   async function changeRole(member: GroupMember) {
     const nextRole = member.member_role === "manager" ? "member" : "manager";
     setError(""); setMessage(""); setBusy(`role-${member.user_id}`);
@@ -209,11 +223,12 @@ export function GroupWallets({ onChanged }: Props) {
         <div className="group-summary"><div><span>{roleLabel(selected.member_role)}</span><h3>{selected.group_name}</h3><p>{selected.group_description || "Gemeinsam Coins verwalten und jede Bewegung nachvollziehen."}</p></div><div className="group-balance"><span>Gruppenguthaben</span><strong>{new Intl.NumberFormat("de-CH").format(selected.balance)} <small>GIBB</small></strong><button type="button" onClick={() => void navigator.clipboard?.writeText(selected.join_code)}>Code {selected.join_code} kopieren</button></div></div>
         <div className="group-actions-grid">
           <form onSubmit={deposit}><strong>Coins einzahlen</strong><div className="group-inline-fields"><input className="input" type="number" min="1" max="100000" step="1" required value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={depositNote} onChange={(event) => setDepositNote(event.target.value)} placeholder="Notiz (optional)" /><button className="primary compact" disabled={busy !== ""}>Einzahlen</button></div></form>
-          {(selected.member_role === "owner" || selected.member_role === "manager") && <form onSubmit={payout}><strong>An Mitglied auszahlen</strong><div className="group-inline-fields payout"><select className="input" required value={payoutUserId} onChange={(event) => setPayoutUserId(event.target.value)}><option value="">Mitglied wählen</option>{members.map((member) => <option value={member.user_id} key={member.user_id}>{member.display_name}</option>)}</select><input className="input" type="number" min="1" max="100000" step="1" required value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={payoutNote} onChange={(event) => setPayoutNote(event.target.value)} placeholder="Notiz" /><button className="secondary" disabled={busy !== ""}>Auszahlen</button></div></form>}
+          <form onSubmit={withdraw}><strong>Ins eigene Wallet nehmen</strong><div className="group-inline-fields"><input className="input" type="number" min="1" max="100000" step="1" required value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={withdrawNote} onChange={(event) => setWithdrawNote(event.target.value)} placeholder="Notiz (optional)" /><button className="secondary" disabled={busy !== ""}>Entnehmen</button></div></form>
+          {(selected.member_role === "owner" || selected.member_role === "manager") && <form className="group-payout-form" onSubmit={payout}><strong>An Mitglied auszahlen</strong><div className="group-inline-fields payout"><select className="input" required value={payoutUserId} onChange={(event) => setPayoutUserId(event.target.value)}><option value="">Mitglied wählen</option>{members.map((member) => <option value={member.user_id} key={member.user_id}>{member.display_name}</option>)}</select><input className="input" type="number" min="1" max="100000" step="1" required value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={payoutNote} onChange={(event) => setPayoutNote(event.target.value)} placeholder="Notiz" /><button className="secondary" disabled={busy !== ""}>Auszahlen</button></div></form>}
         </div>
         <div className="group-details-grid">
           <div><div className="group-list-heading"><strong>Mitglieder</strong><span>{selected.member_count}</span></div><div className="group-member-list">{members.map((member) => <div className="group-member" key={member.user_id}><span className="recipient-avatar">{member.display_name[0]}</span><div><strong>{member.display_name}</strong><small>@{member.username} · {roleLabel(member.member_role)}</small></div>{selected.member_role === "owner" && member.member_role !== "owner" && <button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void changeRole(member)}>{member.member_role === "manager" ? "Zu Mitglied" : "Verantwortlich"}</button>}</div>)}</div>{selected.member_role !== "owner" && <button className="group-leave" type="button" onClick={() => void leaveGroup()} disabled={busy !== ""}>Gruppe verlassen</button>}</div>
-          <div><div className="group-list-heading"><strong>Gruppenverlauf</strong><span>{history.length}</span></div><div className="group-history">{history.length === 0 && <div className="empty">Noch keine Gruppenbewegungen.</div>}{history.map((entry) => <article key={entry.entry_id}><span className={entry.kind}>{entry.kind === "deposit" ? "↓" : "↑"}</span><div><strong>{entry.kind === "deposit" ? `${entry.actor_label} hat eingezahlt` : `${entry.actor_label} → ${entry.recipient_label}`}</strong><small>{entry.note || new Date(entry.created_at).toLocaleString("de-CH")}</small></div><b>{entry.kind === "deposit" ? "+" : "−"}{entry.amount}</b></article>)}</div></div>
+          <div><div className="group-list-heading"><strong>Gruppenverlauf</strong><span>{history.length}</span></div><div className="group-history">{history.length === 0 && <div className="empty">Noch keine Gruppenbewegungen.</div>}{history.map((entry) => <article key={entry.entry_id}><span className={entry.kind}>{entry.kind === "deposit" ? "↓" : "↑"}</span><div><strong>{entry.kind === "deposit" ? `${entry.actor_label} hat eingezahlt` : entry.actor_label === entry.recipient_label ? `${entry.actor_label} hat Coins entnommen` : `${entry.actor_label} → ${entry.recipient_label}`}</strong><small>{entry.note || new Date(entry.created_at).toLocaleString("de-CH")}</small></div><b>{entry.kind === "deposit" ? "+" : "−"}{entry.amount}</b></article>)}</div></div>
         </div>
       </div>}
     </>}
