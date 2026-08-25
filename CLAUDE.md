@@ -20,4 +20,5 @@ This repository contains the complete source for the GIBB Coin school wallet.
 ## Publishing
 
 - A GitHub push must pass the repository's verification workflow.
-- The public production site is hosted with OpenAI Sites. After a reviewed GitHub change, publish the exact tested commit through the Sites deployment workflow so the live site and repository stay on the same version.
+- Every push to `main` must pass the GitHub Actions production workflow. Once the Cloudflare repository secrets are configured, that workflow publishes the exact tested commit automatically.
+- The existing OpenAI Sites deployment remains available as a fallback. Do not remove or replace `.openai/hosting.json`.
