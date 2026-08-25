@@ -2,6 +2,8 @@
 
 Eine sichere Beta der internen GIBB-Schulwährung. GIBB Coins sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur innerhalb der App nutzbar. Die „Blockchain“ ist eine SHA-256-Hash-Kette und keine dezentrale öffentliche Blockchain.
 
+Produktive Website: `https://gibb-coin.kbb8vy5sjy.workers.dev/`. Jeder Push auf `main` wird nach erfolgreichen Tests automatisch über Cloudflare veröffentlicht.
+
 ## Einrichtung
 
 1. In Supabase ein neues Projekt erstellen.
@@ -11,7 +13,7 @@ Eine sichere Beta der internen GIBB-Schulwährung. GIBB Coins sind kein gesetzli
 
    `https://PROJECT.supabase.co/auth/v1/callback`
 
-5. Unter **Authentication → URL Configuration** die lokale und produktive Site URL sowie Redirect URLs eintragen, z. B. `http://localhost:3000/**`.
+5. Unter **Authentication → URL Configuration** `https://gibb-coin.kbb8vy5sjy.workers.dev/` als Site URL und `https://gibb-coin.kbb8vy5sjy.workers.dev/**` als Redirect URL eintragen. Für lokale Entwicklung zusätzlich `http://localhost:3000/**` erlauben.
 6. `.env.example` nach `.env.local` kopieren und Projekt-URL sowie öffentlichen Anon-Key einsetzen. Der Anon-Key darf öffentlich sein; Service-Role-Key und Google-Secret gehören niemals in den Client.
 
 Ein Google-Konto ist nicht erforderlich: Die Login-Seite unterstützt zusätzlich echte Supabase-Anmeldung und Registrierung per E-Mail und Passwort. Wenn E-Mail-Bestätigungen aktiviert sind, muss ein neues Konto zuerst den Link aus der Bestätigungs-E-Mail öffnen.
