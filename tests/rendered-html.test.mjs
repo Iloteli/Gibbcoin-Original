@@ -152,6 +152,24 @@ test("prevents normal Admins from self-credit while preserving Owner self-credit
   assert.match(adminPanel, /Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben/);
 });
 
+test("lets every group member withdraw shared coins only into their own wallet", async () => {
+  const [groupWallets, migration] = await Promise.all([
+    readFile(new URL("../app/components/GroupWallets.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825104648_allow_group_member_withdrawals.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(groupWallets, /withdraw_group_coins/);
+  assert.match(groupWallets, /Ins eigene Wallet nehmen/);
+  assert.match(groupWallets, /Coins wurden in dein persönliches Wallet gelegt/);
+  assert.match(migration, /private\.require_active_user/);
+  assert.match(migration, /group_membership_required/);
+  assert.match(migration, /for key share/);
+  assert.match(migration, /for update/);
+  assert.match(migration, /v_group_balance < p_amount/);
+  assert.match(migration, /recipient_user_id[\s\S]*v_user_id/);
+  assert.match(migration, /revoke all on function public\.withdraw_group_coins/);
+  assert.match(migration, /grant execute on function public\.withdraw_group_coins[\s\S]*to authenticated/);
+});
+
 test("organizes every feature into a Home-first dashboard without removing sections", async () => {
   const dashboard = await readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8");
   assert.match(dashboard, /type DashboardView = "home"/);
