@@ -30,12 +30,13 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with live admin controls", async () => {
-  const [dashboard, gameCenter, migration, oneCoinMigration, completeMigration] = await Promise.all([
+  const [dashboard, gameCenter, migration, oneCoinMigration, completeMigration, maxWagerMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822170000_add_wallet_game_center.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822180000_allow_one_gibb_game_entry.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260824122242_complete_admin_controls_and_poker.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825125502_allow_ten_thousand_gibb_game_wagers.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -54,10 +55,13 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
   assert.match(gameCenter, /Aktuell sind keine Spiele aktiv/);
   assert.match(gameCenter, /Einziges GIBB Wallet/);
   assert.match(gameCenter, /kein separates Spielkonto/i);
+  assert.match(gameCenter, /const MAX_GAME_WAGER = 10_000/);
   assert.match(gameCenter, /const wagers = \[1,/);
+  assert.match(gameCenter, /Math\.min\(Math\.max\(Math\.floor\(currentBalance\), 0\), MAX_GAME_WAGER\)/);
+  assert.match(gameCenter, /All-in · \{allInWager\.toLocaleString\("de-CH"\)\}/);
   assert.doesNotMatch(gameCenter, /currentBalance < wager\}/);
-  assert.match(gameCenter, /Eigener Eintritt · 1 bis 1’000/);
-  assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} max=\{1000\}/);
+  assert.match(gameCenter, /Eigener Eintritt · 1 bis 10’000/);
+  assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} max=\{MAX_GAME_WAGER\}/);
   assert.match(gameCenter, /game-ambient/);
   assert.match(gameCenter, /game-marquee/);
   assert.match(gameCenter, /stage-particles/);
@@ -72,6 +76,10 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
   assert.match(completeMigration, /create table if not exists public\.poker_sessions/);
   assert.match(completeMigration, /GAME_ENTRY/);
   assert.match(completeMigration, /GAME_REWARD/);
+  assert.match(maxWagerMigration, /wager between 0 and 10000/);
+  assert.match(maxWagerMigration, /wager between 1 and 10000/);
+  assert.match(maxWagerMigration, /p_wager > 10000/);
+  assert.match(maxWagerMigration, /payout between 0 and 2500000/);
   assert.doesNotMatch(gameCenter, /Math\.random/);
 });
 
