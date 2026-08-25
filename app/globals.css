@@ -375,6 +375,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .group-balance button { border: 0; padding: 3px 0; color: var(--green); background: transparent; font-size: 9px; }
 .group-actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
 .group-actions-grid > form { display: grid; gap: 11px; }
+.group-actions-grid > .group-payout-form { grid-column: 1 / -1; }
 .group-actions-grid > form > strong { font-size: 12px; }
 .group-inline-fields { display: grid; grid-template-columns: .55fr 1fr auto; gap: 8px; }
 .group-inline-fields.payout { grid-template-columns: 1.1fr .55fr 1fr auto; }
