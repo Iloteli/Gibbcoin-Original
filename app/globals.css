@@ -973,15 +973,31 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .game-switches button.on > i { background: rgba(117,245,154,.24); }
 .game-switches button.on > i em { background: var(--green); transform: translateX(12px); box-shadow: 0 0 8px rgba(117,245,154,.5); }
 .game-switches button > u { position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; color: var(--green); background: rgba(5,9,7,.86); font-size: 8px; text-decoration: none; }
-.coin-prank-admin { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px,1fr) minmax(210px,.8fr) minmax(210px,auto); align-items: center; gap: 14px 22px; border: 1px solid rgba(246,200,95,.2); border-radius: 12px; padding: 14px 16px; background: rgba(246,200,95,.035); }
-.coin-prank-admin > div:first-child span, .coin-prank-admin > div:first-child strong, .coin-prank-admin > div:first-child small { display: block; }
-.coin-prank-admin > div:first-child span { color: var(--amber); font-size: 8px; font-weight: 900; letter-spacing: .12em; }
-.coin-prank-admin > div:first-child strong { margin-top: 4px; font-size: 12px; }
-.coin-prank-admin > div:first-child small { margin-top: 3px; color: var(--muted); font-size: 8px; }
-.coin-prank-admin > label { color: var(--muted); font-size: 9px; }
-.coin-prank-admin > label b { color: var(--text); }
-.coin-prank-admin > input { width: 100%; accent-color: var(--amber); }
-.coin-prank-admin > div:last-child { grid-column: 3; display: flex; gap: 7px; }
+.game-prank-admin, .dino-admin-tuning { grid-column: 1 / -1; border: 1px solid rgba(246,200,95,.2); border-radius: 14px; padding: 16px; background: rgba(246,200,95,.035); }
+.game-prank-heading span, .dino-admin-tuning > div > span { color: var(--amber); font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+.game-prank-heading h3, .dino-admin-tuning h3 { margin: 5px 0 4px; font-size: 13px; }
+.game-prank-heading p, .dino-admin-tuning p { margin: 0; color: var(--muted); font-size: 8px; line-height: 1.55; }
+.game-prank-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+.game-prank-card { display: grid; align-content: start; gap: 8px; min-width: 0; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: rgba(6,10,8,.6); }
+.game-prank-card.enabled { border-color: rgba(246,200,95,.3); box-shadow: inset 0 0 22px rgba(246,200,95,.025); }
+.game-prank-card header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.game-prank-card header > div { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.game-prank-card header span { color: var(--amber); font-size: 18px; }
+.game-prank-card header strong { overflow: hidden; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.game-prank-card header > b { border-radius: 999px; padding: 3px 7px; color: var(--muted); background: rgba(255,255,255,.04); font-size: 7px; }
+.game-prank-card.enabled header > b { color: var(--amber); background: rgba(246,200,95,.1); }
+.game-prank-card label { color: var(--muted); font-size: 8px; }
+.game-prank-card label b { color: var(--text); }
+.game-prank-card > input, .dino-admin-tuning input[type="range"] { width: 100%; accent-color: var(--amber); }
+.game-prank-card .input { min-height: 36px; padding: 8px 10px; font-size: 9px; }
+.prank-user-field { display: grid; gap: 5px; }
+.game-prank-card > div:last-child { display: flex; align-items: stretch; gap: 6px; margin-top: 2px; }
+.game-prank-card > div:last-child button { flex: 1; min-width: 0; padding-inline: 8px; }
+.dino-admin-tuning { display: grid; grid-template-columns: minmax(220px,1fr) minmax(170px,.65fr) minmax(170px,.65fr) auto; align-items: center; gap: 14px 22px; border-color: rgba(117,245,154,.18); background: rgba(117,245,154,.025); }
+.dino-admin-tuning > div > span { color: var(--green); }
+.dino-admin-tuning > label { display: grid; grid-template-columns: 1fr auto; gap: 6px; color: var(--muted); font-size: 8px; }
+.dino-admin-tuning > label b { color: var(--text); }
+.dino-admin-tuning > label input { grid-column: 1 / -1; accent-color: var(--green); }
 .game-admin > .message { grid-column: 1 / -1; margin: -8px 0 0; }
 
 @keyframes roulette-spin { from { transform: rotate(0deg) scale(.96); } to { transform: rotate(1440deg) scale(1); } }
@@ -997,8 +1013,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .game-history-list { grid-template-columns: 1fr 1fr; column-gap: 20px; }
   .game-admin { grid-template-columns: 1fr 1fr; }
   .game-switches { grid-column: 1 / -1; }
-  .coin-prank-admin { grid-template-columns: 1fr 1fr; }
-  .coin-prank-admin > div:last-child { grid-column: 1 / -1; }
+  .game-prank-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .dino-admin-tuning { grid-template-columns: 1fr 1fr; }
+  .dino-admin-tuning > div, .dino-admin-tuning > button { grid-column: 1 / -1; }
 }
 
 @media (max-width: 680px) {
@@ -1018,8 +1035,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .game-history-list { grid-template-columns: 1fr; }
   .game-admin { grid-template-columns: 1fr; padding: 22px 20px; }
   .game-switches { grid-column: auto; grid-template-columns: 1fr 1fr; }
-  .coin-prank-admin { grid-template-columns: 1fr; }
-  .coin-prank-admin > div:last-child { grid-column: auto; flex-wrap: wrap; }
+  .game-prank-grid, .dino-admin-tuning { grid-template-columns: 1fr; }
+  .game-prank-card > div:last-child { flex-wrap: wrap; }
+  .dino-admin-tuning > div, .dino-admin-tuning > button { grid-column: auto; }
   .game-admin > .message { grid-column: auto; }
   .game-wallet-hint { grid-template-columns: 1fr; }
   .game-wallet-hint > strong { justify-self: start; }
