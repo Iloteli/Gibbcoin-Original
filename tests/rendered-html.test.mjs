@@ -136,6 +136,22 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
   assert.match(deletionFunction, /admin_authorize_account_deletion/);
 });
 
+test("prevents normal Admins from self-credit while preserving Owner self-credit", async () => {
+  const [adminPanel, migration] = await Promise.all([
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825075432_prevent_admin_self_credit.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /p_amount > 0[\s\S]*p_target_user_id = v_admin_user_id[\s\S]*v_admin_role = 'admin'/);
+  assert.match(migration, /cannot_credit_own_coins/);
+  assert.match(migration, /set search_path = ''/);
+  assert.match(migration, /revoke all on function public\.admin_adjust_balance_secure/);
+  assert.match(adminPanel, /currentRole === "super_admin" \? filteredUsers : filteredUsers\.filter/);
+  assert.match(adminPanel, /Admins dürfen ihrem eigenen Konto keine Coins gutschreiben/);
+  assert.match(adminPanel, /Eigengutschriften sind serverseitig gesperrt/);
+  assert.match(adminPanel, /currentRole === "super_admin" \? <button[\s\S]*Mir selbst Coins geben/);
+  assert.match(adminPanel, /Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben/);
+});
+
 test("organizes every feature into a Home-first dashboard without removing sections", async () => {
   const dashboard = await readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8");
   assert.match(dashboard, /type DashboardView = "home"/);
