@@ -973,6 +973,15 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .game-switches button.on > i { background: rgba(117,245,154,.24); }
 .game-switches button.on > i em { background: var(--green); transform: translateX(12px); box-shadow: 0 0 8px rgba(117,245,154,.5); }
 .game-switches button > u { position: absolute; inset: 0; display: grid; place-items: center; border-radius: inherit; color: var(--green); background: rgba(5,9,7,.86); font-size: 8px; text-decoration: none; }
+.coin-prank-admin { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px,1fr) minmax(210px,.8fr) minmax(210px,auto); align-items: center; gap: 14px 22px; border: 1px solid rgba(246,200,95,.2); border-radius: 12px; padding: 14px 16px; background: rgba(246,200,95,.035); }
+.coin-prank-admin > div:first-child span, .coin-prank-admin > div:first-child strong, .coin-prank-admin > div:first-child small { display: block; }
+.coin-prank-admin > div:first-child span { color: var(--amber); font-size: 8px; font-weight: 900; letter-spacing: .12em; }
+.coin-prank-admin > div:first-child strong { margin-top: 4px; font-size: 12px; }
+.coin-prank-admin > div:first-child small { margin-top: 3px; color: var(--muted); font-size: 8px; }
+.coin-prank-admin > label { color: var(--muted); font-size: 9px; }
+.coin-prank-admin > label b { color: var(--text); }
+.coin-prank-admin > input { width: 100%; accent-color: var(--amber); }
+.coin-prank-admin > div:last-child { grid-column: 3; display: flex; gap: 7px; }
 .game-admin > .message { grid-column: 1 / -1; margin: -8px 0 0; }
 
 @keyframes roulette-spin { from { transform: rotate(0deg) scale(.96); } to { transform: rotate(1440deg) scale(1); } }
@@ -988,6 +997,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .game-history-list { grid-template-columns: 1fr 1fr; column-gap: 20px; }
   .game-admin { grid-template-columns: 1fr 1fr; }
   .game-switches { grid-column: 1 / -1; }
+  .coin-prank-admin { grid-template-columns: 1fr 1fr; }
+  .coin-prank-admin > div:last-child { grid-column: 1 / -1; }
 }
 
 @media (max-width: 680px) {
@@ -1007,6 +1018,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .game-history-list { grid-template-columns: 1fr; }
   .game-admin { grid-template-columns: 1fr; padding: 22px 20px; }
   .game-switches { grid-column: auto; grid-template-columns: 1fr 1fr; }
+  .coin-prank-admin { grid-template-columns: 1fr; }
+  .coin-prank-admin > div:last-child { grid-column: auto; flex-wrap: wrap; }
   .game-admin > .message { grid-column: auto; }
   .game-wallet-hint { grid-template-columns: 1fr; }
   .game-wallet-hint > strong { justify-self: start; }
