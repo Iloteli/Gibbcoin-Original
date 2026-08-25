@@ -83,7 +83,8 @@ const games: Array<{ key: GameKey; title: string; icon: string; description: str
   { key: "poker", title: "5-Karten-Poker", icon: "♣", description: "Halte starke Karten und ziehe den Rest neu." },
   { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien." },
 ];
-const wagers = [1, 5, 10, 25, 50, 100];
+const MAX_GAME_WAGER = 10_000;
+const wagers = [1, 10, 50, 100, 500, 1_000, 5_000, MAX_GAME_WAGER];
 const DINO_ENTRY_COST = 150;
 
 function gameError(message?: string) {
@@ -99,7 +100,7 @@ function gameError(message?: string) {
   if (message?.includes("dino_score_too_fast")) return "Der Punktestand war schneller als ein echter Lauf und wurde nicht ausgezahlt.";
   if (message?.includes("dino_score")) return "Dieser Dino-Punktestand konnte nicht sicher bestätigt werden.";
   if (message?.includes("dino_session")) return "Dieser Dino-Lauf ist nicht mehr aktiv. Starte einen neuen Lauf.";
-  if (message?.includes("invalid_game_wager")) return "Der Einsatz muss zwischen 1 und 1’000 GIBB liegen.";
+  if (message?.includes("invalid_game_wager")) return "Der Einsatz muss zwischen 1 und 10’000 GIBB liegen.";
   return "Die Runde konnte nicht sicher verbucht werden. Versuche es nochmals.";
 }
 
@@ -247,7 +248,8 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
   const selectedVisible = visibleGames.some((game) => game.key === selectedGame);
   const currentEnabled = centerEnabled && (settings.get(selectedGame)?.enabled ?? false);
   const currentBalance = state?.balance ?? walletBalance;
-  const wagerValid = Number.isInteger(wager) && wager >= 1 && wager <= 1000;
+  const wagerValid = Number.isInteger(wager) && wager >= 1 && wager <= MAX_GAME_WAGER;
+  const allInWager = Math.min(Math.max(Math.floor(currentBalance), 0), MAX_GAME_WAGER);
   const dinoCanStart = currentBalance >= DINO_ENTRY_COST;
   const isAdmin = role === "admin" || role === "super_admin";
   const won = Boolean(lastResult && lastResult.payout > lastResult.wager);
@@ -264,7 +266,7 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
 
   async function playInstant() {
     if (busy || loading || !currentEnabled) return;
-    if (!wagerValid) { setError("Gib einen eigenen Einsatz zwischen 1 und 1’000 GIBB ein."); return; }
+    if (!wagerValid) { setError("Gib einen eigenen Einsatz zwischen 1 und 10’000 GIBB ein."); return; }
     if (currentBalance < wager) { setError("Dein Wallet hat nicht genügend GIBB für diesen Einsatz."); return; }
     const supabase = getSupabase();
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
@@ -289,7 +291,7 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
 
   async function startBlackjack() {
     if (busy || loading || blackjack || !currentEnabled) return;
-    if (!wagerValid) { setError("Gib einen eigenen Einsatz zwischen 1 und 1’000 GIBB ein."); return; }
+    if (!wagerValid) { setError("Gib einen eigenen Einsatz zwischen 1 und 10’000 GIBB ein."); return; }
     if (currentBalance < wager) { setError("Dein Wallet hat nicht genügend GIBB für diesen Einsatz."); return; }
     const supabase = getSupabase();
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
@@ -335,7 +337,7 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
 
   async function startPoker() {
     if (busy || loading || poker || !currentEnabled) return;
-    if (!wagerValid) { setError("Gib einen eigenen Einsatz zwischen 1 und 1’000 GIBB ein."); return; }
+    if (!wagerValid) { setError("Gib einen eigenen Einsatz zwischen 1 und 10’000 GIBB ein."); return; }
     if (currentBalance < wager) { setError("Dein Wallet hat nicht genügend GIBB für diesen Einsatz."); return; }
     const supabase = getSupabase();
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
@@ -524,11 +526,11 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
           <div className="game-controls">
             {selectedGame === "roulette" && <div className="game-choice"><label htmlFor="roulette-choice">Dein Tipp</label><select id="roulette-choice" className="input" value={rouletteChoice} onChange={(event) => setRouletteChoice(event.target.value)} disabled={busy}><option value="rot">Rot · 2×</option><option value="schwarz">Schwarz · 2×</option>{Array.from({ length: 37 }, (_, number) => <option value={number} key={number}>{number} · 36×</option>)}</select></div>}
             {selectedGame === "coin_flip" && <div className="game-choice coin-choice" role="group" aria-label="Münzseite">{["kopf", "zahl"].map((choice) => <button type="button" className={coinChoice === choice ? "active" : ""} key={choice} onClick={() => setCoinChoice(choice)}>{choice === "kopf" ? "Kopf" : "Zahl"} · 2×</button>)}</div>}
-            {selectedGame === "dino_run" ? <div className="dino-reward-rule"><span>EINTRITT · GARANTIERTE PRÄMIE</span><strong>150 GIBB · 1’000 Punkte = 100 GIBB</strong><small>Einmaliger Eintritt pro Lauf · jede Marke serverseitig nur einmal</small></div> : <div className="wager-choice"><label htmlFor="game-wager">Eigener Eintritt · 1 bis 1’000</label><div className="wager-input"><input id="game-wager" className="input" type="number" inputMode="numeric" min={1} max={1000} step={1} value={wager || ""} onChange={(event) => setWager(Number(event.target.value))} disabled={busy || Boolean(blackjack) || Boolean(poker)} aria-describedby="wager-presets" /><span>GIBB</span></div><div className="wager-presets" id="wager-presets" aria-label="Schnelleinsätze">{wagers.map((value) => <button className={wager === value ? "active" : ""} type="button" disabled={busy || Boolean(blackjack) || Boolean(poker)} key={value} onClick={() => setWager(value)}>{value}</button>)}</div></div>}
+            {selectedGame === "dino_run" ? <div className="dino-reward-rule"><span>EINTRITT · GARANTIERTE PRÄMIE</span><strong>150 GIBB · 1’000 Punkte = 100 GIBB</strong><small>Einmaliger Eintritt pro Lauf · jede Marke serverseitig nur einmal</small></div> : <div className="wager-choice"><label htmlFor="game-wager">Eigener Eintritt · 1 bis 10’000</label><div className="wager-input"><input id="game-wager" className="input" type="number" inputMode="numeric" min={1} max={MAX_GAME_WAGER} step={1} value={wager || ""} onChange={(event) => setWager(Number(event.target.value))} disabled={busy || Boolean(blackjack) || Boolean(poker)} aria-describedby="wager-presets" /><span>GIBB</span></div><div className="wager-presets" id="wager-presets" aria-label="Schnelleinsätze">{wagers.map((value) => <button className={wager === value ? "active" : ""} type="button" disabled={busy || Boolean(blackjack) || Boolean(poker)} key={value} onClick={() => setWager(value)}>{value.toLocaleString("de-CH")}</button>)}<button className={`wager-all-in ${wager === allInWager && allInWager > 0 ? "active" : ""}`} type="button" aria-label={`All-in mit ${allInWager.toLocaleString("de-CH")} GIBB`} disabled={busy || Boolean(blackjack) || Boolean(poker) || allInWager < 1} onClick={() => setWager(allInWager)}>All-in · {allInWager.toLocaleString("de-CH")}</button></div></div>}
             {selectedGame === "blackjack" && blackjack ? <div className="blackjack-actions"><button type="button" className="primary" disabled={busy} onClick={() => void actBlackjack("hit")}>Karte ziehen</button><button type="button" className="secondary" disabled={busy} onClick={() => void actBlackjack("stand")}>Halten</button></div> : selectedGame === "poker" && poker ? <div className="poker-actions"><button type="button" className="primary" disabled={busy} onClick={() => void drawPoker()}>{busy ? "Karten werden gezogen …" : heldPokerCards.size === 5 ? "Hand auswerten" : `${5 - heldPokerCards.size} Karte${5 - heldPokerCards.size === 1 ? "" : "n"} neu ziehen`}</button></div> : <button className="primary game-play" type="button" disabled={busy || loading || !currentEnabled || Boolean(dino) || (selectedGame === "dino_run" && !dinoCanStart)} onClick={() => void (selectedGame === "blackjack" ? startBlackjack() : selectedGame === "poker" ? startPoker() : selectedGame === "dino_run" ? startDinoRun() : playInstant())}><span>{busy ? "Runde läuft …" : loading ? "Wallet wird verbunden …" : selectedGame === "dino_run" ? dino ? "Dino läuft …" : dinoCanStart ? `Dino Run starten · ${DINO_ENTRY_COST} GIBB` : `${DINO_ENTRY_COST} GIBB benötigt` : wagerValid ? `Runde starten · ${wager} GIBB` : "Einsatz eingeben"}</span><i aria-hidden="true">→</i></button>}
           </div>
 
-          <div className={`game-wallet-hint ${selectedGame === "dino_run" ? dino || dinoCanStart ? "ready" : "insufficient" : wagerValid && currentBalance >= wager ? "ready" : "insufficient"}`}><span>{selectedGame === "dino_run" ? dino ? "Lauf aktiv · Eintritt bezahlt" : dinoCanStart ? "150 GIBB Eintritt bereit" : "150 GIBB erforderlich" : !wagerValid ? "Einsatz prüfen" : currentBalance < wager ? "Guthaben reicht noch nicht" : "Bereit zum Spielen"}</span><strong>{new Intl.NumberFormat("de-CH").format(currentBalance)} GIBB im Haupt-Wallet</strong>{selectedGame === "dino_run" ? <small>{dino ? "Jede bestätigte 1’000er-Marke bringt automatisch 100 GIBB." : dinoCanStart ? "Der Server zieht den Eintritt beim Start genau einmal ab." : "Sammle oder empfange zuerst genügend Coins für den Eintritt."}</small> : !wagerValid ? <small>Erlaubt sind ganze Beträge zwischen 1 und 1’000 GIBB.</small> : currentBalance < wager && <small>Gib einen kleineren eigenen Betrag ein oder fordere Coins an.</small>}</div>
+          <div className={`game-wallet-hint ${selectedGame === "dino_run" ? dino || dinoCanStart ? "ready" : "insufficient" : wagerValid && currentBalance >= wager ? "ready" : "insufficient"}`}><span>{selectedGame === "dino_run" ? dino ? "Lauf aktiv · Eintritt bezahlt" : dinoCanStart ? "150 GIBB Eintritt bereit" : "150 GIBB erforderlich" : !wagerValid ? "Einsatz prüfen" : currentBalance < wager ? "Guthaben reicht noch nicht" : "Bereit zum Spielen"}</span><strong>{new Intl.NumberFormat("de-CH").format(currentBalance)} GIBB im Haupt-Wallet</strong>{selectedGame === "dino_run" ? <small>{dino ? "Jede bestätigte 1’000er-Marke bringt automatisch 100 GIBB." : dinoCanStart ? "Der Server zieht den Eintritt beim Start genau einmal ab." : "Sammle oder empfange zuerst genügend Coins für den Eintritt."}</small> : !wagerValid ? <small>Erlaubt sind ganze Beträge zwischen 1 und 10’000 GIBB.</small> : currentBalance < wager && <small>Gib einen kleineren eigenen Betrag ein oder fordere Coins an.</small>}</div>
 
           {dinoRewardNotice && selectedGame === "dino_run" && <p className="message success-message dino-reward-notice" role="status">✓ {dinoRewardNotice}</p>}
           {lastResult && (lastResult.game_key === "dino_run" ? <div className={`game-result ${lastResult.net > 0 ? "win" : lastResult.net === 0 ? "push" : "loss"}`} role="status"><i className="result-flare" aria-hidden="true" /><div><span>DINO RUN BEENDET</span><strong>{Number(lastResult.result.score ?? 0).toLocaleString("de-CH")} Punkte</strong></div><p>Eintritt {lastResult.wager.toLocaleString("de-CH")} · Prämie {lastResult.payout.toLocaleString("de-CH")} GIBB · Netto {lastResult.net > 0 ? "+" : ""}{lastResult.net}</p></div> : <div className={`game-result ${lastResult.net > 0 ? "win" : lastResult.net === 0 ? "push" : "loss"}`} role="status"><i className="result-flare" aria-hidden="true" /><div><span>{lastResult.net > 0 ? "JACKPOT · GEWONNEN" : lastResult.net === 0 ? "GLEICHSTAND" : "RUNDE BEENDET"}</span><strong>{lastResult.net > 0 ? "+" : ""}{lastResult.net} GIBB</strong></div><p>Einsatz {lastResult.wager} · Auszahlung {lastResult.payout} GIBB</p></div>)}
