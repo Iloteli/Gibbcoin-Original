@@ -30,7 +30,7 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with live admin controls", async () => {
-  const [dashboard, gameCenter, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration] = await Promise.all([
+  const [dashboard, gameCenter, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822170000_add_wallet_game_center.sql", import.meta.url), "utf8"),
@@ -38,6 +38,7 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
     readFile(new URL("../supabase/migrations/20260824122242_complete_admin_controls_and_poker.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825125502_allow_ten_thousand_gibb_game_wagers.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825130944_remove_game_wager_limit.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825135211_add_visible_coin_flip_loss_mode.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -62,6 +63,12 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
   assert.match(gameCenter, /All-in · \{allInWager\.toLocaleString\("de-CH"\)\}/);
   assert.doesNotMatch(gameCenter, /currentBalance < wager\}/);
   assert.match(gameCenter, /Eigener Eintritt · kein Limit/);
+  assert.doesNotMatch(gameCenter, /1%-GEWINNMODUS AKTIV/);
+  assert.match(gameCenter, /ADMIN &amp; OWNER · SPASSMODUS/);
+  assert.match(gameCenter, /Gewinn <b>\{prankWinChance\} %/);
+  assert.match(gameCenter, /Verlust <b>\{100 - prankWinChance\} %/);
+  assert.match(gameCenter, /admin_set_coin_flip_prank/);
+  assert.match(gameCenter, /get_coin_flip_prank_admin_state/);
   assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} step=\{1\}/);
   assert.doesNotMatch(gameCenter, /id="game-wager"[^>]* max=/);
   assert.match(gameCenter, /game-ambient/);
@@ -86,6 +93,15 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
   assert.match(unlimitedWagerMigration, /check \(wager > 0\)/);
   assert.match(unlimitedWagerMigration, /check \(payout >= 0\)/);
   assert.match(unlimitedWagerMigration, /replace\(v_definition, ' or p_wager > 10000', ''\)/);
+  assert.match(coinLossModeMigration, /create table if not exists private\.coin_flip_prank_settings/);
+  assert.match(coinLossModeMigration, /private\.game_random\(100\) < v_prank_win_chance/);
+  assert.match(coinLossModeMigration, /case p_choice when 'kopf' then 'zahl' else 'kopf' end/);
+  assert.match(coinLossModeMigration, /case private\.game_random\(2\) when 0 then 'kopf' else 'zahl' end/);
+  assert.match(coinLossModeMigration, /'balance', v_wallet\.balance/);
+  assert.match(coinLossModeMigration, /'entry_transaction_id', null, 'reward_transaction_id', null/);
+  assert.match(coinLossModeMigration, /create or replace function public\.admin_set_coin_flip_prank/);
+  assert.match(coinLossModeMigration, /private\.require_admin\(\)/);
+  assert.match(coinLossModeMigration, /private\.check_admin_pin/);
   assert.doesNotMatch(gameCenter, /Math\.random/);
 });
 
