@@ -1,6 +1,6 @@
 do $$
 declare
-  v_owner_user_id uuid := 'ghg';
+  v_owner_user_id uuid := 'd465d88f-0acb-4bff-ad55-945761acaeea';
   v_old_role text;
 begin
   select p.role
