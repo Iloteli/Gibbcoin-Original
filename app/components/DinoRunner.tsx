@@ -6,6 +6,8 @@ type Props = {
   sessionId: string;
   seed: number;
   running: boolean;
+  speedLevel: number;
+  difficultyLevel: number;
   onProgress: (score: number) => void;
   onCrash: (score: number) => void;
 };
@@ -18,11 +20,11 @@ const SPEED_SCORE_DIVISOR = 12;
 const JUMP_VELOCITY = -615;
 const GRAVITY = 1900;
 
-function difficultyLevel(score: number) {
+function scoreDifficultyStage(score: number) {
   return Math.min(6, Math.floor(score / 500) + 1);
 }
 
-export function DinoRunner({ sessionId, seed, running, onProgress, onCrash }: Props) {
+export function DinoRunner({ sessionId, seed, running, speedLevel, difficultyLevel, onProgress, onCrash }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const jumpRef = useRef<() => void>(() => undefined);
   const finishRef = useRef<() => void>(() => undefined);
@@ -52,6 +54,10 @@ export function DinoRunner({ sessionId, seed, running, onProgress, onCrash }: Pr
     let velocityY = 0;
     let randomState = (seed || 1) >>> 0;
     let nextObstacleGap = 360;
+    const safeSpeedLevel = Math.max(1, Math.min(5, speedLevel));
+    const safeDifficultyLevel = Math.max(1, Math.min(5, difficultyLevel));
+    const speedMultiplier = 1 + (safeSpeedLevel - 1) * 0.16;
+    const difficultyBonus = (safeDifficultyLevel - 1) * 22;
     const obstacles: Obstacle[] = [];
     const stars = Array.from({ length: 34 }, (_, index) => ({
       x: ((index * 97 + seed * 13) % 997) / 997,
@@ -167,7 +173,7 @@ export function DinoRunner({ sessionId, seed, running, onProgress, onCrash }: Pr
       previousTime = now;
       playedSeconds += delta;
       const currentScore = Math.floor(playedSeconds * 50);
-      const speed = BASE_SPEED + Math.min(currentScore / SPEED_SCORE_DIVISOR, MAX_SPEED_BONUS);
+      const speed = BASE_SPEED * speedMultiplier + Math.min(currentScore / SPEED_SCORE_DIVISOR, MAX_SPEED_BONUS * speedMultiplier);
       const groundY = height - 98;
 
       velocityY += GRAVITY * delta;
@@ -178,15 +184,15 @@ export function DinoRunner({ sessionId, seed, running, onProgress, onCrash }: Pr
       while (obstacles.length && obstacles[0].x + obstacles[0].width < -10) obstacles.shift();
       const last = obstacles[obstacles.length - 1];
       if (!last || width - last.x >= nextObstacleGap) {
-        const clustered = nextRandom() > 0.68;
-        const tall = !clustered && nextRandom() > 0.42;
+        const clustered = nextRandom() > 0.68 - (safeDifficultyLevel - 1) * 0.08;
+        const tall = !clustered && nextRandom() > 0.42 - (safeDifficultyLevel - 1) * 0.05;
         obstacles.push({
           x: width + 30,
-          width: clustered ? 44 + Math.floor(nextRandom() * 18) : tall ? 27 : 22 + Math.floor(nextRandom() * 15),
-          height: clustered ? 36 + Math.floor(nextRandom() * 12) : tall ? 62 + Math.floor(nextRandom() * 11) : 42 + Math.floor(nextRandom() * 15),
+          width: clustered ? 44 + difficultyBonus * 0.2 + Math.floor(nextRandom() * 18) : tall ? 27 : 22 + Math.floor(nextRandom() * 15),
+          height: clustered ? 36 + difficultyBonus * 0.12 + Math.floor(nextRandom() * 12) : tall ? 62 + difficultyBonus * 0.16 + Math.floor(nextRandom() * 11) : 42 + difficultyBonus * 0.12 + Math.floor(nextRandom() * 15),
         });
-        const shrinkingGap = Math.max(235, 305 - Math.floor(currentScore / 35));
-        nextObstacleGap = shrinkingGap + Math.floor(nextRandom() * 155);
+        const shrinkingGap = Math.max(175, 305 - difficultyBonus - Math.floor(currentScore / 35));
+        nextObstacleGap = shrinkingGap + Math.floor(nextRandom() * Math.max(75, 155 - (safeDifficultyLevel - 1) * 20));
       }
 
       const dinoLeft = 77;
@@ -228,13 +234,14 @@ export function DinoRunner({ sessionId, seed, running, onProgress, onCrash }: Pr
       jumpRef.current = () => undefined;
       finishRef.current = () => undefined;
     };
-  }, [running, seed, sessionId]);
+  }, [difficultyLevel, running, seed, sessionId, speedLevel]);
 
   return (
     <div className={`dino-runner ${crashed ? "crashed" : ""}`}>
       <div className="dino-scoreboard" aria-live="polite">
         <span>PUNKTE</span><strong>{score.toLocaleString("de-CH")}</strong>
-        <small>Schwierigkeit: Stufe {difficultyLevel(score)} von 6</small>
+        <small>Tempo: Stufe {Math.max(1, Math.min(5, speedLevel))} von 5</small>
+        <small>Schwierigkeit: {Math.max(1, Math.min(5, difficultyLevel))}/5 · Laufstufe {scoreDifficultyStage(score)}/6</small>
         <small>Nächste Prämie bei {(Math.floor(score / 1000) + 1).toLocaleString("de-CH")}</small>
       </div>
       <canvas

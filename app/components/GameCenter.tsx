@@ -5,6 +5,7 @@ import { getSupabase } from "../lib/supabase";
 import { DinoRunner } from "./DinoRunner";
 
 type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "dino_run";
+type PrankGameKey = Exclude<GameKey, "dino_run">;
 type SettingKey = "game_center" | GameKey;
 type Role = "user" | "admin" | "super_admin";
 type GameSetting = { game_key: SettingKey; label: string; enabled: boolean; updated_at: string };
@@ -49,6 +50,8 @@ type DinoState = {
   balance: number;
   status: "active" | "finished" | "abandoned";
   game_key: "dino_run";
+  speed_level: number;
+  difficulty_level: number;
 };
 type CenterState = {
   balance: number;
@@ -67,7 +70,22 @@ type GameResult = {
   balance: number;
 };
 type SecureResult = { ok?: boolean; error?: string };
-type PrankAdminState = { ok: boolean; enabled: boolean; win_chance: number };
+type PrankScope = "all" | "user";
+type PrankAdminSetting = {
+  game_key: PrankGameKey;
+  label: string;
+  enabled: boolean;
+  win_chance: number;
+  scope: PrankScope;
+  target_username: string | null;
+  target_display_name: string | null;
+};
+type DinoAdminSetting = { speed_level: number; difficulty_level: number };
+type GameExtrasAdminState = {
+  ok: boolean;
+  games: PrankAdminSetting[];
+  dino: DinoAdminSetting;
+};
 
 type Props = {
   role: Role;
@@ -174,11 +192,12 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
   const [error, setError] = useState("");
   const [animationKey, setAnimationKey] = useState(0);
   const [adminPin, setAdminPin] = useState("");
-  const [adminBusy, setAdminBusy] = useState<SettingKey | "coin_flip_prank" | null>(null);
+  const [adminBusy, setAdminBusy] = useState<string | null>(null);
   const [adminMessage, setAdminMessage] = useState("");
   const [adminError, setAdminError] = useState("");
-  const [prankAdminState, setPrankAdminState] = useState<PrankAdminState | null>(null);
-  const [prankWinChance, setPrankWinChance] = useState(1);
+  const [prankAdminSettings, setPrankAdminSettings] = useState<PrankAdminSetting[]>([]);
+  const [effectivePrankGames, setEffectivePrankGames] = useState<Set<PrankGameKey>>(() => new Set());
+  const [dinoAdminSetting, setDinoAdminSetting] = useState<DinoAdminSetting>({ speed_level: 1, difficulty_level: 1 });
   const activeRoundRef = useRef(false);
   const pendingLiveRefreshRef = useRef(false);
   const dinoRef = useRef<DinoState | null>(null);
@@ -217,6 +236,25 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
     const timer = window.setTimeout(() => void loadState(), 0);
     return () => window.clearTimeout(timer);
   }, [loadState]);
+
+  const loadEffectivePranks = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data, error: rpcError } = await supabase.rpc("get_effective_visual_pranks");
+    if (rpcError) return;
+    const next = data as { ok?: boolean; games?: PrankGameKey[] } | null;
+    if (!next?.ok || !Array.isArray(next.games)) return;
+    setEffectivePrankGames(new Set(next.games));
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadEffectivePranks(), 0);
+    const interval = window.setInterval(() => void loadEffectivePranks(), 10_000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
+  }, [loadEffectivePranks]);
 
   useEffect(() => {
     activeRoundRef.current = busy || Boolean(blackjack) || Boolean(poker) || Boolean(dino);
@@ -357,6 +395,48 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
     await Promise.all([loadState(), onChanged()]);
   }
 
+  async function playVisualPrank() {
+    if (busy || loading || !currentEnabled || selectedGame === "dino_run") return;
+    if (!wagerValid) { setError("Gib einen positiven ganzen Einsatz ein."); return; }
+    if (currentBalance < wager) { setError("Dein Wallet hat nicht genügend GIBB für diesen Einsatz."); return; }
+    const supabase = getSupabase();
+    if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
+    const choice = selectedGame === "roulette" ? rouletteChoice : selectedGame === "coin_flip" ? coinChoice : "spielen";
+    activeRoundRef.current = true;
+    setBusy(true); setError(""); setLastResult(null); setAnimationKey((key) => key + 1);
+    const [{ data, error: rpcError }] = await Promise.all([
+      supabase.rpc("play_visual_prank_game", {
+        p_game_key: selectedGame,
+        p_choice: choice,
+        p_wager: wager,
+      }),
+      holdAnimation(1150),
+    ]);
+    setBusy(false);
+    if (rpcError) {
+      await loadEffectivePranks();
+      setError(gameError(rpcError.message));
+      return;
+    }
+    const result = data as GameResult;
+    setBlackjack(null);
+    setPoker(null);
+    setHeldPokerCards(new Set());
+    setLastResult(result);
+    setState((current) => current ? { ...current, balance: result.balance } : current);
+    await loadState();
+  }
+
+  function startSelectedGame() {
+    if (selectedGame !== "dino_run" && effectivePrankGames.has(selectedGame)) {
+      return playVisualPrank();
+    }
+    if (selectedGame === "blackjack") return startBlackjack();
+    if (selectedGame === "poker") return startPoker();
+    if (selectedGame === "dino_run") return startDinoRun();
+    return playInstant();
+  }
+
   function togglePokerCard(position: number) {
     if (!poker || busy) return;
     setHeldPokerCards((current) => {
@@ -471,45 +551,76 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
     else await loadState();
   }
 
-  const loadPrankAdminState = useCallback(async () => {
+  const loadGameExtrasAdminState = useCallback(async () => {
     if (role !== "admin" && role !== "super_admin") return;
     const supabase = getSupabase();
     if (!supabase) return;
-    const { data, error: rpcError } = await supabase.rpc("get_coin_flip_prank_admin_state");
+    const { data, error: rpcError } = await supabase.rpc("get_game_extras_admin_state");
     if (rpcError) return;
-    const next = data as PrankAdminState;
+    const next = data as GameExtrasAdminState;
     if (!next?.ok) return;
-    setPrankAdminState(next);
-    setPrankWinChance(next.win_chance);
+    setPrankAdminSettings(next.games);
+    setDinoAdminSetting(next.dino);
   }, [role]);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => void loadPrankAdminState(), 0);
+    const timer = window.setTimeout(() => void loadGameExtrasAdminState(), 0);
     return () => window.clearTimeout(timer);
-  }, [loadPrankAdminState]);
+  }, [loadGameExtrasAdminState]);
 
-  async function savePrankSettings(enabled: boolean) {
+  function updatePrankDraft(gameKey: PrankGameKey, patch: Partial<PrankAdminSetting>) {
+    setPrankAdminSettings((current) => current.map((setting) => (
+      setting.game_key === gameKey ? { ...setting, ...patch } : setting
+    )));
+  }
+
+  async function savePrankSettings(setting: PrankAdminSetting, enabled = setting.enabled) {
     if (!/^\d{4}$/.test(adminPin)) { setAdminError("Gib zuerst deinen vierstelligen Admin-PIN ein."); return; }
-    if (!Number.isInteger(prankWinChance) || prankWinChance < 0 || prankWinChance > 100) { setAdminError("Die Gewinnchance muss zwischen 0 und 100 Prozent liegen."); return; }
+    if (!Number.isInteger(setting.win_chance) || setting.win_chance < 0 || setting.win_chance > 100) { setAdminError("Die Gewinnchance muss zwischen 0 und 100 Prozent liegen."); return; }
+    if (setting.scope === "user" && !setting.target_username?.trim()) { setAdminError("Gib für diesen Modus einen Benutzernamen ein."); return; }
     const supabase = getSupabase();
     if (!supabase) return;
-    setAdminBusy("coin_flip_prank"); setAdminError(""); setAdminMessage("");
-    const { data, error: rpcError } = await supabase.rpc("admin_set_coin_flip_prank", {
+    setAdminBusy(`prank:${setting.game_key}`); setAdminError(""); setAdminMessage("");
+    const { data, error: rpcError } = await supabase.rpc("admin_set_game_visual_prank", {
+      p_game_key: setting.game_key,
       p_enabled: enabled,
-      p_win_chance: prankWinChance,
+      p_win_chance: setting.win_chance,
+      p_scope: setting.scope,
+      p_target_username: setting.scope === "user" ? setting.target_username?.trim() ?? "" : "",
+      p_pin: adminPin,
+    });
+    setAdminBusy(null); setAdminPin("");
+    const result = data as SecureResult | null;
+    const resultError = result?.error ?? rpcError?.message;
+    if (rpcError || !result?.ok) {
+      setAdminError(resultError?.includes("target_user_not_found") ? "Dieser Benutzername wurde nicht gefunden." : resultError?.includes("target_username_required") ? "Gib einen Benutzernamen ein." : pinError(resultError));
+      return;
+    }
+    setAdminMessage(`${setting.label}: visueller Modus ${enabled ? "aktiv" : "aus"} · ${setting.win_chance} % Gewinn · ${setting.scope === "all" ? "für alle" : `nur für @${setting.target_username}`}.`);
+    await Promise.all([loadGameExtrasAdminState(), loadEffectivePranks()]);
+  }
+
+  async function saveDinoSettings() {
+    if (!/^\d{4}$/.test(adminPin)) { setAdminError("Gib zuerst deinen vierstelligen Admin-PIN ein."); return; }
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setAdminBusy("dino:tuning"); setAdminError(""); setAdminMessage("");
+    const { data, error: rpcError } = await supabase.rpc("admin_set_dino_game_settings", {
+      p_speed_level: dinoAdminSetting.speed_level,
+      p_difficulty_level: dinoAdminSetting.difficulty_level,
       p_pin: adminPin,
     });
     setAdminBusy(null); setAdminPin("");
     const result = data as SecureResult | null;
     if (rpcError || !result?.ok) { setAdminError(pinError(result?.error ?? rpcError?.message)); return; }
-    setAdminMessage(`Münzwurf-Spaßmodus ${enabled ? "aktiviert" : "deaktiviert"}: ${prankWinChance} % Gewinn, ${100 - prankWinChance} % Verlust.`);
-    await loadPrankAdminState();
+    setAdminMessage(`Dino Run gespeichert: Tempo ${dinoAdminSetting.speed_level}/5 · Schwierigkeit ${dinoAdminSetting.difficulty_level}/5. Gilt ab dem nächsten Lauf.`);
+    await loadGameExtrasAdminState();
   }
 
   function renderStage() {
     if (selectedGame === "dino_run") {
       const finishedScore = lastResult?.game_key === "dino_run" ? Number(lastResult.result.score ?? 0) : 0;
-      return <div className="game-stage dino-stage">{dino ? <DinoRunner sessionId={dino.id} seed={dino.seed} running={dino.status === "active"} onProgress={(score) => syncDinoScore(score, false)} onCrash={(score) => syncDinoScore(score, true)} /> : <div className="dino-ready"><span aria-hidden="true">▰</span><strong>{finishedScore > 0 ? `${finishedScore.toLocaleString("de-CH")} Punkte` : "Bereit für den schweren Lauf"}</strong><p>Der Eintritt kostet 150 GIBB. Danach steigt das Tempo schnell, die Abstände werden enger und alle 1’000 Punkte bringen 100 GIBB.</p></div>}</div>;
+      return <div className="game-stage dino-stage">{dino ? <DinoRunner sessionId={dino.id} seed={dino.seed} running={dino.status === "active"} speedLevel={dino.speed_level} difficultyLevel={dino.difficulty_level} onProgress={(score) => syncDinoScore(score, false)} onCrash={(score) => syncDinoScore(score, true)} /> : <div className="dino-ready"><span aria-hidden="true">▰</span><strong>{finishedScore > 0 ? `${finishedScore.toLocaleString("de-CH")} Punkte` : "Bereit für den schweren Lauf"}</strong><p>Der Eintritt kostet 150 GIBB. Danach steigt das Tempo schnell, die Abstände werden enger und alle 1’000 Punkte bringen 100 GIBB.</p></div>}</div>;
     }
     if (selectedGame === "roulette") {
       const number = lastResult?.game_key === "roulette" ? Number(lastResult.result.number) : null;
@@ -564,7 +675,7 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
             {selectedGame === "roulette" && <div className="game-choice"><label htmlFor="roulette-choice">Dein Tipp</label><select id="roulette-choice" className="input" value={rouletteChoice} onChange={(event) => setRouletteChoice(event.target.value)} disabled={busy}><option value="rot">Rot · 2×</option><option value="schwarz">Schwarz · 2×</option>{Array.from({ length: 37 }, (_, number) => <option value={number} key={number}>{number} · 36×</option>)}</select></div>}
             {selectedGame === "coin_flip" && <div className="game-choice coin-choice" role="group" aria-label="Münzseite">{["kopf", "zahl"].map((choice) => <button type="button" className={coinChoice === choice ? "active" : ""} key={choice} onClick={() => setCoinChoice(choice)}>{choice === "kopf" ? "Kopf" : "Zahl"} · 2×</button>)}</div>}
             {selectedGame === "dino_run" ? <div className="dino-reward-rule"><span>EINTRITT · GARANTIERTE PRÄMIE</span><strong>150 GIBB · 1’000 Punkte = 100 GIBB</strong><small>Einmaliger Eintritt pro Lauf · jede Marke serverseitig nur einmal</small></div> : <div className="wager-choice"><label htmlFor="game-wager">Eigener Eintritt · kein Limit</label><div className="wager-input"><input id="game-wager" className="input" type="number" inputMode="numeric" min={1} step={1} value={wager || ""} onChange={(event) => setWager(Number(event.target.value))} disabled={busy || Boolean(blackjack) || Boolean(poker)} aria-describedby="wager-presets" /><span>GIBB</span></div><div className="wager-presets" id="wager-presets" aria-label="Schnelleinsätze">{wagers.map((value) => <button className={wager === value ? "active" : ""} type="button" disabled={busy || Boolean(blackjack) || Boolean(poker)} key={value} onClick={() => setWager(value)}>{value.toLocaleString("de-CH")}</button>)}<button className={`wager-all-in ${wager === allInWager && allInWager > 0 ? "active" : ""}`} type="button" aria-label={`All-in mit ${allInWager.toLocaleString("de-CH")} GIBB`} disabled={busy || Boolean(blackjack) || Boolean(poker) || allInWager < 1} onClick={() => setWager(allInWager)}>All-in · {allInWager.toLocaleString("de-CH")}</button></div></div>}
-            {selectedGame === "blackjack" && blackjack ? <div className="blackjack-actions"><button type="button" className="primary" disabled={busy} onClick={() => void actBlackjack("hit")}>Karte ziehen</button><button type="button" className="secondary" disabled={busy} onClick={() => void actBlackjack("stand")}>Halten</button></div> : selectedGame === "poker" && poker ? <div className="poker-actions"><button type="button" className="primary" disabled={busy} onClick={() => void drawPoker()}>{busy ? "Karten werden gezogen …" : heldPokerCards.size === 5 ? "Hand auswerten" : `${5 - heldPokerCards.size} Karte${5 - heldPokerCards.size === 1 ? "" : "n"} neu ziehen`}</button></div> : <button className="primary game-play" type="button" disabled={busy || loading || !currentEnabled || Boolean(dino) || (selectedGame === "dino_run" && !dinoCanStart)} onClick={() => void (selectedGame === "blackjack" ? startBlackjack() : selectedGame === "poker" ? startPoker() : selectedGame === "dino_run" ? startDinoRun() : playInstant())}><span>{busy ? "Runde läuft …" : loading ? "Wallet wird verbunden …" : selectedGame === "dino_run" ? dino ? "Dino läuft …" : dinoCanStart ? `Dino Run starten · ${DINO_ENTRY_COST} GIBB` : `${DINO_ENTRY_COST} GIBB benötigt` : wagerValid ? `Runde starten · ${wager} GIBB` : "Einsatz eingeben"}</span><i aria-hidden="true">→</i></button>}
+            {selectedGame === "blackjack" && blackjack ? <div className="blackjack-actions"><button type="button" className="primary" disabled={busy} onClick={() => void actBlackjack("hit")}>Karte ziehen</button><button type="button" className="secondary" disabled={busy} onClick={() => void actBlackjack("stand")}>Halten</button></div> : selectedGame === "poker" && poker ? <div className="poker-actions"><button type="button" className="primary" disabled={busy} onClick={() => void drawPoker()}>{busy ? "Karten werden gezogen …" : heldPokerCards.size === 5 ? "Hand auswerten" : `${5 - heldPokerCards.size} Karte${5 - heldPokerCards.size === 1 ? "" : "n"} neu ziehen`}</button></div> : <button className="primary game-play" type="button" disabled={busy || loading || !currentEnabled || Boolean(dino) || (selectedGame === "dino_run" && !dinoCanStart)} onClick={() => void startSelectedGame()}><span>{busy ? "Runde läuft …" : loading ? "Wallet wird verbunden …" : selectedGame === "dino_run" ? dino ? "Dino läuft …" : dinoCanStart ? `Dino Run starten · ${DINO_ENTRY_COST} GIBB` : `${DINO_ENTRY_COST} GIBB benötigt` : wagerValid ? `Runde starten · ${wager} GIBB` : "Einsatz eingeben"}</span><i aria-hidden="true">→</i></button>}
           </div>
 
           <div className={`game-wallet-hint ${selectedGame === "dino_run" ? dino || dinoCanStart ? "ready" : "insufficient" : wagerValid && currentBalance >= wager ? "ready" : "insufficient"}`}><span>{selectedGame === "dino_run" ? dino ? "Lauf aktiv · Eintritt bezahlt" : dinoCanStart ? "150 GIBB Eintritt bereit" : "150 GIBB erforderlich" : !wagerValid ? "Einsatz prüfen" : currentBalance < wager ? "Guthaben reicht noch nicht" : "Bereit zum Spielen"}</span><strong>{new Intl.NumberFormat("de-CH").format(currentBalance)} GIBB im Haupt-Wallet</strong>{selectedGame === "dino_run" ? <small>{dino ? "Jede bestätigte 1’000er-Marke bringt automatisch 100 GIBB." : dinoCanStart ? "Der Server zieht den Eintritt beim Start genau einmal ab." : "Sammle oder empfange zuerst genügend Coins für den Eintritt."}</small> : !wagerValid ? <small>Erlaubt sind positive ganze Beträge ohne feste Obergrenze.</small> : currentBalance < wager && <small>Gib einen kleineren eigenen Betrag ein oder fordere Coins an.</small>}</div>
@@ -577,7 +688,37 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
         <aside className="game-history"><div className="game-history-head"><div><span>LETZTE RUNDEN</span><h3>Deine Spielhistorie</h3></div><b>{state?.recent_rounds.length ?? 0}</b></div><div className="game-history-list">{(state?.recent_rounds ?? []).length === 0 && <p className="empty">Noch keine Runde gespielt.</p>}{(state?.recent_rounds ?? []).map((round) => <article key={round.id}><span className={`history-icon ${round.payout > round.wager ? "won" : ""}`}>{games.find((game) => game.key === round.game_key)?.icon}</span><div><strong>{gameName(round.game_key)}</strong><small>{resultText(round)} · {new Date(round.created_at).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</small></div><b className={round.payout > round.wager ? "positive" : round.payout < round.wager ? "negative" : ""}>{round.payout - round.wager > 0 ? "+" : ""}{round.payout - round.wager}</b></article>)}</div><p className="game-rules-note">Nur virtuelle GIBB Coins. Kein Kauf, keine Auszahlung, kein Echtgeld.</p></aside>
       </div>
 
-      {isAdmin && <div className="game-admin"><div className="game-admin-intro"><span>ADMIN-STEUERUNG</span><h3>Spiele aktivieren oder deaktivieren</h3><p>Jede Änderung wird geschützt gespeichert und im Admin-Protokoll festgehalten.</p></div><div className="game-admin-pin"><label htmlFor="game-admin-pin">4-stelliger Admin-PIN</label><input id="game-admin-pin" className="input" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" value={adminPin} onChange={(event) => setAdminPin(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="••••" /></div><div className="game-switches">{(state?.settings ?? []).map((setting) => <button type="button" role="switch" aria-checked={setting.enabled} className={setting.enabled ? "on" : ""} disabled={adminBusy !== null} key={setting.game_key} onClick={() => void toggleGame(setting)}><span><b>{setting.label}</b><small>{setting.enabled ? "Aktiv" : "Deaktiviert"}</small></span><i aria-hidden="true"><em /></i>{adminBusy === setting.game_key && <u>Lädt …</u>}</button>)}</div>{prankAdminState && <div className="coin-prank-admin"><div><span>ADMIN &amp; OWNER · SPASSMODUS</span><strong>Münzwurf-Chancen</strong><small>Nur hier sichtbar · verändert weder Wallet noch Coin-Statistiken</small></div><label htmlFor="coin-prank-win-chance">Gewinn <b>{prankWinChance} %</b> · Verlust <b>{100 - prankWinChance} %</b></label><input id="coin-prank-win-chance" type="range" min={0} max={100} step={1} value={prankWinChance} disabled={adminBusy !== null} onChange={(event) => setPrankWinChance(Number(event.target.value))} /><div><button type="button" className={prankAdminState.enabled ? "secondary compact" : "primary compact"} disabled={adminBusy !== null} onClick={() => void savePrankSettings(!prankAdminState.enabled)}>{adminBusy === "coin_flip_prank" ? "Speichert …" : prankAdminState.enabled ? "Spaßmodus ausschalten" : "Spaßmodus einschalten"}</button><button type="button" className="secondary compact" disabled={adminBusy !== null || prankWinChance === prankAdminState.win_chance} onClick={() => void savePrankSettings(prankAdminState.enabled)}>Chance speichern</button></div></div>}{adminMessage && <p className="message success-message" role="status">✓ {adminMessage}</p>}{adminError && <p className="message error" role="alert">{adminError}</p>}</div>}
+      {isAdmin && <div className="game-admin">
+        <div className="game-admin-intro"><span>ADMIN-STEUERUNG</span><h3>Spiele aktivieren oder deaktivieren</h3><p>Jede Änderung wird geschützt gespeichert und im Admin-Protokoll festgehalten.</p></div>
+        <div className="game-admin-pin"><label htmlFor="game-admin-pin">4-stelliger Admin-PIN</label><input id="game-admin-pin" className="input" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" value={adminPin} onChange={(event) => setAdminPin(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="••••" /></div>
+        <div className="game-switches">{(state?.settings ?? []).map((setting) => <button type="button" role="switch" aria-checked={setting.enabled} className={setting.enabled ? "on" : ""} disabled={adminBusy !== null} key={setting.game_key} onClick={() => void toggleGame(setting)}><span><b>{setting.label}</b><small>{setting.enabled ? "Aktiv" : "Deaktiviert"}</small></span><i aria-hidden="true"><em /></i>{adminBusy === setting.game_key && <u>Lädt …</u>}</button>)}</div>
+
+        {prankAdminSettings.length > 0 && <div className="game-prank-admin">
+          <div className="game-prank-heading"><span>ADMIN &amp; OWNER · VISUELLER SPASSMODUS</span><h3>Chancen pro Spiel einstellen</h3><p>Nur diese Steuerung zeigt den Modus. Wallet, Coin-Statistik, Transaktionsverlauf und Spielhistorie bleiben unverändert. Dino Run ist ausgeschlossen.</p></div>
+          <div className="game-prank-grid">{prankAdminSettings.map((setting) => {
+            const itemBusy = adminBusy === `prank:${setting.game_key}`;
+            return <article className={`game-prank-card ${setting.enabled ? "enabled" : ""}`} key={setting.game_key}>
+              <header><div><span>{games.find((game) => game.key === setting.game_key)?.icon}</span><strong>{setting.label}</strong></div><b>{setting.enabled ? "AN" : "AUS"}</b></header>
+              <label htmlFor={`prank-chance-${setting.game_key}`}>Gewinn <b>{setting.win_chance} %</b> · Verlust <b>{100 - setting.win_chance} %</b></label>
+              <input id={`prank-chance-${setting.game_key}`} type="range" min={0} max={100} step={1} value={setting.win_chance} disabled={adminBusy !== null} onChange={(event) => updatePrankDraft(setting.game_key, { win_chance: Number(event.target.value) })} />
+              <label htmlFor={`prank-scope-${setting.game_key}`}>Gültig für</label>
+              <select id={`prank-scope-${setting.game_key}`} className="input" value={setting.scope} disabled={adminBusy !== null} onChange={(event) => updatePrankDraft(setting.game_key, { scope: event.target.value as PrankScope })}><option value="all">Alle Benutzer</option><option value="user">Nur eine Person</option></select>
+              {setting.scope === "user" && <label className="prank-user-field" htmlFor={`prank-user-${setting.game_key}`}>Benutzername<input id={`prank-user-${setting.game_key}`} className="input" value={setting.target_username ?? ""} disabled={adminBusy !== null} onChange={(event) => updatePrankDraft(setting.game_key, { target_username: event.target.value })} placeholder="z. B. iloteli" /></label>}
+              <div><button type="button" className={setting.enabled ? "secondary compact" : "primary compact"} disabled={adminBusy !== null} onClick={() => void savePrankSettings(setting, !setting.enabled)}>{itemBusy ? "Speichert …" : setting.enabled ? "Ausschalten" : "Einschalten"}</button><button type="button" className="secondary compact" disabled={adminBusy !== null} onClick={() => void savePrankSettings(setting)}>Einstellungen speichern</button></div>
+            </article>;
+          })}</div>
+        </div>}
+
+        <div className="dino-admin-tuning">
+          <div><span>ADMIN &amp; OWNER · DINO RUN</span><h3>Tempo und Schwierigkeit</h3><p>Stufe 1 entspricht dem bisherigen Lauf. Die Einstellung gilt ab dem nächsten Start.</p></div>
+          <label htmlFor="dino-speed-level">Geschwindigkeit <b>{dinoAdminSetting.speed_level}/5</b><input id="dino-speed-level" type="range" min={1} max={5} step={1} value={dinoAdminSetting.speed_level} disabled={adminBusy !== null} onChange={(event) => setDinoAdminSetting((current) => ({ ...current, speed_level: Number(event.target.value) }))} /></label>
+          <label htmlFor="dino-difficulty-level">Schwierigkeit <b>{dinoAdminSetting.difficulty_level}/5</b><input id="dino-difficulty-level" type="range" min={1} max={5} step={1} value={dinoAdminSetting.difficulty_level} disabled={adminBusy !== null} onChange={(event) => setDinoAdminSetting((current) => ({ ...current, difficulty_level: Number(event.target.value) }))} /></label>
+          <button type="button" className="primary compact" disabled={adminBusy !== null} onClick={() => void saveDinoSettings()}>{adminBusy === "dino:tuning" ? "Speichert …" : "Dino-Einstellungen speichern"}</button>
+        </div>
+
+        {adminMessage && <p className="message success-message" role="status">✓ {adminMessage}</p>}
+        {adminError && <p className="message error" role="alert">{adminError}</p>}
+      </div>}
     </section>
   );
 }
