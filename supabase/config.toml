@@ -1,0 +1,14 @@
+[functions.create-checkout-session]
+verify_jwt = true
+
+[functions.admin-account-status]
+verify_jwt = true
+
+[functions.owner-delete-account]
+verify_jwt = true
+
+[functions.admin-send-password-reset]
+verify_jwt = true
+
+[functions.stripe-webhook]
+verify_jwt = false
