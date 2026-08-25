@@ -30,7 +30,7 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with live admin controls", async () => {
-  const [dashboard, gameCenter, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration] = await Promise.all([
+  const [dashboard, gameCenter, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822170000_add_wallet_game_center.sql", import.meta.url), "utf8"),
@@ -39,6 +39,7 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
     readFile(new URL("../supabase/migrations/20260825125502_allow_ten_thousand_gibb_game_wagers.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825130944_remove_game_wager_limit.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825135211_add_visible_coin_flip_loss_mode.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -64,11 +65,15 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
   assert.doesNotMatch(gameCenter, /currentBalance < wager\}/);
   assert.match(gameCenter, /Eigener Eintritt · kein Limit/);
   assert.doesNotMatch(gameCenter, /1%-GEWINNMODUS AKTIV/);
-  assert.match(gameCenter, /ADMIN &amp; OWNER · SPASSMODUS/);
-  assert.match(gameCenter, /Gewinn <b>\{prankWinChance\} %/);
-  assert.match(gameCenter, /Verlust <b>\{100 - prankWinChance\} %/);
-  assert.match(gameCenter, /admin_set_coin_flip_prank/);
-  assert.match(gameCenter, /get_coin_flip_prank_admin_state/);
+  assert.match(gameCenter, /ADMIN &amp; OWNER · VISUELLER SPASSMODUS/);
+  assert.match(gameCenter, /Gewinn <b>\{setting\.win_chance\} %/);
+  assert.match(gameCenter, /Verlust <b>\{100 - setting\.win_chance\} %/);
+  assert.match(gameCenter, /Alle Benutzer/);
+  assert.match(gameCenter, /Nur eine Person/);
+  assert.match(gameCenter, /admin_set_game_visual_prank/);
+  assert.match(gameCenter, /get_game_extras_admin_state/);
+  assert.match(gameCenter, /get_effective_visual_pranks/);
+  assert.match(gameCenter, /play_visual_prank_game/);
   assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} step=\{1\}/);
   assert.doesNotMatch(gameCenter, /id="game-wager"[^>]* max=/);
   assert.match(gameCenter, /game-ambient/);
@@ -102,17 +107,29 @@ test("ships a server-authoritative wallet Game Center with live admin controls",
   assert.match(coinLossModeMigration, /create or replace function public\.admin_set_coin_flip_prank/);
   assert.match(coinLossModeMigration, /private\.require_admin\(\)/);
   assert.match(coinLossModeMigration, /private\.check_admin_pin/);
+  assert.match(extrasMigration, /create table private\.game_prank_settings/);
+  for (const gameKey of ["roulette", "coin_flip", "blackjack", "dice_duel", "high_card", "poker"]) {
+    assert.match(extrasMigration, new RegExp(`'${gameKey}'`));
+  }
+  assert.doesNotMatch(extrasMigration.match(/create table private\.game_prank_settings[\s\S]*?\);/)?.[0] ?? "", /dino_run/);
+  assert.match(extrasMigration, /p_scope is null or p_scope not in \('all', 'user'\)/);
+  assert.match(extrasMigration, /target_user_not_found/);
+  assert.match(extrasMigration, /create or replace function public\.play_visual_prank_game/);
+  const visualFunction = extrasMigration.match(/create or replace function public\.play_visual_prank_game[\s\S]*?\$\$;/)?.[0] ?? "";
+  assert.match(visualFunction, /'visual_only', true/);
+  assert.doesNotMatch(visualFunction, /update public\.wallets|private\.append_transaction|insert into public\.game_rounds/);
   assert.doesNotMatch(gameCenter, /Math\.random/);
 });
 
 test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milestone", async () => {
-  const [gameCenter, runner, migration, entryMigration, startingBalance, login] = await Promise.all([
+  const [gameCenter, runner, migration, entryMigration, startingBalance, login, extrasMigration] = await Promise.all([
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DinoRunner.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260824125717_add_dino_run_rewards.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825063808_charge_dino_run_entry.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260824125832_set_starting_balance_to_ten.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/components/LoginPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
   ]);
   assert.match(gameCenter, /Dino Run/);
   assert.match(gameCenter, /1’000 Punkte = 100 GIBB/);
@@ -126,9 +143,10 @@ test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milest
   assert.match(runner, /const BASE_SPEED = 280/);
   assert.match(runner, /const JUMP_VELOCITY = -615/);
   assert.match(runner, /currentScore \/ SPEED_SCORE_DIVISOR/);
-  assert.match(runner, /Math\.max\(235, 305 - Math\.floor\(currentScore \/ 35\)\)/);
-  assert.match(runner, /const clustered = nextRandom\(\) > 0\.68/);
-  assert.match(runner, /Schwierigkeit: Stufe/);
+  assert.match(runner, /const speedMultiplier = 1 \+ \(safeSpeedLevel - 1\) \* 0\.16/);
+  assert.match(runner, /Math\.max\(175, 305 - difficultyBonus - Math\.floor\(currentScore \/ 35\)\)/);
+  assert.match(runner, /safeDifficultyLevel - 1/);
+  assert.match(runner, /Schwierigkeit: \{Math\.max/);
   assert.match(runner, /Space/);
   assert.doesNotMatch(runner, /Math\.random/);
   assert.match(migration, /create table public\.dino_run_sessions/);
@@ -144,6 +162,12 @@ test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milest
   assert.match(entryMigration, /'GAME_ENTRY'/);
   assert.match(entryMigration, /'wager', v_session\.wager/);
   assert.match(entryMigration, /'dino_run', 'run', v_session\.wager/);
+  assert.match(gameCenter, /admin_set_dino_game_settings/);
+  assert.match(gameCenter, /Geschwindigkeit <b>\{dinoAdminSetting\.speed_level\}\/5/);
+  assert.match(gameCenter, /Schwierigkeit <b>\{dinoAdminSetting\.difficulty_level\}\/5/);
+  assert.match(extrasMigration, /create table private\.dino_game_settings/);
+  assert.match(extrasMigration, /add column speed_level/);
+  assert.match(extrasMigration, /add column difficulty_level/);
   assert.match(startingBalance, /values \(new\.id, 10\)/);
   assert.match(login, /Einmalig 10 GIBB Startguthaben/);
 });
