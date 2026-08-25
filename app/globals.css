@@ -1103,9 +1103,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .wager-input { position: relative; }
 .wager-input .input { padding-right: 48px; border-color: rgba(var(--game-accent-rgb),.25); font-size: 15px; font-weight: 850; }
 .wager-input > span { position: absolute; right: 12px; top: 50%; color: var(--game-accent); font-size: 8px; font-weight: 900; transform: translateY(-50%); }
-.wager-presets { display: grid; grid-template-columns: repeat(6,1fr); gap: 3px; margin-top: 5px; }
+.wager-presets { display: grid; grid-template-columns: repeat(5,1fr); gap: 3px; margin-top: 5px; }
 .wager-presets button { min-width: 0; border: 1px solid rgba(255,255,255,.06); border-radius: 6px; padding: 4px 2px; color: var(--muted); background: rgba(255,255,255,.02); font-size: 7px; font-weight: 800; }
 .wager-presets button:hover, .wager-presets button.active { border-color: rgba(var(--game-accent-rgb),.3); color: var(--game-accent); background: rgba(var(--game-accent-rgb),.08); }
+.wager-presets .wager-all-in { grid-column: span 2; border-color: rgba(var(--game-accent-rgb),.35); color: var(--game-accent); background: linear-gradient(135deg,rgba(var(--game-accent-rgb),.14),rgba(var(--game-accent-rgb),.04)); text-transform: uppercase; letter-spacing: .04em; }
 .game-play { position: relative; overflow: hidden; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 56px; padding: 0 18px; background: linear-gradient(110deg, var(--game-accent), rgba(var(--game-accent-rgb),.77)); box-shadow: 0 14px 35px rgba(var(--game-accent-rgb),.15); transition: transform .18s ease, box-shadow .18s ease; }
 .game-play:hover:not(:disabled) { background: var(--game-accent); transform: translateY(-2px); box-shadow: 0 18px 42px rgba(var(--game-accent-rgb),.25); }
 .game-play::before { content: ""; position: absolute; inset: 0 auto 0 -45%; width: 35%; background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent); transform: skewX(-18deg); animation: play-shimmer 2.7s ease-in-out infinite; }
