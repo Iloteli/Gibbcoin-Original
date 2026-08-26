@@ -26,7 +26,9 @@ type GameExtrasAdminState = {
   dino: DinoAdminSetting;
 };
 type Props = {
+  adminPin: string;
   currentRole: "admin" | "super_admin";
+  onPinRejected: (message: string) => void;
   pinReady: boolean;
   pinLocked: boolean;
 };
@@ -54,11 +56,10 @@ function gameAdminError(code?: string) {
   return "Die Spiel-Einstellung konnte nicht sicher gespeichert werden.";
 }
 
-export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
+export function GameAdminControls({ adminPin, currentRole, onPinRejected, pinReady, pinLocked }: Props) {
   const [settings, setSettings] = useState<GameSetting[]>([]);
   const [prankSettings, setPrankSettings] = useState<PrankAdminSetting[]>([]);
   const [dinoSetting, setDinoSetting] = useState<DinoAdminSetting>({ speed_level: 1, difficulty_level: 1 });
-  const [adminPin, setAdminPin] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
@@ -108,7 +109,7 @@ export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
     return () => { void supabase.removeChannel(channel); };
   }, [loadAdminGameState]);
 
-  const controlsDisabled = loading || busy !== null || !pinReady || pinLocked;
+  const controlsDisabled = loading || busy !== null || !pinReady || pinLocked || !/^\d{4}$/.test(adminPin);
 
   function requirePin() {
     if (!pinReady) {
@@ -121,7 +122,7 @@ export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
       return false;
     }
     if (!/^\d{4}$/.test(adminPin)) {
-      setError("Gib zuerst den vierstelligen Admin-PIN für diese Spiel-Aktion ein.");
+      setError("Öffne den Adminpanel-Tab erneut und gib deinen PIN einmalig ein.");
       return false;
     }
     return true;
@@ -143,10 +144,12 @@ export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
       p_enabled: !setting.enabled,
       p_pin: adminPin,
     });
-    setBusy(null); setAdminPin("");
+    setBusy(null);
     const result = data as SecureResult | null;
     if (rpcError || !result?.ok) {
-      setError(gameAdminError(result?.error ?? rpcError?.message));
+      const actionError = gameAdminError(result?.error ?? rpcError?.message);
+      if (result?.error?.startsWith("admin_pin_")) onPinRejected(actionError);
+      else setError(actionError);
       await loadAdminGameState();
       return;
     }
@@ -175,10 +178,12 @@ export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
       p_target_username: setting.scope === "user" ? setting.target_username?.trim() ?? "" : "",
       p_pin: adminPin,
     });
-    setBusy(null); setAdminPin("");
+    setBusy(null);
     const result = data as SecureResult | null;
     if (rpcError || !result?.ok) {
-      setError(gameAdminError(result?.error ?? rpcError?.message));
+      const actionError = gameAdminError(result?.error ?? rpcError?.message);
+      if (result?.error?.startsWith("admin_pin_")) onPinRejected(actionError);
+      else setError(actionError);
       await loadAdminGameState();
       return;
     }
@@ -196,10 +201,12 @@ export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
       p_difficulty_level: dinoSetting.difficulty_level,
       p_pin: adminPin,
     });
-    setBusy(null); setAdminPin("");
+    setBusy(null);
     const result = data as SecureResult | null;
     if (rpcError || !result?.ok) {
-      setError(gameAdminError(result?.error ?? rpcError?.message));
+      const actionError = gameAdminError(result?.error ?? rpcError?.message);
+      if (result?.error?.startsWith("admin_pin_")) onPinRejected(actionError);
+      else setError(actionError);
       await loadAdminGameState();
       return;
     }
@@ -210,7 +217,7 @@ export function GameAdminControls({ currentRole, pinReady, pinLocked }: Props) {
   return (
     <section className="game-admin admin-game-controls" id="admin-game-controls" aria-labelledby="admin-games-title">
       <div className="game-admin-intro"><span>SPIELVERWALTUNG · NUR ADMINPANEL</span><h3 id="admin-games-title">Alle Spiele zentral steuern</h3><p>Hier verwalten {currentRole === "super_admin" ? "Owner und Admins" : "Admins"} Spielstatus, visuelle Modi sowie Tempo und Schwierigkeit von Dino Run.</p></div>
-      <div className="game-admin-pin"><label htmlFor="game-admin-pin">4-stelliger Admin-PIN</label><input id="game-admin-pin" className="input" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" value={adminPin} disabled={!pinReady || pinLocked || busy !== null} onChange={(event) => { setAdminPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }} placeholder="••••" /><small>{!pinReady ? "Zuerst Admin-PIN einrichten" : pinLocked ? "PIN ist gesperrt" : "Für jede Änderung erneut eingeben"}</small></div>
+      <div className="game-admin-pin"><span>PIN-Freigabe</span><strong>{!pinReady ? "PIN zuerst einrichten" : pinLocked ? "PIN ist gesperrt" : /^\d{4}$/.test(adminPin) ? "Adminpanel freigeschaltet" : "Adminpanel gesperrt"}</strong><small>{/^\d{4}$/.test(adminPin) ? "Gilt bis du den Admin-Tab verlässt" : "PIN beim Öffnen des Adminpanels eingeben"}</small></div>
       <div className="game-switches">{settings.map((setting) => <button type="button" role="switch" aria-checked={setting.enabled} className={setting.enabled ? "on" : ""} disabled={controlsDisabled} key={setting.game_key} onClick={() => void toggleGame(setting)}><span><b>{setting.label}</b><small>{setting.enabled ? "Aktiv" : "Deaktiviert"}</small></span><i aria-hidden="true"><em /></i>{busy === `toggle:${setting.game_key}` && <u>Lädt …</u>}</button>)}</div>
 
       <div className="game-prank-admin">

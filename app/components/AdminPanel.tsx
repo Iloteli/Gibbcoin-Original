@@ -21,6 +21,7 @@ type Props = {
   currentRole: "admin" | "super_admin";
   currentUserId: string;
   onChanged: () => Promise<void>;
+  onExit: () => void;
 };
 
 function pinError(code?: string) {
@@ -88,7 +89,7 @@ function passwordResetError(code?: string) {
   return "Der Passwort-Reset konnte nicht gestartet werden.";
 }
 
-export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
+export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Props) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pinStatus, setPinStatus] = useState<PinStatus | null>(null);
   const [coinStats, setCoinStats] = useState<AdminCoinStats>({ given: 0, removed: 0, since: null });
@@ -97,21 +98,20 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("Admin-Gutschrift");
   const [adjustmentMode, setAdjustmentMode] = useState<AdjustmentMode>("credit");
-  const [pin, setPin] = useState("");
-  const [pinPromptError, setPinPromptError] = useState("");
+  const [adminSessionPin, setAdminSessionPin] = useState("");
+  const [entryPin, setEntryPin] = useState("");
+  const [entryPinError, setEntryPinError] = useState("");
+  const [adminAccessGranted, setAdminAccessGranted] = useState(false);
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
-  const [pinPromptOpen, setPinPromptOpen] = useState(false);
   const [changePinOpen, setChangePinOpen] = useState(false);
   const [ownerPinRecovery, setOwnerPinRecovery] = useState(false);
   const [pinFormError, setPinFormError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
-  const [deletePin, setDeletePin] = useState("");
   const [deletePromptError, setDeletePromptError] = useState("");
   const [statsResetOpen, setStatsResetOpen] = useState(false);
-  const [statsResetPin, setStatsResetPin] = useState("");
   const [statsResetError, setStatsResetError] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState("");
@@ -167,6 +167,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
 
   const pinLocked = Boolean(pinStatus?.locked_until);
   const removingCoins = adjustmentMode === "remove";
+  const adminAccessPending = pinStatus === null;
+  const adminAccessRequired = Boolean(pinStatus?.has_pin) && !adminAccessGranted;
 
   function chooseAdjustmentMode(nextMode: AdjustmentMode) {
     setAdjustmentMode(nextMode);
@@ -184,11 +186,41 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
 
   function openPinManager(recovery: boolean) {
     setOwnerPinRecovery(recovery);
-    setChangePinOpen(true);
-    setPinPromptOpen(false);
-    setPin(""); setCurrentPin(""); setNewPin(""); setConfirmPin("");
-    setPinPromptError(""); setPinFormError(""); setError(""); setMessage("");
+    setChangePinOpen(!recovery || adminAccessGranted);
+    setEntryPin(""); setCurrentPin(""); setNewPin(""); setConfirmPin("");
+    setEntryPinError(""); setPinFormError(""); setError(""); setMessage("");
     window.setTimeout(() => document.getElementById("admin-pin-manager")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
+  }
+
+  async function unlockAdminPanel(event: React.FormEvent) {
+    event.preventDefault();
+    if (!/^\d{4}$/.test(entryPin)) {
+      setEntryPinError("Der PIN muss genau vier Ziffern enthalten.");
+      return;
+    }
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setBusy(true); setEntryPinError("");
+    const { data, error: rpcError } = await supabase.rpc("admin_verify_pin", { p_pin: entryPin });
+    setBusy(false);
+    const result = data as SecureResult | null;
+    if (rpcError || !result?.ok) {
+      setEntryPin("");
+      setEntryPinError(pinError(result?.error ?? rpcError?.message));
+      await loadAdminData();
+      return;
+    }
+    setAdminSessionPin(entryPin);
+    setEntryPin("");
+    setEntryPinError("");
+    setAdminAccessGranted(true);
+  }
+
+  function expireAdminAccess(message?: string) {
+    setAdminSessionPin("");
+    setAdminAccessGranted(false);
+    setEntryPin("");
+    setEntryPinError(message ?? "Deine Adminpanel-Freigabe ist abgelaufen. Gib deinen PIN erneut ein.");
   }
 
   async function savePin(event: React.FormEvent) {
@@ -214,12 +246,15 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
       return;
     }
     setMessage(ownerPinRecovery ? "Dein Owner-PIN wurde zurückgesetzt. Du kannst jetzt anderen Konten Coins gutschreiben." : pinStatus?.has_pin ? "Dein Admin-PIN wurde geändert." : "Dein persönlicher Admin-PIN ist eingerichtet.");
+    setAdminSessionPin(newPin);
+    setAdminAccessGranted(true);
+    setEntryPin(""); setEntryPinError("");
     setNewPin(""); setConfirmPin(""); setCurrentPin(""); setChangePinOpen(false);
     setOwnerPinRecovery(false); setPinFormError("");
     await loadAdminData();
   }
 
-  function requestAdjustment(event: React.FormEvent) {
+  async function requestAdjustment(event: React.FormEvent) {
     event.preventDefault();
     setError(""); setMessage("");
     if (!pinStatus?.has_pin) {
@@ -244,33 +279,29 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
     if (removingCoins && target?.role === "super_admin" && targetId !== currentUserId) { setError("Vom Owner-Konto können keine Coins entzogen werden."); return; }
     if (removingCoins && target && target.balance < parsed) { setError("Dieses Konto besitzt nicht genügend Coins."); return; }
     if (reason.trim().length < 3) { setError(`Gib einen kurzen Grund für ${removingCoins ? "den Abzug" : "die Gutschrift"} ein.`); return; }
-    setPin("");
-    setPinPromptError("");
-    setPinPromptOpen(true);
-  }
-
-  async function confirmAdjustment(event: React.FormEvent) {
-    event.preventDefault();
-    if (!/^\d{4}$/.test(pin)) { setPinPromptError("Der PIN muss genau vier Ziffern enthalten."); return; }
+    if (!adminAccessGranted || !/^\d{4}$/.test(adminSessionPin)) {
+      expireAdminAccess();
+      return;
+    }
     const supabase = getSupabase();
     if (!supabase) return;
-    setBusy(true); setError(""); setPinPromptError("");
+    setBusy(true); setError("");
     const { data, error: rpcError } = await supabase.rpc("admin_adjust_balance_secure", {
       p_target_user_id: targetId,
       p_amount: removingCoins ? -Number(amount) : Number(amount),
       p_reason: reason.trim(),
-      p_pin: pin,
+      p_pin: adminSessionPin,
     });
     setBusy(false);
     const result = data as SecureResult | null;
     if (rpcError || !result?.ok) {
-      setPin("");
-      setPinPromptError(adjustmentError(result?.error, rpcError?.message));
+      const actionError = adjustmentError(result?.error, rpcError?.message);
+      if (result?.error?.startsWith("admin_pin_")) expireAdminAccess(actionError);
+      else setError(actionError);
       await loadAdminData();
       return;
     }
-    const target = users.find((item) => item.user_id === targetId);
-    setPinPromptOpen(false); setPin(""); setPinPromptError(""); setAmount("");
+    setAmount("");
     setMessage(removingCoins
       ? `${amount} Coins wurden ${target?.display_name ?? "dem Benutzer"} sicher entzogen.`
       : `Coins wurden sicher an ${target?.display_name ?? "den Benutzer"} gutgeschrieben.`);
@@ -352,9 +383,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
     }
     setDeleteTarget(target);
     setDeleteConfirmation("");
-    setDeletePin("");
     setDeletePromptError("");
-    setPinPromptOpen(false);
     setError("");
     setMessage("");
   }
@@ -366,8 +395,9 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
       setDeletePromptError("Gib den angezeigten Namen genau ein, um die Löschung zu bestätigen.");
       return;
     }
-    if (!/^\d{4}$/.test(deletePin)) {
-      setDeletePromptError("Der Admin-PIN muss genau vier Ziffern enthalten.");
+    if (!adminAccessGranted || !/^\d{4}$/.test(adminSessionPin)) {
+      setDeleteTarget(null);
+      expireAdminAccess();
       return;
     }
 
@@ -376,13 +406,18 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
     setActionBusy(`delete:${deleteTarget.user_id}`);
     setDeletePromptError("");
     const { data, error: functionError } = await supabase.functions.invoke("owner-delete-account", {
-      body: { target_user_id: deleteTarget.user_id, pin: deletePin },
+      body: { target_user_id: deleteTarget.user_id, pin: adminSessionPin },
     });
     setActionBusy("");
     const result = data as { error?: string; deleted?: boolean } | null;
     if (functionError || result?.error || !result?.deleted) {
-      setDeletePin("");
-      setDeletePromptError(accountDeletionError(result?.error ?? functionError?.message));
+      const deletionError = accountDeletionError(result?.error ?? functionError?.message);
+      if (result?.error?.startsWith("admin_pin_")) {
+        setDeleteTarget(null);
+        expireAdminAccess(deletionError);
+      } else {
+        setDeletePromptError(deletionError);
+      }
       await loadAdminData();
       return;
     }
@@ -391,14 +426,13 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
     if (targetId === deleteTarget.user_id) setTargetId(currentUserId);
     setDeleteTarget(null);
     setDeleteConfirmation("");
-    setDeletePin("");
     setDeletePromptError("");
     setMessage(`${deletedName} wurde dauerhaft gelöscht. Die bisherige E-Mail-Adresse ist sofort wieder für ein neues Konto frei. Frühere Buchungen werden als „Gelöschtes Konto“ angezeigt.`);
     await Promise.all([loadAdminData(), onChanged()]);
   }
 
   function openStatsReset() {
-    setError(""); setMessage(""); setStatsResetError(""); setStatsResetPin("");
+    setError(""); setMessage(""); setStatsResetError("");
     if (!pinStatus?.has_pin) {
       setError("Richte zuerst deinen persönlichen vierstelligen Admin-PIN ein.");
       document.getElementById("admin-pin-setup")?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -413,23 +447,29 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
 
   async function resetCoinStats(event: React.FormEvent) {
     event.preventDefault();
-    if (!/^\d{4}$/.test(statsResetPin)) {
-      setStatsResetError("Der Admin-PIN muss genau vier Ziffern enthalten.");
+    if (!adminAccessGranted || !/^\d{4}$/.test(adminSessionPin)) {
+      setStatsResetOpen(false);
+      expireAdminAccess();
       return;
     }
     const supabase = getSupabase();
     if (!supabase) return;
     setActionBusy("stats-reset"); setStatsResetError("");
-    const { data, error: rpcError } = await supabase.rpc("admin_reset_coin_stats", { p_pin: statsResetPin });
+    const { data, error: rpcError } = await supabase.rpc("admin_reset_coin_stats", { p_pin: adminSessionPin });
     setActionBusy("");
     const result = data as SecureResult | null;
     if (rpcError || !result?.ok) {
-      setStatsResetPin("");
-      setStatsResetError(pinError(result?.error ?? rpcError?.message));
+      const resetError = pinError(result?.error ?? rpcError?.message);
+      if (result?.error?.startsWith("admin_pin_")) {
+        setStatsResetOpen(false);
+        expireAdminAccess(resetError);
+      } else {
+        setStatsResetError(resetError);
+      }
       await loadAdminData();
       return;
     }
-    setStatsResetOpen(false); setStatsResetPin(""); setStatsResetError("");
+    setStatsResetOpen(false); setStatsResetError("");
     setMessage("Deine Plus/Minus-Statistik wurde auf 0 gesetzt. Guthaben und Transaktionsverlauf blieben unverändert.");
     await loadAdminData();
   }
@@ -437,7 +477,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
   return (
     <section className="card card-pad admin-panel" id="admin-panel">
       <div className="admin-panel-head">
-        <div><div className="eyebrow">Geschützter Bereich</div><h2>Adminpanel</h2><p>Coin-Gutschriften und Coin-Abzüge benötigen immer deinen persönlichen vierstelligen PIN.</p></div>
+        <div><div className="eyebrow">Geschützter Bereich</div><h2>Adminpanel</h2><p>Dein persönlicher PIN entsperrt das Adminpanel einmalig, bis du diesen Tab wieder verlässt.</p></div>
         {pinStatus?.has_pin && <div className="admin-pin-actions"><button className="secondary" type="button" onClick={() => openPinManager(false)}>PIN ändern</button>{currentRole === "super_admin" && <button className="secondary" type="button" onClick={() => openPinManager(true)}>PIN vergessen / entsperren</button>}</div>}
       </div>
 
@@ -461,7 +501,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
         <div className="pin-fields"><input className="input pin-input" aria-label="Neuer vierstelliger Admin-PIN" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="••••" value={newPin} onChange={(event) => setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /><input className="input pin-input" aria-label="Admin-PIN bestätigen" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="••••" value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /><button className="primary compact" type="submit" disabled={busy}>PIN speichern</button></div>
       </form>}
 
-      <GameAdminControls currentRole={currentRole} pinReady={Boolean(pinStatus?.has_pin)} pinLocked={pinLocked} />
+      <GameAdminControls adminPin={adminSessionPin} currentRole={currentRole} pinReady={Boolean(pinStatus?.has_pin)} pinLocked={pinLocked} onPinRejected={expireAdminAccess} />
 
       <div className="admin-credit-head"><div><strong>{removingCoins ? "Coins von einem Benutzer entfernen" : pinStatus?.has_pin ? "Coins aus der Admin-Reserve gutschreiben" : "2. Coins gutschreiben"}</strong><p>{removingCoins ? currentRole === "super_admin" ? "Als Owner kannst du Coins von deinem eigenen und von fremden Konten entziehen. Andere Admins können dein Owner-Guthaben nicht verändern. Kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : "Als Admin kannst du Coins von deinem eigenen und von anderen Benutzerkonten entziehen. Das Owner-Konto bleibt geschützt, kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : currentRole === "super_admin" ? "Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben. Jede Gutschrift wird protokolliert." : "Nur an andere Konten. Eigengutschriften sind serverseitig gesperrt und jede erlaubte Gutschrift wird protokolliert."}</p></div><span>{pinStatus?.has_pin ? "PIN geschützt" : "PIN fehlt"}</span></div>
       <div className="admin-adjust-tabs" role="tablist" aria-label="Coin-Aktion"><button type="button" role="tab" aria-selected={!removingCoins} className={!removingCoins ? "active" : ""} onClick={() => chooseAdjustmentMode("credit")}>Coins geben</button><button type="button" role="tab" aria-selected={removingCoins} className={removingCoins ? "active remove" : ""} onClick={() => chooseAdjustmentMode("remove")}>Coins entfernen</button></div>
@@ -470,7 +510,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
         <div className="field"><label htmlFor="admin-target">{removingCoins ? "Benutzer" : "Empfänger"}</label><select className="input" id="admin-target" value={targetId} onChange={(event) => setTargetId(event.target.value)}><option value="">Benutzer auswählen …</option>{adjustmentUsers.map((item) => <option key={item.user_id} value={item.user_id}>{item.user_id === currentUserId ? "Ich · " : ""}{item.display_name} (@{item.username}) · {item.balance} GIBB</option>)}</select></div>
         <div className="field"><label htmlFor="admin-amount">{removingCoins ? "Coins entfernen" : "Coins gutschreiben"}</label><input className="input" id="admin-amount" type="number" inputMode="numeric" min="1" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="100" /></div>
         <div className="field"><label htmlFor="admin-reason">Grund</label><input className="input" id="admin-reason" value={reason} onChange={(event) => setReason(event.target.value)} maxLength={120} placeholder="z. B. Projektpreis" /></div>
-        <button className={removingCoins ? "admin-danger" : "primary"} type="submit">{pinStatus?.has_pin ? removingCoins ? `Mit ${currentRole === "super_admin" ? "Owner" : "Admin"}-PIN entfernen` : "Mit Admin-PIN bestätigen" : "PIN einrichten & freischalten"}</button>
+        <button className={removingCoins ? "admin-danger" : "primary"} type="submit" disabled={busy}>{pinStatus?.has_pin ? removingCoins ? "Coins sicher entfernen" : "Coins gutschreiben" : "PIN einrichten & freischalten"}</button>
       </form>
 
       {changePinOpen && <form className="change-pin-form" id="admin-pin-manager" onSubmit={savePin}>
@@ -518,11 +558,33 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
       {message && <p className="message" role="status">{message}</p>}
       {error && <p className="message error" role="alert">{error}</p>}
 
-      {pinPromptOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) { setPinPromptOpen(false); setPinPromptError(""); } }}><section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="pin-modal-title"><div className="pin-lock" aria-hidden="true">••••</div><h3 id="pin-modal-title">{removingCoins ? `${currentRole === "super_admin" ? "Owner" : "Admin"}-PIN erforderlich` : "Admin-PIN erforderlich"}</h3><p>Verwende denselben vierstelligen PIN, den du beim Einrichten gespeichert hast.</p><form onSubmit={confirmAdjustment}><input className="input pin-modal-input" aria-label="Vierstelliger Admin-PIN" aria-invalid={Boolean(pinPromptError)} aria-describedby={pinPromptError ? "pin-prompt-error" : undefined} type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="0000" value={pin} onChange={(event) => { setPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setPinPromptError(""); }} />{pinPromptError && <p className="pin-modal-error" id="pin-prompt-error" role="alert">{pinPromptError}</p>}{currentRole === "super_admin" && pinPromptError && <button className="pin-recovery-link" type="button" onClick={() => openPinManager(true)}>PIN vergessen oder gesperrt? Jetzt zurücksetzen</button>}<div className="modal-actions"><button className="secondary" type="button" disabled={busy} onClick={() => { setPinPromptOpen(false); setPin(""); setPinPromptError(""); setError(""); }}>Abbrechen</button><button className={removingCoins ? "admin-danger compact" : "primary compact"} type="submit" disabled={busy || pin.length !== 4}>{busy ? "Wird geprüft …" : removingCoins ? "Coins sicher entfernen" : "Coins gutschreiben"}</button></div></form></section></div>}
+      {statsResetOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && actionBusy !== "stats-reset") { setStatsResetOpen(false); setStatsResetError(""); } }}><section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="stats-reset-title"><div className="pin-lock" aria-hidden="true">±</div><h3 id="stats-reset-title">Plus/Minus auf 0 setzen?</h3><p>Nur deine persönlichen Zähler werden neu gestartet. Guthaben, Konten, Transaktionen und das Admin-Protokoll bleiben vollständig erhalten. Deine PIN-Freigabe für diesen Adminpanel-Besuch wird verwendet.</p><form onSubmit={resetCoinStats}>{statsResetError && <p className="pin-modal-error" role="alert">{statsResetError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={actionBusy === "stats-reset"} onClick={() => { setStatsResetOpen(false); setStatsResetError(""); }}>Abbrechen</button><button className="admin-danger compact" type="submit" disabled={actionBusy === "stats-reset"}>{actionBusy === "stats-reset" ? "Setzt zurück …" : "Sicher zurücksetzen"}</button></div></form></section></div>}
 
-      {statsResetOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && actionBusy !== "stats-reset") { setStatsResetOpen(false); setStatsResetError(""); } }}><section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="stats-reset-title"><div className="pin-lock" aria-hidden="true">±</div><h3 id="stats-reset-title">Plus/Minus auf 0 setzen?</h3><p>Nur deine persönlichen Zähler werden neu gestartet. Guthaben, Konten, Transaktionen und das Admin-Protokoll bleiben vollständig erhalten.</p><form onSubmit={resetCoinStats}><input className="input pin-modal-input" aria-label="Vierstelliger Admin-PIN für Statistik-Reset" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="0000" value={statsResetPin} onChange={(event) => { setStatsResetPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setStatsResetError(""); }} />{statsResetError && <p className="pin-modal-error" role="alert">{statsResetError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={actionBusy === "stats-reset"} onClick={() => { setStatsResetOpen(false); setStatsResetPin(""); setStatsResetError(""); }}>Abbrechen</button><button className="admin-danger compact" type="submit" disabled={actionBusy === "stats-reset" || statsResetPin.length !== 4}>{actionBusy === "stats-reset" ? "Setzt zurück …" : "Sicher zurücksetzen"}</button></div></form></section></div>}
+      {deleteTarget && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !actionBusy) { setDeleteTarget(null); setDeletePromptError(""); } }}><section className="pin-modal account-delete-modal" role="dialog" aria-modal="true" aria-labelledby="account-delete-title"><div className="delete-warning" aria-hidden="true">!</div><h3 id="account-delete-title">Account dauerhaft löschen?</h3><p>Der Zugang von <strong>{deleteTarget.display_name}</strong> wird unwiderruflich entfernt. Das Profil, Wallet und persönliche App-Daten verschwinden. Frühere Buchungen bleiben anonymisiert als Nachweis erhalten. Deine PIN-Freigabe für diesen Adminpanel-Besuch wird verwendet.</p><form onSubmit={deleteAccount}><div className="field"><label htmlFor="delete-account-confirmation">Zur Bestätigung „{deleteTarget.display_name}“ eingeben</label><input className="input" id="delete-account-confirmation" autoComplete="off" value={deleteConfirmation} onChange={(event) => { setDeleteConfirmation(event.target.value); setDeletePromptError(""); }} /></div>{deletePromptError && <p className="pin-modal-error" role="alert">{deletePromptError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={Boolean(actionBusy)} onClick={() => { setDeleteTarget(null); setDeleteConfirmation(""); setDeletePromptError(""); }}>Abbrechen</button><button className="account-delete confirm-delete" type="submit" disabled={Boolean(actionBusy) || deleteConfirmation.trim().length === 0}>{actionBusy ? "Wird gelöscht …" : "Account endgültig löschen"}</button></div></form></section></div>}
 
-      {deleteTarget && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !actionBusy) { setDeleteTarget(null); setDeletePromptError(""); } }}><section className="pin-modal account-delete-modal" role="dialog" aria-modal="true" aria-labelledby="account-delete-title"><div className="delete-warning" aria-hidden="true">!</div><h3 id="account-delete-title">Account dauerhaft löschen?</h3><p>Der Zugang von <strong>{deleteTarget.display_name}</strong> wird unwiderruflich entfernt. Das Profil, Wallet und persönliche App-Daten verschwinden. Frühere Buchungen bleiben anonymisiert als Nachweis erhalten.</p><form onSubmit={deleteAccount}><div className="field"><label htmlFor="delete-account-confirmation">Zur Bestätigung „{deleteTarget.display_name}“ eingeben</label><input className="input" id="delete-account-confirmation" autoComplete="off" value={deleteConfirmation} onChange={(event) => { setDeleteConfirmation(event.target.value); setDeletePromptError(""); }} /></div><div className="field"><label htmlFor="delete-account-pin">Dein vierstelliger {currentRole === "super_admin" ? "Owner" : "Admin"}-PIN</label><input className="input pin-modal-input" id="delete-account-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="0000" value={deletePin} onChange={(event) => { setDeletePin(event.target.value.replace(/\D/g, "").slice(0, 4)); setDeletePromptError(""); }} /></div>{deletePromptError && <p className="pin-modal-error" role="alert">{deletePromptError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={Boolean(actionBusy)} onClick={() => { setDeleteTarget(null); setDeleteConfirmation(""); setDeletePin(""); setDeletePromptError(""); }}>Abbrechen</button><button className="account-delete confirm-delete" type="submit" disabled={Boolean(actionBusy) || deleteConfirmation.trim().length === 0 || deletePin.length !== 4}>{actionBusy ? "Wird gelöscht …" : "Account endgültig löschen"}</button></div></form></section></div>}
+      {(adminAccessPending || adminAccessRequired) && <div className="modal-backdrop admin-access-backdrop" role="presentation">
+        <section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-access-title">
+          <div className="pin-lock" aria-hidden="true">••••</div>
+          <h3 id="admin-access-title">{ownerPinRecovery ? "Owner-PIN zurücksetzen" : "Adminpanel entsperren"}</h3>
+          {adminAccessPending ? <><div className="loader" aria-hidden="true" /><p>Dein geschützter Admin-Zugang wird vorbereitet …</p></> : ownerPinRecovery ? <>
+            <p>Lege einen neuen persönlichen Owner-PIN fest. Nach dem sicheren Zurücksetzen ist das Adminpanel für diesen Besuch direkt freigeschaltet.</p>
+            <form onSubmit={savePin}>
+              <div className="field"><label htmlFor="entry-owner-pin">Neuer PIN</label><input className="input pin-modal-input" id="entry-owner-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder="0000" value={newPin} onChange={(event) => { setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setPinFormError(""); }} /></div>
+              <div className="field"><label htmlFor="entry-owner-pin-confirm">Neuen PIN bestätigen</label><input className="input pin-modal-input" id="entry-owner-pin-confirm" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder="0000" value={confirmPin} onChange={(event) => { setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setPinFormError(""); }} /></div>
+              {pinFormError && <p className="pin-modal-error" role="alert">{pinFormError}</p>}
+              <div className="modal-actions"><button className="secondary" type="button" disabled={busy} onClick={() => { setOwnerPinRecovery(false); setNewPin(""); setConfirmPin(""); setPinFormError(""); }}>Zurück</button><button className="primary compact" type="submit" disabled={busy || newPin.length !== 4 || confirmPin.length !== 4}>{busy ? "Wird gespeichert …" : "Owner-PIN zurücksetzen"}</button></div>
+            </form>
+          </> : <>
+            <p>Gib deinen persönlichen vierstelligen PIN einmal ein. Die Freigabe gilt nur, solange du im Adminpanel bleibst, und wird beim Verlassen sofort gelöscht.</p>
+            <form onSubmit={unlockAdminPanel}>
+              <input className="input pin-modal-input" aria-label="Vierstelliger PIN zum Entsperren des Adminpanels" aria-invalid={Boolean(entryPinError)} aria-describedby={entryPinError ? "admin-access-error" : undefined} type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder="0000" value={entryPin} onChange={(event) => { setEntryPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setEntryPinError(""); }} />
+              {entryPinError && <p className="pin-modal-error" id="admin-access-error" role="alert">{entryPinError}</p>}
+              {currentRole === "super_admin" && entryPinError && <button className="pin-recovery-link" type="button" onClick={() => openPinManager(true)}>PIN vergessen oder gesperrt? Jetzt zurücksetzen</button>}
+              <div className="modal-actions"><button className="secondary" type="button" disabled={busy} onClick={onExit}>Zurück zum Wallet</button><button className="primary compact" type="submit" disabled={busy || entryPin.length !== 4}>{busy ? "Wird geprüft …" : "Adminpanel öffnen"}</button></div>
+            </form>
+          </>}
+        </section>
+      </div>}
     </section>
   );
 }

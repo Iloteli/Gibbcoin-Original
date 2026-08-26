@@ -429,7 +429,7 @@ export function Dashboard({ user }: Props) {
         <PwaInstallCard />
         </div>
 
-        {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div><AdminSecurityCenter /><AdminPanel currentRole={profile.role} currentUserId={user.id} onChanged={loadData} /></div>}
+        {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} onChanged={loadData} onExit={() => openView("home")} />}</div>}
         <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. Coins können nicht mit echtem Geld gekauft werden, sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur in der App nutzbar. Die dargestellte Hash-Kette ist serverseitig geprüft und keine öffentliche Blockchain.</p>
         <p className="creator-credit">Diese Seite wurde von <strong>Robyn Rüfenacht</strong> erstellt.</p>
       </main>
