@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabase";
+import { GameAdminControls } from "./GameAdminControls";
 
 type AdminUser = {
   user_id: string;
@@ -459,6 +460,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged }: Props) {
         <div><strong>1. Admin-PIN einrichten</strong><p>Lege einmalig vier Ziffern fest. Der PIN wird gehasht gespeichert und ist für andere Admins nicht sichtbar.</p></div>
         <div className="pin-fields"><input className="input pin-input" aria-label="Neuer vierstelliger Admin-PIN" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="••••" value={newPin} onChange={(event) => setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /><input className="input pin-input" aria-label="Admin-PIN bestätigen" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="••••" value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /><button className="primary compact" type="submit" disabled={busy}>PIN speichern</button></div>
       </form>}
+
+      <GameAdminControls currentRole={currentRole} pinReady={Boolean(pinStatus?.has_pin)} pinLocked={pinLocked} />
 
       <div className="admin-credit-head"><div><strong>{removingCoins ? "Coins von einem Benutzer entfernen" : pinStatus?.has_pin ? "Coins aus der Admin-Reserve gutschreiben" : "2. Coins gutschreiben"}</strong><p>{removingCoins ? currentRole === "super_admin" ? "Als Owner kannst du Coins von deinem eigenen und von fremden Konten entziehen. Andere Admins können dein Owner-Guthaben nicht verändern. Kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : "Als Admin kannst du Coins von deinem eigenen und von anderen Benutzerkonten entziehen. Das Owner-Konto bleibt geschützt, kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : currentRole === "super_admin" ? "Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben. Jede Gutschrift wird protokolliert." : "Nur an andere Konten. Eigengutschriften sind serverseitig gesperrt und jede erlaubte Gutschrift wird protokolliert."}</p></div><span>{pinStatus?.has_pin ? "PIN geschützt" : "PIN fehlt"}</span></div>
       <div className="admin-adjust-tabs" role="tablist" aria-label="Coin-Aktion"><button type="button" role="tab" aria-selected={!removingCoins} className={!removingCoins ? "active" : ""} onClick={() => chooseAdjustmentMode("credit")}>Coins geben</button><button type="button" role="tab" aria-selected={removingCoins} className={removingCoins ? "active remove" : ""} onClick={() => chooseAdjustmentMode("remove")}>Coins entfernen</button></div>

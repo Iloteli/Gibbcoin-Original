@@ -7,7 +7,6 @@ import { DinoRunner } from "./DinoRunner";
 type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "dino_run";
 type PrankGameKey = Exclude<GameKey, "dino_run">;
 type SettingKey = "game_center" | GameKey;
-type Role = "user" | "admin" | "super_admin";
 type GameSetting = { game_key: SettingKey; label: string; enabled: boolean; updated_at: string };
 type GameRound = {
   id: string;
@@ -69,26 +68,7 @@ type GameResult = {
   result: Record<string, unknown>;
   balance: number;
 };
-type SecureResult = { ok?: boolean; error?: string };
-type PrankScope = "all" | "user";
-type PrankAdminSetting = {
-  game_key: PrankGameKey;
-  label: string;
-  enabled: boolean;
-  win_chance: number;
-  scope: PrankScope;
-  target_username: string | null;
-  target_display_name: string | null;
-};
-type DinoAdminSetting = { speed_level: number; difficulty_level: number };
-type GameExtrasAdminState = {
-  ok: boolean;
-  games: PrankAdminSetting[];
-  dino: DinoAdminSetting;
-};
-
 type Props = {
-  role: Role;
   walletBalance: number;
   onChanged: () => void | Promise<void>;
 };
@@ -120,14 +100,6 @@ function gameError(message?: string) {
   if (message?.includes("dino_session")) return "Dieser Dino-Lauf ist nicht mehr aktiv. Starte einen neuen Lauf.";
   if (message?.includes("invalid_game_wager")) return "Der Einsatz muss eine positive ganze Zahl sein.";
   return "Die Runde konnte nicht sicher verbucht werden. Versuche es nochmals.";
-}
-
-function pinError(code?: string) {
-  if (code?.includes("admin_pin_not_set")) return "Richte zuerst im Adminpanel deinen vierstelligen Admin-PIN ein.";
-  if (code?.includes("admin_pin_invalid")) return "Der Admin-PIN ist falsch.";
-  if (code?.includes("admin_pin_locked")) return "Der Admin-PIN ist nach zu vielen Versuchen vorübergehend gesperrt.";
-  if (code?.includes("mfa")) return "Bestätige zuerst deine Admin-Sitzung mit 2FA.";
-  return "Der Spiel-Schalter konnte nicht gespeichert werden.";
 }
 
 function gameName(key: GameKey) {
@@ -175,7 +147,7 @@ function PokerCards({ cards, held, disabled, onToggle }: { cards: number[]; held
   })}</div>;
 }
 
-export function GameCenter({ role, walletBalance, onChanged }: Props) {
+export function GameCenter({ walletBalance, onChanged }: Props) {
   const [state, setState] = useState<CenterState | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameKey>("roulette");
   const [wager, setWager] = useState(1);
@@ -191,13 +163,7 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [animationKey, setAnimationKey] = useState(0);
-  const [adminPin, setAdminPin] = useState("");
-  const [adminBusy, setAdminBusy] = useState<string | null>(null);
-  const [adminMessage, setAdminMessage] = useState("");
-  const [adminError, setAdminError] = useState("");
-  const [prankAdminSettings, setPrankAdminSettings] = useState<PrankAdminSetting[]>([]);
   const [effectivePrankGames, setEffectivePrankGames] = useState<Set<PrankGameKey>>(() => new Set());
-  const [dinoAdminSetting, setDinoAdminSetting] = useState<DinoAdminSetting>({ speed_level: 1, difficulty_level: 1 });
   const activeRoundRef = useRef(false);
   const pendingLiveRefreshRef = useRef(false);
   const dinoRef = useRef<DinoState | null>(null);
@@ -291,7 +257,6 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
   const wagerValid = Number.isSafeInteger(wager) && wager >= 1;
   const allInWager = Math.max(Math.floor(currentBalance), 0);
   const dinoCanStart = currentBalance >= DINO_ENTRY_COST;
-  const isAdmin = role === "admin" || role === "super_admin";
   const won = Boolean(lastResult && lastResult.payout > lastResult.wager);
 
   function chooseGame(key: GameKey) {
@@ -533,90 +498,6 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
     });
   }
 
-  async function toggleGame(setting: GameSetting) {
-    if (!/^\d{4}$/.test(adminPin)) { setAdminError("Gib zuerst deinen vierstelligen Admin-PIN ein."); return; }
-    const supabase = getSupabase();
-    if (!supabase) return;
-    setAdminBusy(setting.game_key); setAdminError(""); setAdminMessage("");
-    const { data, error: rpcError } = await supabase.rpc("admin_set_game_enabled", {
-      p_game_key: setting.game_key,
-      p_enabled: !setting.enabled,
-      p_pin: adminPin,
-    });
-    setAdminBusy(null); setAdminPin("");
-    const result = data as SecureResult | null;
-    if (rpcError || !result?.ok) { setAdminError(pinError(result?.error ?? rpcError?.message)); return; }
-    setAdminMessage(`${setting.label} wurde ${setting.enabled ? "deaktiviert" : "aktiviert"}.`);
-    if (activeRoundRef.current) pendingLiveRefreshRef.current = true;
-    else await loadState();
-  }
-
-  const loadGameExtrasAdminState = useCallback(async () => {
-    if (role !== "admin" && role !== "super_admin") return;
-    const supabase = getSupabase();
-    if (!supabase) return;
-    const { data, error: rpcError } = await supabase.rpc("get_game_extras_admin_state");
-    if (rpcError) return;
-    const next = data as GameExtrasAdminState;
-    if (!next?.ok) return;
-    setPrankAdminSettings(next.games);
-    setDinoAdminSetting(next.dino);
-  }, [role]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => void loadGameExtrasAdminState(), 0);
-    return () => window.clearTimeout(timer);
-  }, [loadGameExtrasAdminState]);
-
-  function updatePrankDraft(gameKey: PrankGameKey, patch: Partial<PrankAdminSetting>) {
-    setPrankAdminSettings((current) => current.map((setting) => (
-      setting.game_key === gameKey ? { ...setting, ...patch } : setting
-    )));
-  }
-
-  async function savePrankSettings(setting: PrankAdminSetting, enabled = setting.enabled) {
-    if (!/^\d{4}$/.test(adminPin)) { setAdminError("Gib zuerst deinen vierstelligen Admin-PIN ein."); return; }
-    if (!Number.isInteger(setting.win_chance) || setting.win_chance < 0 || setting.win_chance > 100) { setAdminError("Die Gewinnchance muss zwischen 0 und 100 Prozent liegen."); return; }
-    if (setting.scope === "user" && !setting.target_username?.trim()) { setAdminError("Gib für diesen Modus einen Benutzernamen ein."); return; }
-    const supabase = getSupabase();
-    if (!supabase) return;
-    setAdminBusy(`prank:${setting.game_key}`); setAdminError(""); setAdminMessage("");
-    const { data, error: rpcError } = await supabase.rpc("admin_set_game_visual_prank", {
-      p_game_key: setting.game_key,
-      p_enabled: enabled,
-      p_win_chance: setting.win_chance,
-      p_scope: setting.scope,
-      p_target_username: setting.scope === "user" ? setting.target_username?.trim() ?? "" : "",
-      p_pin: adminPin,
-    });
-    setAdminBusy(null); setAdminPin("");
-    const result = data as SecureResult | null;
-    const resultError = result?.error ?? rpcError?.message;
-    if (rpcError || !result?.ok) {
-      setAdminError(resultError?.includes("target_user_not_found") ? "Dieser Benutzername wurde nicht gefunden." : resultError?.includes("target_username_required") ? "Gib einen Benutzernamen ein." : pinError(resultError));
-      return;
-    }
-    setAdminMessage(`${setting.label}: visueller Modus ${enabled ? "aktiv" : "aus"} · ${setting.win_chance} % Gewinn · ${setting.scope === "all" ? "für alle" : `nur für @${setting.target_username}`}.`);
-    await Promise.all([loadGameExtrasAdminState(), loadEffectivePranks()]);
-  }
-
-  async function saveDinoSettings() {
-    if (!/^\d{4}$/.test(adminPin)) { setAdminError("Gib zuerst deinen vierstelligen Admin-PIN ein."); return; }
-    const supabase = getSupabase();
-    if (!supabase) return;
-    setAdminBusy("dino:tuning"); setAdminError(""); setAdminMessage("");
-    const { data, error: rpcError } = await supabase.rpc("admin_set_dino_game_settings", {
-      p_speed_level: dinoAdminSetting.speed_level,
-      p_difficulty_level: dinoAdminSetting.difficulty_level,
-      p_pin: adminPin,
-    });
-    setAdminBusy(null); setAdminPin("");
-    const result = data as SecureResult | null;
-    if (rpcError || !result?.ok) { setAdminError(pinError(result?.error ?? rpcError?.message)); return; }
-    setAdminMessage(`Dino Run gespeichert: Tempo ${dinoAdminSetting.speed_level}/5 · Schwierigkeit ${dinoAdminSetting.difficulty_level}/5. Gilt ab dem nächsten Lauf.`);
-    await loadGameExtrasAdminState();
-  }
-
   function renderStage() {
     if (selectedGame === "dino_run") {
       const finishedScore = lastResult?.game_key === "dino_run" ? Number(lastResult.result.score ?? 0) : 0;
@@ -688,37 +569,6 @@ export function GameCenter({ role, walletBalance, onChanged }: Props) {
         <aside className="game-history"><div className="game-history-head"><div><span>LETZTE RUNDEN</span><h3>Deine Spielhistorie</h3></div><b>{state?.recent_rounds.length ?? 0}</b></div><div className="game-history-list">{(state?.recent_rounds ?? []).length === 0 && <p className="empty">Noch keine Runde gespielt.</p>}{(state?.recent_rounds ?? []).map((round) => <article key={round.id}><span className={`history-icon ${round.payout > round.wager ? "won" : ""}`}>{games.find((game) => game.key === round.game_key)?.icon}</span><div><strong>{gameName(round.game_key)}</strong><small>{resultText(round)} · {new Date(round.created_at).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</small></div><b className={round.payout > round.wager ? "positive" : round.payout < round.wager ? "negative" : ""}>{round.payout - round.wager > 0 ? "+" : ""}{round.payout - round.wager}</b></article>)}</div><p className="game-rules-note">Nur virtuelle GIBB Coins. Kein Kauf, keine Auszahlung, kein Echtgeld.</p></aside>
       </div>
 
-      {isAdmin && <div className="game-admin">
-        <div className="game-admin-intro"><span>ADMIN-STEUERUNG</span><h3>Spiele aktivieren oder deaktivieren</h3><p>Jede Änderung wird geschützt gespeichert und im Admin-Protokoll festgehalten.</p></div>
-        <div className="game-admin-pin"><label htmlFor="game-admin-pin">4-stelliger Admin-PIN</label><input id="game-admin-pin" className="input" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" value={adminPin} onChange={(event) => setAdminPin(event.target.value.replace(/\D/g, "").slice(0, 4))} placeholder="••••" /></div>
-        <div className="game-switches">{(state?.settings ?? []).map((setting) => <button type="button" role="switch" aria-checked={setting.enabled} className={setting.enabled ? "on" : ""} disabled={adminBusy !== null} key={setting.game_key} onClick={() => void toggleGame(setting)}><span><b>{setting.label}</b><small>{setting.enabled ? "Aktiv" : "Deaktiviert"}</small></span><i aria-hidden="true"><em /></i>{adminBusy === setting.game_key && <u>Lädt …</u>}</button>)}</div>
-
-        {prankAdminSettings.length > 0 && <div className="game-prank-admin">
-          <div className="game-prank-heading"><span>ADMIN &amp; OWNER · VISUELLER SPASSMODUS</span><h3>Chancen pro Spiel einstellen</h3><p>Nur diese Steuerung zeigt den Modus. Wallet, Coin-Statistik, Transaktionsverlauf und Spielhistorie bleiben unverändert. Dino Run ist ausgeschlossen.</p></div>
-          <div className="game-prank-grid">{prankAdminSettings.map((setting) => {
-            const itemBusy = adminBusy === `prank:${setting.game_key}`;
-            return <article className={`game-prank-card ${setting.enabled ? "enabled" : ""}`} key={setting.game_key}>
-              <header><div><span>{games.find((game) => game.key === setting.game_key)?.icon}</span><strong>{setting.label}</strong></div><b>{setting.enabled ? "AN" : "AUS"}</b></header>
-              <label htmlFor={`prank-chance-${setting.game_key}`}>Gewinn <b>{setting.win_chance} %</b> · Verlust <b>{100 - setting.win_chance} %</b></label>
-              <input id={`prank-chance-${setting.game_key}`} type="range" min={0} max={100} step={1} value={setting.win_chance} disabled={adminBusy !== null} onChange={(event) => updatePrankDraft(setting.game_key, { win_chance: Number(event.target.value) })} />
-              <label htmlFor={`prank-scope-${setting.game_key}`}>Gültig für</label>
-              <select id={`prank-scope-${setting.game_key}`} className="input" value={setting.scope} disabled={adminBusy !== null} onChange={(event) => updatePrankDraft(setting.game_key, { scope: event.target.value as PrankScope })}><option value="all">Alle Benutzer</option><option value="user">Nur eine Person</option></select>
-              {setting.scope === "user" && <label className="prank-user-field" htmlFor={`prank-user-${setting.game_key}`}>Benutzername<input id={`prank-user-${setting.game_key}`} className="input" value={setting.target_username ?? ""} disabled={adminBusy !== null} onChange={(event) => updatePrankDraft(setting.game_key, { target_username: event.target.value })} placeholder="z. B. iloteli" /></label>}
-              <div><button type="button" className={setting.enabled ? "secondary compact" : "primary compact"} disabled={adminBusy !== null} onClick={() => void savePrankSettings(setting, !setting.enabled)}>{itemBusy ? "Speichert …" : setting.enabled ? "Ausschalten" : "Einschalten"}</button><button type="button" className="secondary compact" disabled={adminBusy !== null} onClick={() => void savePrankSettings(setting)}>Einstellungen speichern</button></div>
-            </article>;
-          })}</div>
-        </div>}
-
-        <div className="dino-admin-tuning">
-          <div><span>ADMIN &amp; OWNER · DINO RUN</span><h3>Tempo und Schwierigkeit</h3><p>Stufe 1 entspricht dem bisherigen Lauf. Die Einstellung gilt ab dem nächsten Start.</p></div>
-          <label htmlFor="dino-speed-level">Geschwindigkeit <b>{dinoAdminSetting.speed_level}/5</b><input id="dino-speed-level" type="range" min={1} max={5} step={1} value={dinoAdminSetting.speed_level} disabled={adminBusy !== null} onChange={(event) => setDinoAdminSetting((current) => ({ ...current, speed_level: Number(event.target.value) }))} /></label>
-          <label htmlFor="dino-difficulty-level">Schwierigkeit <b>{dinoAdminSetting.difficulty_level}/5</b><input id="dino-difficulty-level" type="range" min={1} max={5} step={1} value={dinoAdminSetting.difficulty_level} disabled={adminBusy !== null} onChange={(event) => setDinoAdminSetting((current) => ({ ...current, difficulty_level: Number(event.target.value) }))} /></label>
-          <button type="button" className="primary compact" disabled={adminBusy !== null} onClick={() => void saveDinoSettings()}>{adminBusy === "dino:tuning" ? "Speichert …" : "Dino-Einstellungen speichern"}</button>
-        </div>
-
-        {adminMessage && <p className="message success-message" role="status">✓ {adminMessage}</p>}
-        {adminError && <p className="message error" role="alert">{adminError}</p>}
-      </div>}
     </section>
   );
 }

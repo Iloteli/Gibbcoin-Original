@@ -399,7 +399,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "games"} aria-label="Spiele">
         <div className="view-heading"><span>GAME CENTER</span><h1>Spiele</h1><p>Ein Wallet, echte Synchronisierung und serverseitig verbuchte Runden.</p></div>
-        <GameCenter role={profile?.role ?? "user"} walletBalance={wallet?.balance ?? 0} onChanged={loadData} />
+        <GameCenter walletBalance={wallet?.balance ?? 0} onChanged={loadData} />
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
