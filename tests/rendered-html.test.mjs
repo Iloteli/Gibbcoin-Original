@@ -30,11 +30,12 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with centralized admin controls", async () => {
-  const [dashboard, gameCenter, gameAdminControls, adminPanel, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration] = await Promise.all([
+  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822170000_add_wallet_game_center.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822180000_allow_one_gibb_game_entry.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260824122242_complete_admin_controls_and_poker.sql", import.meta.url), "utf8"),
@@ -42,6 +43,7 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
     readFile(new URL("../supabase/migrations/20260825130944_remove_game_wager_limit.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825135211_add_visible_coin_flip_loss_mode.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260826121128_add_plinko_game.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -50,6 +52,10 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /Würfelduell/);
   assert.match(gameCenter, /High Card/);
   assert.match(gameCenter, /5-Karten-Poker/);
+  assert.match(gameCenter, /title: "Plinko"/);
+  assert.match(gameCenter, /function PlinkoBoard/);
+  assert.match(gameCenter, /plinko-peg-row/);
+  assert.match(gameCenter, /plinkoMultipliers = \[3, 1, 0, 0, 0, 0, 0, 1, 3\]/);
   assert.match(gameCenter, /poker_draw/);
   assert.match(gameCenter, /HALTEN/);
   assert.match(adminPanel, /<GameAdminControls/);
@@ -77,6 +83,7 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameAdminControls, /Nur eine Person/);
   assert.match(gameAdminControls, /admin_set_game_visual_prank/);
   assert.match(gameAdminControls, /get_game_extras_admin_state/);
+  assert.match(gameAdminControls, /plinko: "●"/);
   assert.match(gameCenter, /get_effective_visual_pranks/);
   assert.match(gameCenter, /play_visual_prank_game/);
   assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} step=\{1\}/);
@@ -84,6 +91,7 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /game-ambient/);
   assert.match(gameCenter, /game-marquee/);
   assert.match(gameCenter, /stage-particles/);
+  assert.match(gameCenter, /stage-energy/);
   assert.match(gameCenter, /holdAnimation\(1150\)/);
   assert.match(migration, /private\.game_random/);
   assert.match(migration, /for update/);
@@ -123,6 +131,19 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   const visualFunction = extrasMigration.match(/create or replace function public\.play_visual_prank_game[\s\S]*?\$\$;/)?.[0] ?? "";
   assert.match(visualFunction, /'visual_only', true/);
   assert.doesNotMatch(visualFunction, /update public\.wallets|private\.append_transaction|insert into public\.game_rounds/);
+  assert.match(plinkoMigration, /insert into public\.game_settings[\s\S]*'plinko', 'Plinko', true, 70/);
+  assert.match(plinkoMigration, /v_plinko_slot := private\.game_random\(9\)/);
+  assert.match(plinkoMigration, /v_payout := p_wager \* v_plinko_multiplier/);
+  assert.match(plinkoMigration, /Game Center · ' \|\| v_label \|\| ' · Einsatz/);
+  assert.match(plinkoMigration, /grant execute on function public\.play_instant_game/);
+  const plinkoVisualFunction = plinkoMigration.match(/create or replace function public\.play_visual_prank_game[\s\S]*?\$\$;/)?.[0] ?? "";
+  assert.match(plinkoVisualFunction, /'visual_only', true/);
+  assert.doesNotMatch(plinkoVisualFunction, /update public\.wallets|private\.append_transaction|insert into public\.game_rounds/);
+  assert.match(styles, /\.game-theme-plinko/);
+  assert.match(styles, /@keyframes plinko-drop/);
+  assert.match(styles, /@keyframes stage-charge/);
+  assert.match(styles, /@keyframes loss-reveal/);
+  assert.match(styles, /prefers-reduced-motion[\s\S]*\.plinko-ball/);
   assert.doesNotMatch(gameCenter, /Math\.random/);
 });
 
