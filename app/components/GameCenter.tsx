@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getSupabase } from "../lib/supabase";
 import { DinoRunner } from "./DinoRunner";
 
-type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "dino_run";
+type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "plinko" | "dino_run";
 type PrankGameKey = Exclude<GameKey, "dino_run">;
 type SettingKey = "game_center" | GameKey;
 type GameSetting = { game_key: SettingKey; label: string; enabled: boolean; updated_at: string };
@@ -80,9 +80,11 @@ const games: Array<{ key: GameKey; title: string; icon: string; description: str
   { key: "dice_duel", title: "Würfelduell", icon: "⚄", description: "Der höhere Wurf gewinnt, Gleichstand zahlt zurück." },
   { key: "high_card", title: "High Card", icon: "♦", description: "Ziehe die höhere Karte als das Haus." },
   { key: "poker", title: "5-Karten-Poker", icon: "♣", description: "Halte starke Karten und ziehe den Rest neu." },
+  { key: "plinko", title: "Plinko", icon: "●", description: "Lass die Kugel durch das Peg-Feld in ein Gewinnfach fallen." },
   { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien." },
 ];
 const wagers = [1, 10, 50, 100, 500, 1_000, 5_000, 10_000];
+const plinkoMultipliers = [3, 1, 0, 0, 0, 0, 0, 1, 3];
 const DINO_ENTRY_COST = 150;
 
 function gameError(message?: string) {
@@ -127,6 +129,7 @@ function resultText(round: GameRound) {
   if (round.game_key === "coin_flip") return String(round.result.side ?? "?");
   if (round.game_key === "blackjack") return String(round.result.status ?? "beendet");
   if (round.game_key === "poker") return String(round.result.hand ?? "Pokerhand");
+  if (round.game_key === "plinko") return `Fach ${Number(round.result.slot ?? 0) + 1} · ${round.result.multiplier ?? 0}×`;
   if (round.game_key === "dino_run") return `${Number(round.result.score ?? 0).toLocaleString("de-CH")} Punkte`;
   return `${round.result.player ?? "?"} : ${round.result.house ?? "?"}`;
 }
@@ -145,6 +148,23 @@ function PokerCards({ cards, held, disabled, onToggle }: { cards: number[]; held
     const isHeld = held.has(position);
     return <button className={`playing-card poker-card ${suitIndex % 2 ? "red" : ""} ${isHeld ? "held" : ""}`} type="button" aria-pressed={isHeld} disabled={disabled} key={`${card}-${position}`} onClick={() => onToggle(position)}><b>{cardLabel(rank === 14 ? 1 : rank)}</b><i>{suits[suitIndex]}</i><em>{isHeld ? "HALTEN" : "TAUSCHEN"}</em></button>;
   })}</div>;
+}
+
+function PlinkoBoard({ slot, dropping, animationKey }: { slot: number | null; dropping: boolean; animationKey: number }) {
+  const safeSlot = Math.max(0, Math.min(8, slot ?? 4));
+  return <div className="plinko-board" aria-label={slot === null ? "Plinko-Spielfeld bereit" : `Plinko-Kugel in Fach ${safeSlot + 1}`}>
+    <div className="plinko-drop-zone">
+      <div className="plinko-launch" aria-hidden="true"><i /><i /><i /></div>
+      {Array.from({ length: 7 }, (_, row) => <div className="plinko-peg-row" key={row}>{Array.from({ length: row + 3 }, (_, peg) => <i key={peg} />)}</div>)}
+      <span
+        className={`plinko-ball plinko-slot-${safeSlot} ${dropping ? "searching" : slot !== null ? "landed" : "ready"}`}
+        key={`plinko-ball-${animationKey}-${slot ?? "ready"}`}
+        style={{ "--plinko-slot": safeSlot } as CSSProperties}
+        aria-hidden="true"
+      >G</span>
+    </div>
+    <div className="plinko-slots" aria-hidden="true">{plinkoMultipliers.map((multiplier, index) => <span className={slot === index ? "active" : ""} key={index}><b>{multiplier}×</b><i /></span>)}</div>
+  </div>;
 }
 
 export function GameCenter({ walletBalance, onChanged }: Props) {
@@ -258,6 +278,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const allInWager = Math.max(Math.floor(currentBalance), 0);
   const dinoCanStart = currentBalance >= DINO_ENTRY_COST;
   const won = Boolean(lastResult && lastResult.payout > lastResult.wager);
+  const lost = Boolean(lastResult && lastResult.payout < lastResult.wager);
 
   function chooseGame(key: GameKey) {
     if ((blackjack && key !== "blackjack") || (poker && key !== "poker") || (dino && key !== "dino_run")) {
@@ -519,13 +540,18 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (selectedGame === "high_card") {
       const player = Number(lastResult?.result.player ?? 1);
       const house = Number(lastResult?.result.house ?? 1);
-      return <div className="game-stage high-card-stage"><div><span>DEINE KARTE</span><PlayingCards cards={[player]} /></div><i>VS</i><div><span>HAUS</span><PlayingCards cards={[house]} /></div></div>;
+      return <div className="game-stage high-card-stage" key={`high-card-${animationKey}`}><div><span>DEINE KARTE</span><PlayingCards cards={[player]} /></div><i>VS</i><div><span>HAUS</span><PlayingCards cards={[house]} /></div></div>;
     }
     if (selectedGame === "poker") {
       const finished = lastResult?.game_key === "poker" ? lastResult.result : null;
       const cards = poker?.cards ?? (finished?.cards as number[] | undefined) ?? [];
       const hand = finished?.hand ? String(finished.hand) : null;
       return <div className="game-stage poker-stage" key={`poker-${animationKey}`}><div><span>{poker ? "Karten antippen: halten oder tauschen" : hand ?? "Fünf Karten ziehen und deine Gewinnhand bauen"}</span><PokerCards cards={cards} held={heldPokerCards} disabled={!poker || busy} onToggle={togglePokerCard} /></div>{poker && <p>{heldPokerCards.size} von 5 Karten werden gehalten.</p>}{!poker && cards.length === 0 && <p>Neue Runde starten, Karten halten und einmal neu ziehen.</p>}</div>;
+    }
+    if (selectedGame === "plinko") {
+      const slot = lastResult?.game_key === "plinko" ? Number(lastResult.result.slot) : null;
+      const multiplier = lastResult?.game_key === "plinko" ? Number(lastResult.result.multiplier ?? 0) : null;
+      return <div className="game-stage plinko-stage" key={`plinko-${animationKey}`}><PlinkoBoard slot={slot} dropping={busy} animationKey={animationKey} /><div className="game-outcome">{multiplier === null ? <span>Kugel starten · 3× an den Außenfächern</span> : <><strong>{multiplier}×</strong><span>Fach {Number(slot) + 1}</span></>}</div></div>;
     }
     const finished = lastResult?.game_key === "blackjack" ? lastResult.result : null;
     const playerCards = blackjack?.player_cards ?? (finished?.player_cards as number[] | undefined) ?? [];
@@ -535,7 +561,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
   const activeGame = games.find((game) => game.key === selectedGame)!;
   return (
-    <section className={`card game-center game-theme-${selectedGame} ${busy ? "is-playing" : ""} ${won ? "is-win" : ""}`} id="game-center">
+    <section className={`card game-center game-theme-${selectedGame} ${busy ? "is-playing" : ""} ${won ? "is-win" : ""} ${lost ? "is-loss" : ""}`} id="game-center">
       <div className="game-ambient" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
       <div className="game-center-hero">
         <div><div className="game-live-line"><span className="game-eyebrow">GIBB GAME CENTER</span><b><i /> LIVE</b></div><h2>Spielen. Riskieren. <em>Coins gewinnen.</em></h2><p>Einsätze, Gewinne und Dino-Prämien werden direkt in deinem einzigen GIBB-Wallet verbucht. Es gibt kein separates Spielkonto.</p></div>
@@ -549,8 +575,8 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       <div className="game-layout">
         {selectedVisible ? <article className="game-machine">
           <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
-          <div className="stage-shell" key={`stage-${selectedGame}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-particles" aria-hidden="true">{Array.from({ length: 12 }, (_, index) => <i key={index} />)}</div></div>
-          {won && <div className="win-confetti" aria-hidden="true">{Array.from({ length: 14 }, (_, index) => <i key={index} />)}</div>}
+          <div className="stage-shell" key={`stage-${selectedGame}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-energy" aria-hidden="true"><i /><i /><i /><i /></div><div className="stage-particles" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div></div>
+          {won && <div className="win-confetti" aria-hidden="true">{Array.from({ length: 22 }, (_, index) => <i key={index} />)}</div>}
 
           <div className="game-controls">
             {selectedGame === "roulette" && <div className="game-choice"><label htmlFor="roulette-choice">Dein Tipp</label><select id="roulette-choice" className="input" value={rouletteChoice} onChange={(event) => setRouletteChoice(event.target.value)} disabled={busy}><option value="rot">Rot · 2×</option><option value="schwarz">Schwarz · 2×</option>{Array.from({ length: 37 }, (_, number) => <option value={number} key={number}>{number} · 36×</option>)}</select></div>}
