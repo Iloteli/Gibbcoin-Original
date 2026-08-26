@@ -959,9 +959,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .game-history-list article > b.negative { color: #ff9898; }
 .game-rules-note { margin: 17px 0 0; border: 1px solid rgba(246,200,95,.13); border-radius: 10px; padding: 10px; color: #a9a28c; background: rgba(246,200,95,.025); font-size: 8px; line-height: 1.5; text-align: center; }
 .game-admin { display: grid; grid-template-columns: minmax(220px,.7fr) minmax(180px,.45fr) minmax(0,1.7fr); align-items: center; gap: 20px; padding: 24px 30px; border-top: 1px solid rgba(255,255,255,.07); background: rgba(117,245,154,.025); }
+.admin-game-controls { margin: 26px 0; overflow: hidden; border: 1px solid rgba(117,245,154,.18); border-radius: 18px; box-shadow: inset 0 1px 0 rgba(255,255,255,.025), 0 18px 45px rgba(0,0,0,.12); }
 .game-admin-intro h3 { margin: 6px 0 5px; font-size: 15px; }
 .game-admin-intro p { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
 .game-admin-pin .input { min-height: 42px; text-align: center; letter-spacing: .35em; font-size: 16px; }
+.game-admin-pin small { display: block; margin-top: 6px; color: var(--muted); font-size: 8px; line-height: 1.4; text-align: center; }
 .game-switches { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 7px; }
 .game-switches button { position: relative; min-width: 0; display: flex; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; color: var(--text); background: #0a100d; text-align: left; }
 .game-switches button.on { border-color: rgba(117,245,154,.2); background: rgba(117,245,154,.045); }
