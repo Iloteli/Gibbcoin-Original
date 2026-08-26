@@ -1,4 +1,4 @@
-const CACHE_NAME = "gibb-coin-static-v45";
+const CACHE_NAME = "gibb-coin-static-v46";
 const PRECACHE = ["/manifest.json", "/favicon.svg"];
 
 self.addEventListener("install", (event) => {
