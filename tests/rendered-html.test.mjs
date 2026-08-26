@@ -287,6 +287,44 @@ test("keeps the installable app assets available", async () => {
   assert.match(worker, /CACHE_NAME/);
 });
 
+test("ships premium layout-preserving motion with reduced-motion support", async () => {
+  const styles = await readFile(new URL("../app/globals.css", import.meta.url), "utf8");
+  assert.match(styles, /Premium motion system — visual-only, layout-preserving/);
+  assert.match(styles, /--motion-fast: 180ms/);
+  assert.match(styles, /--motion-normal: 300ms/);
+  assert.match(styles, /--motion-slow: 480ms/);
+  assert.match(styles, /@keyframes premium-view-enter/);
+  assert.match(styles, /@keyframes premium-modal-in/);
+  assert.match(styles, /@keyframes premium-toast-in/);
+  assert.match(styles, /@keyframes premium-error-shake/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation-duration: \.01ms !important/);
+  assert.match(styles, /@keyframes wallet-scan[\s\S]*translateX\(543%\)/);
+  assert.match(styles, /@keyframes play-shimmer[\s\S]*translateX\(472%\)/);
+});
+
+test("unlocks the Admin panel once per visit without persisting the PIN", async () => {
+  const [dashboard, adminPanel, gameAdminControls, migration] = await Promise.all([
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260826164000_add_admin_panel_pin_session_check.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(dashboard, /activeView === "admin" && <AdminPanel/);
+  assert.match(adminPanel, /admin_verify_pin/);
+  assert.match(adminPanel, /setAdminSessionPin\(entryPin\)/);
+  assert.match(adminPanel, /p_pin: adminSessionPin/);
+  assert.match(adminPanel, /Die Freigabe gilt nur, solange du im Adminpanel bleibst/);
+  assert.doesNotMatch(adminPanel, /id="delete-account-pin"|statsResetPin|pinPromptOpen/);
+  assert.match(gameAdminControls, /adminPin: string/);
+  assert.match(gameAdminControls, /Gilt bis du den Admin-Tab verlässt/);
+  assert.doesNotMatch(gameAdminControls, /setAdminPin|Für jede Änderung erneut eingeben/);
+  assert.match(migration, /create or replace function public\.admin_verify_pin\(p_pin text\)/);
+  assert.match(migration, /private\.check_admin_pin\(v_admin_user_id, p_pin\)/);
+  assert.match(migration, /private\.assert_mfa_if_enrolled/);
+  assert.match(migration, /grant execute on function public\.admin_verify_pin\(text\) to authenticated/);
+  assert.doesNotMatch(migration, /insert into|update public|create table/);
+});
+
 test("hard-deletes accounts so their email can be registered again", async () => {
   const [login, adminPanel, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/LoginPage.tsx", import.meta.url), "utf8"),
