@@ -316,7 +316,7 @@ export function Dashboard({ user }: Props) {
   const firstName = displayName.split(" ")[0];
   const avatar = profile?.avatar_url || user.user_metadata?.avatar_url;
   const roleLabel = profile?.role === "super_admin" ? "Owner" : profile?.role === "admin" ? "Admin" : "Mitglied";
-  const visualRoleLabel = profile?.visual_role === "demo_owner" ? "Demo-Owner · nur Anzeige" : profile?.visual_role === "demo_admin" ? "Demo-Admin · nur Anzeige" : null;
+  const visualRoleLabel = profile?.visual_role === "demo_owner" ? "Fun-Rang · Gold · nur Anzeige" : profile?.visual_role === "demo_admin" ? "Fun-Rang · Silber · nur Anzeige" : null;
   const formattedBalance = wallet ? new Intl.NumberFormat("de-CH").format(wallet.balance) : "—";
 
   return (
@@ -430,7 +430,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
         <div className="view-heading"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
-        <section className="card card-pad profile-card" id="profile"><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" /> : <span className="profile-avatar">{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.email || user.email}</p></div></div><div className="profile-facts"><div><span>Rolle</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Demo-Anzeige</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
+        <section className="card card-pad profile-card" id="profile"><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" /> : <span className="profile-avatar">{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.email || user.email}</p></div></div><div className="profile-facts"><div><span>Rolle</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Fun-Rang</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
         <PwaInstallCard />
         </div>
 

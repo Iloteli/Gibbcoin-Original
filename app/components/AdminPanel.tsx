@@ -67,9 +67,9 @@ function adminError(message?: string) {
 }
 
 function visualRoleLabel(role: AdminUser["visual_role"]) {
-  if (role === "demo_owner") return "Demo-Owner · nur Anzeige";
-  if (role === "demo_admin") return "Demo-Admin · nur Anzeige";
-  return "Keine Demo-Anzeige";
+  if (role === "demo_owner") return "Fun-Rang · Gold · nur Anzeige";
+  if (role === "demo_admin") return "Fun-Rang · Silber · nur Anzeige";
+  return "Kein Fun-Rang";
 }
 
 function accountDeletionError(code?: string) {
@@ -463,7 +463,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       return;
     }
     const actionLabel = visualRoleLabel(visualRole);
-    if (!window.confirm(`${visualRole ? `${actionLabel} für` : "Demo-Anzeige für"} ${target.display_name} setzen?\n\nDies ändert keine echten Rollen oder Rechte.`)) return;
+    if (!window.confirm(`${visualRole ? `${actionLabel} für` : "Fun-Rang für"} ${target.display_name} setzen?\n\nDies ändert keine echten Rollen oder Rechte.`)) return;
     const supabase = getSupabase();
     if (!supabase) return;
     setActionBusy(`visual:${target.user_id}:${visualRole ?? "none"}`); setError(""); setMessage("");
@@ -480,7 +480,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       else setError(actionError);
       return;
     }
-    setMessage(visualRole ? `${target.display_name} trägt jetzt ${actionLabel}.` : `Die Demo-Anzeige für ${target.display_name} wurde entfernt.`);
+    setMessage(visualRole ? `${target.display_name} trägt jetzt ${actionLabel}.` : `Der Fun-Rang für ${target.display_name} wurde entfernt.`);
     await loadAdminData();
   }
 
@@ -576,7 +576,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       </form>}
 
       <div className="admin-users-head">
-        <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{currentRole === "super_admin" ? "Als Owner kannst du Benutzer und Admins bannen, Rollen verwalten, Reset-Links senden und alle fremden Konten dauerhaft löschen. Dein Owner-Konto ist systemweit gegen Löschung geschützt." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}<br /><span className="admin-demo-disclaimer">Demo-Abzeichen sind nur visuell und geben niemals Rechte.</span></p></div>
+        <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{currentRole === "super_admin" ? "Als Owner kannst du Benutzer und Admins bannen, Rollen verwalten, Reset-Links senden und alle fremden Konten dauerhaft löschen. Dein Owner-Konto ist systemweit gegen Löschung geschützt." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}<br /><span className="admin-demo-disclaimer">Fun-Ränge sind nur visuell und geben niemals Rechte.</span></p></div>
         <span>{filteredUsers.length} Konten</span>
       </div>
       <div className="admin-user-list">
@@ -601,7 +601,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
             </div>
             <div className="admin-user-actions">
               {currentRole === "super_admin" ? <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || actionBusy !== ""} onClick={() => void changeRole(item)}>{roleBusy ? "Speichert …" : item.role === "admin" ? "Admin entfernen" : "Admin geben"}</button> : <span className="owner-only-note">Nur Owner</span>}
-              {currentRole !== "user" && !protectedAccount && !ownAccount && <div className="admin-demo-actions" aria-label={`Demo-Anzeige für ${item.display_name}`}><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_admin")}>{actionBusy === `visual:${item.user_id}:demo_admin` ? "Speichert …" : "Demo-Admin"}</button><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_owner")}>{actionBusy === `visual:${item.user_id}:demo_owner` ? "Speichert …" : "Demo-Owner"}</button>{item.visual_role && <button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, null)}>{actionBusy === `visual:${item.user_id}:none` ? "Entfernt …" : "Entfernen"}</button>}</div>}
+              {currentRole !== "user" && !protectedAccount && !ownAccount && <div className="admin-demo-actions" aria-label={`Fun-Rang für ${item.display_name}`}><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_admin")}>{actionBusy === `visual:${item.user_id}:demo_admin` ? "Speichert …" : "Fun-Rang Silber"}</button><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_owner")}>{actionBusy === `visual:${item.user_id}:demo_owner` ? "Speichert …" : "Fun-Rang Gold"}</button>{item.visual_role && <button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, null)}>{actionBusy === `visual:${item.user_id}:none` ? "Entfernt …" : "Entfernen"}</button>}</div>}
               <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void sendPasswordReset(item)}>{passwordBusy ? "Sendet …" : "Passwort-Reset"}</button>
               <button className={item.wallet_status === "locked" ? "secondary compact" : "admin-danger compact"} type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void changeAccountStatus(item)}>{statusBusy ? "Speichert …" : item.wallet_status === "locked" ? "Entbannen" : "Bannen"}</button>
               <button className="account-delete compact" type="button" disabled={deleteProtected || actionBusy !== ""} title={protectedAccount ? "Das Owner-Konto ist geschützt" : peerAdmin ? "Admins können keine anderen Admins löschen" : ownAccount ? "Das eigene Konto kann nicht gelöscht werden" : undefined} onClick={() => openAccountDeletion(item)}>{deleteBusy ? "Löscht …" : "Löschen"}</button>
