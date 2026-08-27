@@ -272,9 +272,12 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .admin-user-main strong, .admin-user-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-user-main span { color: var(--muted); font-size: 11px; }
 .admin-user-badges, .admin-user-actions { display: flex; gap: 7px; align-items: center; }
+.admin-demo-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .admin-badge { border: 1px solid var(--line); border-radius: 999px; padding: 5px 8px; color: var(--muted); font-size: 10px; font-weight: 750; white-space: nowrap; }
 .admin-badge.role-admin, .admin-badge.role-super_admin { color: var(--green); border-color: rgba(117,245,154,.22); background: rgba(117,245,154,.05); }
 .admin-badge.status-locked { color: #ff9f9f; border-color: rgba(255,112,112,.25); background: rgba(255,112,112,.05); }
+.admin-badge.visual-role-demo { color: var(--amber); border-color: rgba(246,200,95,.3); background: rgba(246,200,95,.08); }
+.admin-demo-disclaimer { color: var(--amber); font-weight: 750; }
 .secondary.compact, .admin-danger.compact, .account-delete.compact { padding: 8px 10px; white-space: nowrap; }
 .owner-only-note { color: var(--muted); border: 1px dashed var(--line); border-radius: 9px; padding: 7px 9px; font-size: 10px; font-weight: 750; white-space: nowrap; }
 .admin-danger { border: 1px solid rgba(255,112,112,.28); border-radius: 10px; color: #ff9f9f; background: rgba(255,112,112,.05); font-weight: 700; }
@@ -498,6 +501,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .hero-copy { max-width: 760px; }
 .hero-kicker { display: flex; align-items: center; gap: 10px; color: var(--green); text-transform: uppercase; letter-spacing: .14em; font-size: 10px; font-weight: 800; }
 .hero-kicker b { border: 1px solid rgba(124,245,157,.2); border-radius: 999px; padding: 4px 7px; color: #c5fbd4; background: rgba(124,245,157,.055); font-size: 8px; letter-spacing: .08em; }
+.visual-role-badge { border: 1px dashed rgba(246,200,95,.4); border-radius: 999px; padding: 4px 7px; color: var(--amber); background: rgba(246,200,95,.08); font-size: 8px; letter-spacing: .05em; font-style: normal; }
 .hero h1 { font-size: clamp(48px, 7vw, 82px); margin: 12px 0 17px; max-width: none; }
 .hero p { max-width: 680px; color: #9dacA4; font-size: 16px; line-height: 1.65; }
 .hero-actions { display: flex; gap: 10px; margin-top: 25px; }
@@ -658,6 +662,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .profile-facts { display: grid; grid-template-columns: repeat(3, auto); gap: 9px; }
 .profile-facts > div { min-width: 130px; display: grid; gap: 5px; border-left: 1px solid var(--line); padding: 7px 15px; }
 .profile-facts strong { font-size: 11px; }
+.visual-role-text { color: var(--amber); }
 .success-text { color: var(--green); }
 .danger-text { color: #ff9d9d; }
 .admin-panel { scroll-margin-top: 100px; }
