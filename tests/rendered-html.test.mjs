@@ -147,8 +147,8 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.doesNotMatch(gameCenter, /Math\.random/);
 });
 
-test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milestone", async () => {
-  const [gameCenter, gameAdminControls, runner, migration, entryMigration, startingBalance, login, extrasMigration] = await Promise.all([
+test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verified leaderboard", async () => {
+  const [gameCenter, gameAdminControls, runner, migration, entryMigration, startingBalance, login, extrasMigration, leaderboardMigration, styles] = await Promise.all([
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DinoRunner.tsx", import.meta.url), "utf8"),
@@ -157,6 +157,8 @@ test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milest
     readFile(new URL("../supabase/migrations/20260824125832_set_starting_balance_to_ten.sql", import.meta.url), "utf8"),
     readFile(new URL("../app/components/LoginPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260827132028_add_dino_run_leaderboard.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
   assert.match(gameCenter, /Dino Run/);
   assert.match(gameCenter, /1’000 Punkte = 100 GIBB/);
@@ -164,6 +166,9 @@ test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milest
   assert.match(gameCenter, /Dino Run starten · \$\{DINO_ENTRY_COST\} GIBB/);
   assert.match(gameCenter, /start_dino_run/);
   assert.match(gameCenter, /sync_dino_run/);
+  assert.match(gameCenter, /get_dino_leaderboard/);
+  assert.match(gameCenter, /Dino Run Leaderboard/);
+  assert.match(gameCenter, /Pro Person zählt der beste serverbestätigte Lauf/);
   assert.match(runner, /<canvas/);
   assert.match(runner, /playedSeconds \* 50/);
   assert.match(runner, /Math\.floor\(currentScore \/ 1000\)/);
@@ -195,6 +200,15 @@ test("ships Dino Run with a 150 GIBB entry and one server-paid reward per milest
   assert.match(extrasMigration, /create table private\.dino_game_settings/);
   assert.match(extrasMigration, /add column speed_level/);
   assert.match(extrasMigration, /add column difficulty_level/);
+  assert.match(leaderboardMigration, /create index if not exists dino_run_finished_score_idx/);
+  assert.match(leaderboardMigration, /create or replace function public\.get_dino_leaderboard\(\)/);
+  assert.match(leaderboardMigration, /where d\.status = 'finished'/);
+  assert.match(leaderboardMigration, /row_number\(\) over \(order by b\.score desc/);
+  assert.match(leaderboardMigration, /coalesce\(nullif\(p\.username, ''\)/);
+  assert.match(leaderboardMigration, /revoke all on function public\.get_dino_leaderboard\(\)/);
+  assert.match(leaderboardMigration, /grant execute on function public\.get_dino_leaderboard\(\) to authenticated/);
+  assert.match(styles, /\.dino-leaderboard/);
+  assert.match(styles, /@keyframes dino-leaderboard-in/);
   assert.match(startingBalance, /values \(new\.id, 10\)/);
   assert.match(login, /Einmalig 10 GIBB Startguthaben/);
 });
