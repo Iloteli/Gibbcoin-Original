@@ -52,6 +52,20 @@ type DinoState = {
   speed_level: number;
   difficulty_level: number;
 };
+type DinoLeaderboardEntry = {
+  rank: number;
+  user_id: string;
+  username: string;
+  score: number;
+  reward_total: number;
+  finished_at: string;
+  is_me: boolean;
+};
+type DinoLeaderboardState = {
+  ok: boolean;
+  entries: DinoLeaderboardEntry[];
+  my_entry: DinoLeaderboardEntry | null;
+};
 type CenterState = {
   balance: number;
   settings: GameSetting[];
@@ -177,6 +191,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const [blackjack, setBlackjack] = useState<BlackjackState | null>(null);
   const [poker, setPoker] = useState<PokerState | null>(null);
   const [dino, setDino] = useState<DinoState | null>(null);
+  const [dinoLeaderboard, setDinoLeaderboard] = useState<DinoLeaderboardState | null>(null);
   const [dinoRewardNotice, setDinoRewardNotice] = useState("");
   const [heldPokerCards, setHeldPokerCards] = useState<Set<number>>(() => new Set());
   const [busy, setBusy] = useState(false);
@@ -218,10 +233,25 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     setLoading(false);
   }, []);
 
+  const loadDinoLeaderboard = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data, error: rpcError } = await supabase.rpc("get_dino_leaderboard");
+    if (rpcError) return;
+    const next = data as DinoLeaderboardState | null;
+    if (!next?.ok || !Array.isArray(next.entries)) return;
+    setDinoLeaderboard({ ok: true, entries: next.entries, my_entry: next.my_entry ?? null });
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => void loadState(), 0);
     return () => window.clearTimeout(timer);
   }, [loadState]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadDinoLeaderboard(), 0);
+    return () => window.clearTimeout(timer);
+  }, [loadDinoLeaderboard]);
 
   const loadEffectivePranks = useCallback(async () => {
     const supabase = getSupabase();
@@ -514,15 +544,36 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
           result: { score: result.score, milestones: Math.floor(result.score / 1000), status: result.status },
           balance: result.balance,
         });
-        await Promise.all([loadState(), result.reward > 0 ? Promise.resolve() : onChanged()]);
+        await Promise.all([loadState(), loadDinoLeaderboard(), result.reward > 0 ? Promise.resolve() : onChanged()]);
       }
     });
+  }
+
+  function renderDinoLeaderboard() {
+    const entries = dinoLeaderboard?.entries ?? [];
+    const myEntry = dinoLeaderboard?.my_entry ?? null;
+    const myIsListed = entries.some((entry) => entry.is_me);
+    return <aside className="dino-leaderboard" aria-labelledby="dino-leaderboard-title">
+      <div className="dino-leaderboard-head">
+        <div><span>BESTÄTIGTE LÄUFE</span><strong id="dino-leaderboard-title">Dino Run Leaderboard</strong></div>
+        <b>TOP 10</b>
+      </div>
+      {dinoLeaderboard === null ? <p className="dino-leaderboard-empty">Bestenliste wird geladen …</p> : entries.length === 0 ? <p className="dino-leaderboard-empty">Noch keine abgeschlossenen Läufe. Sei der Erste!</p> : <ol className="dino-leaderboard-list">
+        {entries.map((entry) => <li className={entry.is_me ? "is-me" : ""} key={entry.user_id}>
+          <span className="dino-leaderboard-rank">{String(entry.rank).padStart(2, "0")}</span>
+          <div><strong>{entry.username}{entry.is_me ? " · Du" : ""}</strong><small>{entry.reward_total.toLocaleString("de-CH")} GIBB Prämien</small></div>
+          <b>{entry.score.toLocaleString("de-CH")}</b>
+        </li>)}
+      </ol>}
+      {myEntry && !myIsListed && <p className="dino-leaderboard-you">Dein Platz: <strong>#{myEntry.rank}</strong> · {myEntry.score.toLocaleString("de-CH")} Punkte</p>}
+      <small className="dino-leaderboard-note">Pro Person zählt der beste serverbestätigte Lauf.</small>
+    </aside>;
   }
 
   function renderStage() {
     if (selectedGame === "dino_run") {
       const finishedScore = lastResult?.game_key === "dino_run" ? Number(lastResult.result.score ?? 0) : 0;
-      return <div className="game-stage dino-stage">{dino ? <DinoRunner sessionId={dino.id} seed={dino.seed} running={dino.status === "active"} speedLevel={dino.speed_level} difficultyLevel={dino.difficulty_level} onProgress={(score) => syncDinoScore(score, false)} onCrash={(score) => syncDinoScore(score, true)} /> : <div className="dino-ready"><span aria-hidden="true">▰</span><strong>{finishedScore > 0 ? `${finishedScore.toLocaleString("de-CH")} Punkte` : "Bereit für den schweren Lauf"}</strong><p>Der Eintritt kostet 150 GIBB. Danach steigt das Tempo schnell, die Abstände werden enger und alle 1’000 Punkte bringen 100 GIBB.</p></div>}</div>;
+      return <div className="game-stage dino-stage"><div className="dino-playfield">{dino ? <DinoRunner sessionId={dino.id} seed={dino.seed} running={dino.status === "active"} speedLevel={dino.speed_level} difficultyLevel={dino.difficulty_level} onProgress={(score) => syncDinoScore(score, false)} onCrash={(score) => syncDinoScore(score, true)} /> : <div className="dino-ready"><span aria-hidden="true">▰</span><strong>{finishedScore > 0 ? `${finishedScore.toLocaleString("de-CH")} Punkte` : "Bereit für den schweren Lauf"}</strong><p>Der Eintritt kostet 150 GIBB. Danach steigt das Tempo schnell, die Abstände werden enger und alle 1’000 Punkte bringen 100 GIBB.</p></div>}</div>{renderDinoLeaderboard()}</div>;
     }
     if (selectedGame === "roulette") {
       const number = lastResult?.game_key === "roulette" ? Number(lastResult.result.number) : null;
