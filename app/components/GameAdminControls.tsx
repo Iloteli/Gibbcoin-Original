@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
-type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "plinko" | "dino_run";
+type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "plinko" | "dino_run" | "slots" | "baccarat" | "keno" | "wheel" | "mines" | "bingo" | "crash";
 type PrankGameKey = Exclude<GameKey, "dino_run">;
 type SettingKey = "game_center" | GameKey;
 type GameSetting = { game_key: SettingKey; label: string; enabled: boolean; updated_at: string };
@@ -42,6 +42,13 @@ const gameIcons: Record<GameKey, string> = {
   poker: "♣",
   plinko: "●",
   dino_run: "▰",
+  slots: "▦",
+  baccarat: "♢",
+  keno: "⑨",
+  wheel: "◉",
+  mines: "✦",
+  bingo: "▤",
+  crash: "↗",
 };
 
 function gameAdminError(code?: string) {
