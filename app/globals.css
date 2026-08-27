@@ -1842,3 +1842,18 @@ a:focus-visible {
     translate: none !important;
   }
 }
+
+/* Keep the complete game catalog reachable without wrapping the tabs. */
+@media (min-width: 681px) {
+  .game-tabs {
+    display: flex;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(var(--game-accent-rgb), .42) rgba(255,255,255,.04);
+  }
+  .game-tabs::-webkit-scrollbar { height: 7px; }
+  .game-tabs::-webkit-scrollbar-track { background: rgba(255,255,255,.035); }
+  .game-tabs::-webkit-scrollbar-thumb { border-radius: 999px; background: rgba(var(--game-accent-rgb),.42); }
+  .game-tabs button { flex: 0 0 224px; }
+}
