@@ -339,6 +339,30 @@ test("unlocks the Admin panel once per visit without persisting the PIN", async 
   assert.doesNotMatch(migration, /insert into|update public|create table/);
 });
 
+test("keeps demo admin and owner badges visual-only", async () => {
+  const [adminPanel, dashboard, types, styles, migration] = await Promise.all([
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/types.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260827141734_add_visual_demo_roles.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(adminPanel, /Demo-Abzeichen sind nur visuell und geben niemals Rechte/);
+  assert.match(adminPanel, /admin_set_visual_role/);
+  assert.match(adminPanel, /Dies ändert keine echten Rollen oder Rechte/);
+  assert.match(dashboard, /get_my_visual_role/);
+  assert.match(dashboard, /Demo-Owner · nur Anzeige/);
+  assert.match(types, /visual_role\?: "demo_admin" \| "demo_owner" \| null/);
+  assert.match(styles, /\.admin-badge\.visual-role-demo/);
+  assert.match(styles, /\.visual-role-badge/);
+  assert.match(migration, /create table if not exists private\.visual_demo_roles/);
+  assert.match(migration, /never grant permissions/);
+  assert.match(migration, /private\.require_admin\(\)/);
+  assert.match(migration, /revoke all on function public\.admin_set_visual_role/);
+  assert.match(migration, /grant execute on function public\.admin_set_visual_role\(uuid, text, text\) to authenticated/);
+  assert.doesNotMatch(migration, /update public\.profiles|insert into public\.profiles/);
+});
+
 test("hard-deletes accounts so their email can be registered again", async () => {
   const [login, adminPanel, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/LoginPage.tsx", import.meta.url), "utf8"),
