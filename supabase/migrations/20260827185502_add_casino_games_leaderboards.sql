@@ -181,7 +181,7 @@ begin
     raise exception 'invalid_game_choice';
   end if;
   if v_key = 'crash' then
-    if v_choice !~ '^[1-9][0-9]*(\\.[0-9])?$' then raise exception 'invalid_game_choice'; end if;
+    if v_choice !~ '^[1-9][0-9]*(\.[0-9])?$' then raise exception 'invalid_game_choice'; end if;
     v_target := v_choice::numeric;
     if v_target < 1.1 or v_target > 10 then raise exception 'invalid_game_choice'; end if;
   end if;
