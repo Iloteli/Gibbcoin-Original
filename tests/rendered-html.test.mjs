@@ -351,7 +351,7 @@ test("keeps demo admin and owner badges visual-only", async () => {
   assert.match(adminPanel, /admin_set_visual_role/);
   assert.match(adminPanel, /Dies ändert keine echten Rollen oder Rechte/);
   assert.match(dashboard, /get_my_visual_role/);
-  assert.match(dashboard, /Fun-Rang · Gold · nur Anzeige/);
+  assert.match(dashboard, /Owner 1 · nur Anzeige/);
   assert.match(types, /visual_role\?: "demo_admin" \| "demo_owner" \| null/);
   assert.match(styles, /\.admin-badge\.visual-role-demo/);
   assert.match(styles, /\.visual-role-badge/);
