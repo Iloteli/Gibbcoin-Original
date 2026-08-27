@@ -66,6 +66,23 @@ type DinoLeaderboardState = {
   entries: DinoLeaderboardEntry[];
   my_entry: DinoLeaderboardEntry | null;
 };
+type GameOutcomeLeaderboardEntry = {
+  rank: number;
+  username: string;
+  total: number;
+  is_me: boolean;
+};
+type GameOutcomeLeaderboard = {
+  game_key: GameKey;
+  wins: GameOutcomeLeaderboardEntry[];
+  losses: GameOutcomeLeaderboardEntry[];
+  my_wins: number;
+  my_losses: number;
+};
+type GameOutcomeLeaderboardsState = {
+  ok: boolean;
+  games: GameOutcomeLeaderboard[];
+};
 type CenterState = {
   balance: number;
   settings: GameSetting[];
@@ -192,6 +209,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const [poker, setPoker] = useState<PokerState | null>(null);
   const [dino, setDino] = useState<DinoState | null>(null);
   const [dinoLeaderboard, setDinoLeaderboard] = useState<DinoLeaderboardState | null>(null);
+  const [gameOutcomeLeaderboards, setGameOutcomeLeaderboards] = useState<GameOutcomeLeaderboardsState | null>(null);
   const [dinoRewardNotice, setDinoRewardNotice] = useState("");
   const [heldPokerCards, setHeldPokerCards] = useState<Set<number>>(() => new Set());
   const [busy, setBusy] = useState(false);
@@ -243,6 +261,22 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     setDinoLeaderboard({ ok: true, entries: next.entries, my_entry: next.my_entry ?? null });
   }, []);
 
+  const loadGameOutcomeLeaderboards = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const { data, error: rpcError } = await supabase.rpc("get_game_outcome_leaderboards");
+    if (rpcError) {
+      setGameOutcomeLeaderboards({ ok: false, games: [] });
+      return;
+    }
+    const next = data as GameOutcomeLeaderboardsState | null;
+    if (!next?.ok || !Array.isArray(next.games)) {
+      setGameOutcomeLeaderboards({ ok: false, games: [] });
+      return;
+    }
+    setGameOutcomeLeaderboards({ ok: true, games: next.games });
+  }, []);
+
   useEffect(() => {
     const timer = window.setTimeout(() => void loadState(), 0);
     return () => window.clearTimeout(timer);
@@ -252,6 +286,20 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     const timer = window.setTimeout(() => void loadDinoLeaderboard(), 0);
     return () => window.clearTimeout(timer);
   }, [loadDinoLeaderboard]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadGameOutcomeLeaderboards(), 0);
+    const interval = window.setInterval(() => void loadGameOutcomeLeaderboards(), 30_000);
+    return () => {
+      window.clearTimeout(timer);
+      window.clearInterval(interval);
+    };
+  }, [loadGameOutcomeLeaderboards]);
+
+  useEffect(() => {
+    if (!lastResult) return;
+    void loadGameOutcomeLeaderboards();
+  }, [lastResult, loadGameOutcomeLeaderboards]);
 
   const loadEffectivePranks = useCallback(async () => {
     const supabase = getSupabase();
@@ -570,6 +618,34 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     </aside>;
   }
 
+  function renderGameOutcomeLeaderboard() {
+    const leaderboard = gameOutcomeLeaderboards?.games.find((game) => game.game_key === selectedGame);
+    const renderEntries = (entries: GameOutcomeLeaderboardEntry[], label: string) => entries.length === 0
+      ? <p className="game-outcome-leaderboard-empty">Noch keine {label.toLocaleLowerCase("de-CH")}.</p>
+      : <ol className="game-outcome-leaderboard-list">{entries.map((entry) => <li className={entry.is_me ? "is-me" : ""} key={`${label}-${entry.rank}`}>
+        <span>{String(entry.rank).padStart(2, "0")}</span>
+        <strong>{entry.username}{entry.is_me ? " · Du" : ""}</strong>
+        <b>{entry.total.toLocaleString("de-CH")}×</b>
+      </li>)}</ol>;
+
+    return <section className="game-outcome-leaderboard" aria-labelledby="game-outcome-leaderboard-title">
+      <header>
+        <div><span>COMMUNITY-RANGLISTE</span><strong id="game-outcome-leaderboard-title">{gameName(selectedGame)} · Siege &amp; Niederlagen</strong></div>
+        <b>TOP 5</b>
+      </header>
+      {gameOutcomeLeaderboards === null ? <p className="game-outcome-leaderboard-status">Rangliste wird geladen …</p>
+        : !gameOutcomeLeaderboards.ok || !leaderboard ? <p className="game-outcome-leaderboard-status">Rangliste ist momentan nicht verfügbar.</p>
+          : <>
+            <div className="game-outcome-leaderboard-columns">
+              <section className="wins" aria-label="Meiste Siege"><h4><span aria-hidden="true">▲</span> Meiste Siege</h4>{renderEntries(leaderboard.wins, "Siege")}</section>
+              <section className="losses" aria-label="Meiste Niederlagen"><h4><span aria-hidden="true">▼</span> Meiste Niederlagen</h4>{renderEntries(leaderboard.losses, "Niederlagen")}</section>
+            </div>
+            <p className="game-outcome-leaderboard-me">Deine Bilanz: <strong>{leaderboard.my_wins.toLocaleString("de-CH")} Siege</strong><span>·</span><b>{leaderboard.my_losses.toLocaleString("de-CH")} Niederlagen</b></p>
+          </>}
+      <small>Gewinn: Auszahlung über Einsatz · Niederlage: Auszahlung unter Einsatz · Unentschieden zählen nicht.</small>
+    </section>;
+  }
+
   function renderStage() {
     if (selectedGame === "dino_run") {
       const finishedScore = lastResult?.game_key === "dino_run" ? Number(lastResult.result.score ?? 0) : 0;
@@ -627,6 +703,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
         {selectedVisible ? <article className="game-machine">
           <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
           <div className="stage-shell" key={`stage-${selectedGame}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-energy" aria-hidden="true"><i /><i /><i /><i /></div><div className="stage-particles" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div></div>
+          {renderGameOutcomeLeaderboard()}
           {won && <div className="win-confetti" aria-hidden="true">{Array.from({ length: 22 }, (_, index) => <i key={index} />)}</div>}
 
           <div className="game-controls">
