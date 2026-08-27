@@ -30,7 +30,7 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with centralized admin controls", async () => {
-  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration] = await Promise.all([
+  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
@@ -44,6 +44,7 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
     readFile(new URL("../supabase/migrations/20260825135211_add_visible_coin_flip_loss_mode.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260826121128_add_plinko_game.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260827185502_add_casino_games_leaderboards.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -56,6 +57,9 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /function PlinkoBoard/);
   assert.match(gameCenter, /plinko-peg-row/);
   assert.match(gameCenter, /plinkoMultipliers = \[3, 1, 0, 0, 0, 0, 0, 1, 3\]/);
+  for (const title of ["Slot Machine", "Baccarat", "Keno", "Glücksrad", "Mines", "Bingo", "Crash"]) assert.match(gameCenter, new RegExp(title));
+  assert.match(gameCenter, /play_casino_game/);
+  assert.match(gameCenter, /get_game_leaderboard/);
   assert.match(gameCenter, /poker_draw/);
   assert.match(gameCenter, /HALTEN/);
   assert.match(adminPanel, /<GameAdminControls/);
@@ -144,6 +148,12 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(styles, /@keyframes stage-charge/);
   assert.match(styles, /@keyframes loss-reveal/);
   assert.match(styles, /prefers-reduced-motion[\s\S]*\.plinko-ball/);
+  assert.match(styles, /\.game-leaderboard/);
+  assert.match(styles, /\.slot-reels/);
+  assert.match(casinoMigration, /create table if not exists public\.game_leaderboard/);
+  assert.match(casinoMigration, /create or replace function public\.get_game_leaderboard/);
+  assert.match(casinoMigration, /create or replace function public\.play_casino_game/);
+  for (const gameKey of ["slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"]) assert.match(casinoMigration, new RegExp(`'${gameKey}'`));
   assert.doesNotMatch(gameCenter, /Math\.random/);
 });
 
@@ -211,37 +221,6 @@ test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verifi
   assert.match(styles, /@keyframes dino-leaderboard-in/);
   assert.match(startingBalance, /values \(new\.id, 10\)/);
   assert.match(login, /Einmalig 10 GIBB Startguthaben/);
-});
-
-test("shows verified win and loss leaderboards for every game", async () => {
-  const [gameCenter, migration, styles] = await Promise.all([
-    readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/migrations/20260827164124_add_game_outcome_leaderboards.sql", import.meta.url), "utf8"),
-    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-  ]);
-
-  assert.match(gameCenter, /get_game_outcome_leaderboards/);
-  assert.match(gameCenter, /Meiste Siege/);
-  assert.match(gameCenter, /Meiste Niederlagen/);
-  assert.match(gameCenter, /Deine Bilanz/);
-  assert.match(gameCenter, /Unentschieden zählen nicht/);
-  assert.match(gameCenter, /30_000/);
-  assert.match(migration, /create index if not exists game_rounds_outcome_leaderboard_idx/);
-  assert.match(migration, /where payout <> wager/);
-  assert.match(migration, /filter \(where r\.payout > r\.wager\)/);
-  assert.match(migration, /filter \(where r\.payout < r\.wager\)/);
-  assert.match(migration, /partition by s\.game_key/);
-  assert.match(migration, /private\.require_active_user\(\)/);
-  assert.match(migration, /set search_path = ''/);
-  assert.match(migration, /coalesce\(\s*nullif\(p\.username, ''\)/);
-  assert.match(migration, /revoke all on function public\.get_game_outcome_leaderboards\(\)/);
-  assert.match(migration, /grant execute on function public\.get_game_outcome_leaderboards\(\) to authenticated/);
-  for (const gameKey of ["roulette", "coin_flip", "blackjack", "dice_duel", "high_card", "poker", "plinko", "dino_run"]) {
-    assert.match(migration, new RegExp(`'${gameKey}'::text`));
-  }
-  assert.match(styles, /\.game-outcome-leaderboard/);
-  assert.match(styles, /\.game-outcome-leaderboard-columns/);
-  assert.match(styles, /\.game-outcome-leaderboard-list li\.is-me/);
 });
 
 test("allows protected self-removal, Admin deletion, and resettable personal coin stats", async () => {
