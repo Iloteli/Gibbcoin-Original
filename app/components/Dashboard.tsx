@@ -126,6 +126,7 @@ export function Dashboard({ user }: Props) {
       supabase.from("wallets").select("*").eq("user_id", user.id).single(),
       supabase.from("transactions").select("id,sender_user_id,receiver_user_id,sender_label,receiver_label,amount,type,previous_hash,hash,created_at").order("created_at", { ascending: false }).limit(100),
       supabase.rpc("verify_hash_chain"),
+      supabase.rpc("get_my_visual_role"),
     ] as const);
 
     let results = await fetchWalletData();
@@ -137,7 +138,7 @@ export function Dashboard({ user }: Props) {
       results = await fetchWalletData();
     }
 
-    const [profileResult, walletResult, transactionResult, chainResult] = results;
+    const [profileResult, walletResult, transactionResult, chainResult, visualRoleResult] = results;
     const retryAuthError = results.map((result) => result.error).find(isSupabaseAuthError);
     if (retryAuthError) {
       setRefreshing(false);
@@ -147,7 +148,10 @@ export function Dashboard({ user }: Props) {
 
     const loadFailed = profileResult.error || walletResult.error || transactionResult.error;
     setDataError(loadFailed ? "Einige Wallet-Daten konnten gerade nicht aktualisiert werden." : "");
-    if (profileResult.data) setProfile(profileResult.data as Profile);
+    if (profileResult.data) setProfile({
+      ...(profileResult.data as Profile),
+      visual_role: visualRoleResult.error ? null : visualRoleResult.data as Profile["visual_role"],
+    });
     if (walletResult.data) setWallet(walletResult.data as Wallet);
     if (transactionResult.data) setTransactions(transactionResult.data as Transaction[]);
     const chain = (chainResult.data as Array<{ valid: boolean }> | null)?.[0];
@@ -312,6 +316,7 @@ export function Dashboard({ user }: Props) {
   const firstName = displayName.split(" ")[0];
   const avatar = profile?.avatar_url || user.user_metadata?.avatar_url;
   const roleLabel = profile?.role === "super_admin" ? "Owner" : profile?.role === "admin" ? "Admin" : "Mitglied";
+  const visualRoleLabel = profile?.visual_role === "demo_owner" ? "Demo-Owner · nur Anzeige" : profile?.visual_role === "demo_admin" ? "Demo-Admin · nur Anzeige" : null;
   const formattedBalance = wallet ? new Intl.NumberFormat("de-CH").format(wallet.balance) : "—";
 
   return (
@@ -347,7 +352,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "home"} aria-label="Home">
         <section className="hero">
-          <div className="hero-copy"><div className="hero-kicker"><span>Persönliches Campus-Wallet</span><b>{roleLabel}</b></div><h1>Bereit, {firstName}?</h1><p>Sende GIBB Coins in Sekunden, behalte jede Bewegung im Blick und entscheide selbst über deine Benachrichtigungen.</p><div className="hero-actions"><a className="primary-link" href="#send-coins">Coins senden</a><a className="secondary-link" href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Guthaben kaufen" : "Coins anfordern"}</a></div></div>
+          <div className="hero-copy"><div className="hero-kicker"><span>Persönliches Campus-Wallet</span><b>{roleLabel}</b>{visualRoleLabel && <em className="visual-role-badge">{visualRoleLabel}</em>}</div><h1>Bereit, {firstName}?</h1><p>Sende GIBB Coins in Sekunden, behalte jede Bewegung im Blick und entscheide selbst über deine Benachrichtigungen.</p><div className="hero-actions"><a className="primary-link" href="#send-coins">Coins senden</a><a className="secondary-link" href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Guthaben kaufen" : "Coins anfordern"}</a></div></div>
           <div className="status-stack"><div className={`chain-status ${chainValid === false ? "invalid" : ""}`}><i aria-hidden="true" />{chainValid === null ? "Prüfung läuft" : chainValid ? "Hash-Kette verifiziert" : "Hash-Kette prüfen"}</div><div className="sync-status"><i className={refreshing ? "syncing" : ""} aria-hidden="true" />{refreshing ? "Wird aktualisiert …" : lastUpdated ? `Aktuell · ${lastUpdated.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}` : "Live verbunden"}</div></div>
         </section>
 
@@ -425,7 +430,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
         <div className="view-heading"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
-        <section className="card card-pad profile-card" id="profile"><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" /> : <span className="profile-avatar">{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.email || user.email}</p></div></div><div className="profile-facts"><div><span>Rolle</span><strong>{roleLabel}</strong></div><div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
+        <section className="card card-pad profile-card" id="profile"><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" /> : <span className="profile-avatar">{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.email || user.email}</p></div></div><div className="profile-facts"><div><span>Rolle</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Demo-Anzeige</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
         <PwaInstallCard />
         </div>
 

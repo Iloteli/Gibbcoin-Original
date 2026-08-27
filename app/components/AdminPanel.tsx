@@ -9,6 +9,7 @@ type AdminUser = {
   username: string;
   display_name: string;
   role: "user" | "admin" | "super_admin";
+  visual_role: "demo_admin" | "demo_owner" | null;
   balance: number;
   wallet_status: "active" | "locked";
 };
@@ -56,10 +57,19 @@ function adminError(message?: string) {
   if (message?.includes("cannot_modify_super_admin")) return "Das Owner-Konto kann hier nicht geändert werden.";
   if (message?.includes("owner_required")) return "Nur der Owner darf Adminrechte vergeben oder entfernen.";
   if (message?.includes("cannot_modify_peer_admin")) return "Admins können andere Admin-Konten nicht sperren.";
+  if (message?.includes("cannot_visual_role_self")) return "Die Demo-Anzeige kann nicht für das eigene Konto gesetzt werden.";
+  if (message?.includes("invalid_visual_role")) return "Diese Demo-Anzeige ist nicht verfügbar.";
+  if (message?.startsWith("admin_pin_")) return pinError(message);
   if (message?.includes("wallet_not_found")) return "Für dieses Konto wurde kein Wallet gefunden.";
   if (message?.includes("account_status_update_failed")) return "Der Bann konnte nicht vollständig gespeichert werden. Versuche es erneut.";
   if (message?.includes("admin_required")) return "Für diese Aktion fehlen dir die Adminrechte.";
   return "Die Admin-Aktion konnte nicht ausgeführt werden.";
+}
+
+function visualRoleLabel(role: AdminUser["visual_role"]) {
+  if (role === "demo_owner") return "Demo-Owner · nur Anzeige";
+  if (role === "demo_admin") return "Demo-Admin · nur Anzeige";
+  return "Keine Demo-Anzeige";
 }
 
 function accountDeletionError(code?: string) {
@@ -125,16 +135,24 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       { data: listedUsers, error: usersError },
       { data: status, error: pinStatusError },
       { data: stats, error: statsError },
+      { data: visualRoles },
     ] = await Promise.all([
       supabase.rpc("admin_list_users", { p_query: "" }),
       supabase.rpc("admin_pin_status"),
       supabase.rpc("admin_coin_stats"),
+      supabase.rpc("admin_list_visual_roles"),
     ]);
     if (usersError || pinStatusError || statsError) {
       setError(adminError(usersError?.message ?? pinStatusError?.message ?? statsError?.message));
       return;
     }
-    setUsers((listedUsers ?? []) as AdminUser[]);
+    const visualRoleByUser = new Map<string, AdminUser["visual_role"]>(
+      ((visualRoles ?? []) as Array<{ user_id: string; visual_role: AdminUser["visual_role"] }>).map((item) => [item.user_id, item.visual_role]),
+    );
+    setUsers(((listedUsers ?? []) as Array<Omit<AdminUser, "visual_role">>).map((item) => ({
+      ...item,
+      visual_role: visualRoleByUser.get(item.user_id) ?? null,
+    })));
     setPinStatus((status ?? { has_pin: false, failed_attempts: 0, locked_until: null }) as PinStatus);
     setCoinStats((stats ?? { given: 0, removed: 0, since: null }) as AdminCoinStats);
     setTargetId((current) => currentRole === "admin" && current === currentUserId ? "" : current || (currentRole === "super_admin" ? currentUserId : ""));
@@ -431,6 +449,41 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
     await Promise.all([loadAdminData(), onChanged()]);
   }
 
+  async function setVisualRole(target: AdminUser, visualRole: AdminUser["visual_role"]) {
+    if (!adminAccessGranted || !/^\d{4}$/.test(adminSessionPin)) {
+      expireAdminAccess();
+      return;
+    }
+    if (target.user_id === currentUserId) {
+      setError("Die Demo-Anzeige kann nicht für das eigene Konto gesetzt werden.");
+      return;
+    }
+    if (target.role === "super_admin") {
+      setError("Das echte Owner-Konto ist geschützt.");
+      return;
+    }
+    const actionLabel = visualRoleLabel(visualRole);
+    if (!window.confirm(`${visualRole ? `${actionLabel} für` : "Demo-Anzeige für"} ${target.display_name} setzen?\n\nDies ändert keine echten Rollen oder Rechte.`)) return;
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setActionBusy(`visual:${target.user_id}:${visualRole ?? "none"}`); setError(""); setMessage("");
+    const { data, error: rpcError } = await supabase.rpc("admin_set_visual_role", {
+      p_target_user_id: target.user_id,
+      p_visual_role: visualRole,
+      p_pin: adminSessionPin,
+    });
+    setActionBusy("");
+    const result = data as SecureResult | null;
+    if (rpcError || !result?.ok) {
+      const actionError = adminError(result?.error ?? rpcError?.message);
+      if (result?.error?.startsWith("admin_pin_")) expireAdminAccess(actionError);
+      else setError(actionError);
+      return;
+    }
+    setMessage(visualRole ? `${target.display_name} trägt jetzt ${actionLabel}.` : `Die Demo-Anzeige für ${target.display_name} wurde entfernt.`);
+    await loadAdminData();
+  }
+
   function openStatsReset() {
     setError(""); setMessage(""); setStatsResetError("");
     if (!pinStatus?.has_pin) {
@@ -523,7 +576,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       </form>}
 
       <div className="admin-users-head">
-        <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{currentRole === "super_admin" ? "Als Owner kannst du Benutzer und Admins bannen, Rollen verwalten, Reset-Links senden und alle fremden Konten dauerhaft löschen. Dein Owner-Konto ist systemweit gegen Löschung geschützt." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}</p></div>
+        <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{currentRole === "super_admin" ? "Als Owner kannst du Benutzer und Admins bannen, Rollen verwalten, Reset-Links senden und alle fremden Konten dauerhaft löschen. Dein Owner-Konto ist systemweit gegen Löschung geschützt." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}<br /><span className="admin-demo-disclaimer">Demo-Abzeichen sind nur visuell und geben niemals Rechte.</span></p></div>
         <span>{filteredUsers.length} Konten</span>
       </div>
       <div className="admin-user-list">
@@ -544,9 +597,11 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
             <div className="admin-user-badges">
               <span className={`admin-badge role-${item.role}`}>{item.role === "super_admin" ? "Owner" : item.role === "admin" ? "Admin" : "Benutzer"}</span>
               <span className={`admin-badge status-${item.wallet_status}`}>{item.wallet_status === "locked" ? "Gebannt" : "Aktiv"}</span>
+              {item.visual_role && <span className="admin-badge visual-role-demo">{visualRoleLabel(item.visual_role)}</span>}
             </div>
             <div className="admin-user-actions">
               {currentRole === "super_admin" ? <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || actionBusy !== ""} onClick={() => void changeRole(item)}>{roleBusy ? "Speichert …" : item.role === "admin" ? "Admin entfernen" : "Admin geben"}</button> : <span className="owner-only-note">Nur Owner</span>}
+              {currentRole !== "user" && !protectedAccount && !ownAccount && <div className="admin-demo-actions" aria-label={`Demo-Anzeige für ${item.display_name}`}><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_admin")}>{actionBusy === `visual:${item.user_id}:demo_admin` ? "Speichert …" : "Demo-Admin"}</button><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_owner")}>{actionBusy === `visual:${item.user_id}:demo_owner` ? "Speichert …" : "Demo-Owner"}</button>{item.visual_role && <button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, null)}>{actionBusy === `visual:${item.user_id}:none` ? "Entfernt …" : "Entfernen"}</button>}</div>}
               <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void sendPasswordReset(item)}>{passwordBusy ? "Sendet …" : "Passwort-Reset"}</button>
               <button className={item.wallet_status === "locked" ? "secondary compact" : "admin-danger compact"} type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void changeAccountStatus(item)}>{statusBusy ? "Speichert …" : item.wallet_status === "locked" ? "Entbannen" : "Bannen"}</button>
               <button className="account-delete compact" type="button" disabled={deleteProtected || actionBusy !== ""} title={protectedAccount ? "Das Owner-Konto ist geschützt" : peerAdmin ? "Admins können keine anderen Admins löschen" : ownAccount ? "Das eigene Konto kann nicht gelöscht werden" : undefined} onClick={() => openAccountDeletion(item)}>{deleteBusy ? "Löscht …" : "Löschen"}</button>
