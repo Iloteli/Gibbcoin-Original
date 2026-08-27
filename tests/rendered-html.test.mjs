@@ -347,11 +347,11 @@ test("keeps demo admin and owner badges visual-only", async () => {
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260827141734_add_visual_demo_roles.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(adminPanel, /Demo-Abzeichen sind nur visuell und geben niemals Rechte/);
+  assert.match(adminPanel, /Fun-Ränge sind nur visuell und geben niemals Rechte/);
   assert.match(adminPanel, /admin_set_visual_role/);
   assert.match(adminPanel, /Dies ändert keine echten Rollen oder Rechte/);
   assert.match(dashboard, /get_my_visual_role/);
-  assert.match(dashboard, /Demo-Owner · nur Anzeige/);
+  assert.match(dashboard, /Fun-Rang · Gold · nur Anzeige/);
   assert.match(types, /visual_role\?: "demo_admin" \| "demo_owner" \| null/);
   assert.match(styles, /\.admin-badge\.visual-role-demo/);
   assert.match(styles, /\.visual-role-badge/);
