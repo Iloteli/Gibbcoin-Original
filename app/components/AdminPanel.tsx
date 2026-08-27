@@ -67,8 +67,8 @@ function adminError(message?: string) {
 }
 
 function visualRoleLabel(role: AdminUser["visual_role"]) {
-  if (role === "demo_owner") return "Fun-Rang · Gold · nur Anzeige";
-  if (role === "demo_admin") return "Fun-Rang · Silber · nur Anzeige";
+  if (role === "demo_owner") return "Owner 1 · nur Anzeige";
+  if (role === "demo_admin") return "Admin 1 · nur Anzeige";
   return "Kein Fun-Rang";
 }
 
@@ -601,7 +601,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
             </div>
             <div className="admin-user-actions">
               {currentRole === "super_admin" ? <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || actionBusy !== ""} onClick={() => void changeRole(item)}>{roleBusy ? "Speichert …" : item.role === "admin" ? "Admin entfernen" : "Admin geben"}</button> : <span className="owner-only-note">Nur Owner</span>}
-              {currentRole !== "user" && !protectedAccount && !ownAccount && <div className="admin-demo-actions" aria-label={`Fun-Rang für ${item.display_name}`}><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_admin")}>{actionBusy === `visual:${item.user_id}:demo_admin` ? "Speichert …" : "Fun-Rang Silber"}</button><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_owner")}>{actionBusy === `visual:${item.user_id}:demo_owner` ? "Speichert …" : "Fun-Rang Gold"}</button>{item.visual_role && <button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, null)}>{actionBusy === `visual:${item.user_id}:none` ? "Entfernt …" : "Entfernen"}</button>}</div>}
+              {currentRole !== "user" && !protectedAccount && !ownAccount && <div className="admin-demo-actions" aria-label={`Fun-Rang für ${item.display_name}`}><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_admin")}>{actionBusy === `visual:${item.user_id}:demo_admin` ? "Speichert …" : "Admin 1 · Anzeige"}</button><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_owner")}>{actionBusy === `visual:${item.user_id}:demo_owner` ? "Speichert …" : "Owner 1 · Anzeige"}</button>{item.visual_role && <button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, null)}>{actionBusy === `visual:${item.user_id}:none` ? "Entfernt …" : "Entfernen"}</button>}</div>}
               <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void sendPasswordReset(item)}>{passwordBusy ? "Sendet …" : "Passwort-Reset"}</button>
               <button className={item.wallet_status === "locked" ? "secondary compact" : "admin-danger compact"} type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void changeAccountStatus(item)}>{statusBusy ? "Speichert …" : item.wallet_status === "locked" ? "Entbannen" : "Bannen"}</button>
               <button className="account-delete compact" type="button" disabled={deleteProtected || actionBusy !== ""} title={protectedAccount ? "Das Owner-Konto ist geschützt" : peerAdmin ? "Admins können keine anderen Admins löschen" : ownAccount ? "Das eigene Konto kann nicht gelöscht werden" : undefined} onClick={() => openAccountDeletion(item)}>{deleteBusy ? "Löscht …" : "Löschen"}</button>

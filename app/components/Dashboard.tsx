@@ -316,7 +316,7 @@ export function Dashboard({ user }: Props) {
   const firstName = displayName.split(" ")[0];
   const avatar = profile?.avatar_url || user.user_metadata?.avatar_url;
   const roleLabel = profile?.role === "super_admin" ? "Owner" : profile?.role === "admin" ? "Admin" : "Mitglied";
-  const visualRoleLabel = profile?.visual_role === "demo_owner" ? "Fun-Rang · Gold · nur Anzeige" : profile?.visual_role === "demo_admin" ? "Fun-Rang · Silber · nur Anzeige" : null;
+  const visualRoleLabel = profile?.visual_role === "demo_owner" ? "Owner 1 · nur Anzeige" : profile?.visual_role === "demo_admin" ? "Admin 1 · nur Anzeige" : null;
   const formattedBalance = wallet ? new Intl.NumberFormat("de-CH").format(wallet.balance) : "—";
 
   return (
