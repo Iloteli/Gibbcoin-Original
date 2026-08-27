@@ -213,6 +213,37 @@ test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verifi
   assert.match(login, /Einmalig 10 GIBB Startguthaben/);
 });
 
+test("shows verified win and loss leaderboards for every game", async () => {
+  const [gameCenter, migration, styles] = await Promise.all([
+    readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260827164124_add_game_outcome_leaderboards.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(gameCenter, /get_game_outcome_leaderboards/);
+  assert.match(gameCenter, /Meiste Siege/);
+  assert.match(gameCenter, /Meiste Niederlagen/);
+  assert.match(gameCenter, /Deine Bilanz/);
+  assert.match(gameCenter, /Unentschieden zählen nicht/);
+  assert.match(gameCenter, /30_000/);
+  assert.match(migration, /create index if not exists game_rounds_outcome_leaderboard_idx/);
+  assert.match(migration, /where payout <> wager/);
+  assert.match(migration, /filter \(where r\.payout > r\.wager\)/);
+  assert.match(migration, /filter \(where r\.payout < r\.wager\)/);
+  assert.match(migration, /partition by s\.game_key/);
+  assert.match(migration, /private\.require_active_user\(\)/);
+  assert.match(migration, /set search_path = ''/);
+  assert.match(migration, /coalesce\(\s*nullif\(p\.username, ''\)/);
+  assert.match(migration, /revoke all on function public\.get_game_outcome_leaderboards\(\)/);
+  assert.match(migration, /grant execute on function public\.get_game_outcome_leaderboards\(\) to authenticated/);
+  for (const gameKey of ["roulette", "coin_flip", "blackjack", "dice_duel", "high_card", "poker", "plinko", "dino_run"]) {
+    assert.match(migration, new RegExp(`'${gameKey}'::text`));
+  }
+  assert.match(styles, /\.game-outcome-leaderboard/);
+  assert.match(styles, /\.game-outcome-leaderboard-columns/);
+  assert.match(styles, /\.game-outcome-leaderboard-list li\.is-me/);
+});
+
 test("allows protected self-removal, Admin deletion, and resettable personal coin stats", async () => {
   const [adminPanel, migration, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
