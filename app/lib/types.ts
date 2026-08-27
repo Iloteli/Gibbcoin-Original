@@ -4,6 +4,7 @@ export type Profile = {
   email: string;
   avatar_url: string | null;
   role: "user" | "admin" | "super_admin";
+  visual_role?: "demo_admin" | "demo_owner" | null;
 };
 
 export type Wallet = {
