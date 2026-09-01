@@ -266,6 +266,13 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .admin-users-head { display: flex; justify-content: space-between; gap: 18px; align-items: end; padding-top: 22px; margin-top: 22px; border-top: 1px solid var(--line); }
 .admin-users-head p { color: var(--muted); margin: 5px 0 0; font-size: 12px; }
 .admin-users-head > span { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.primary-owner-status { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 12px; border: 1px solid; border-radius: 12px; padding: 11px 13px; font-size: 11px; }
+.primary-owner-status strong { white-space: nowrap; }
+.primary-owner-status span { color: var(--muted); text-align: right; }
+.primary-owner-status.active { border-color: rgba(117,245,154,.3); background: rgba(117,245,154,.07); }
+.primary-owner-status.active strong { color: var(--green); }
+.primary-owner-status.restricted { border-color: rgba(255,190,90,.28); background: rgba(255,190,90,.06); }
+.primary-owner-status.restricted strong { color: var(--amber); }
 .admin-user-list { display: grid; gap: 8px; margin-top: 13px; }
 .admin-user { display: grid; grid-template-columns: minmax(170px, 1fr) auto auto; gap: 14px; align-items: center; padding: 12px 13px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.015); }
 .admin-user-main { min-width: 0; display: grid; gap: 3px; }
