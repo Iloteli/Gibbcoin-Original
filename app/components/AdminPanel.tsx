@@ -18,6 +18,7 @@ type PinStatus = { has_pin: boolean; failed_attempts: number; locked_until: stri
 type AdminCoinStats = { given: number; removed: number; since: string | null };
 type SecureResult = { ok?: boolean; error?: string; transaction_id?: string };
 type AdjustmentMode = "credit" | "remove";
+const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea";
 type Props = {
   currentRole: "admin" | "super_admin";
   currentUserId: string;
@@ -55,6 +56,7 @@ function adminError(message?: string) {
   if (message?.includes("cannot_change_own_role")) return "Du kannst deine eigene Adminrolle nicht ändern.";
   if (message?.includes("cannot_lock_own_account")) return "Du kannst dein eigenes Konto nicht sperren.";
   if (message?.includes("cannot_modify_super_admin")) return "Das Owner-Konto kann hier nicht geändert werden.";
+  if (message?.includes("primary_owner_required")) return "Nur Haupt-Owner Robyn darf Konten bannen oder entbannen.";
   if (message?.includes("owner_required")) return "Nur der Owner darf Adminrechte vergeben oder entfernen.";
   if (message?.includes("cannot_modify_peer_admin")) return "Admins können andere Admin-Konten nicht sperren.";
   if (message?.includes("cannot_visual_role_self")) return "Die Demo-Anzeige kann nicht für das eigene Konto gesetzt werden.";
@@ -78,6 +80,7 @@ function accountDeletionError(code?: string) {
   if (code?.includes("pin_must_have_four_digits")) return "Der Admin-PIN muss genau vier Ziffern enthalten.";
   if (code?.includes("cannot_delete_own_account")) return "Du kannst dein eigenes Konto nicht löschen.";
   if (code?.includes("cannot_delete_owner")) return "Das Owner-Konto ist vor dem Löschen geschützt.";
+  if (code?.includes("primary_owner_required")) return "Nur Haupt-Owner Robyn darf Konten löschen.";
   if (code?.includes("cannot_delete_peer_admin")) return "Admins können keine anderen Admin-Konten löschen.";
   if (code?.includes("admin_required")) return "Für diese Löschung fehlen dir die Adminrechte.";
   if (code?.includes("account_locked")) return "Dein Admin-Konto ist gesperrt.";
@@ -118,6 +121,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
   const [changePinOpen, setChangePinOpen] = useState(false);
   const [ownerPinRecovery, setOwnerPinRecovery] = useState(false);
   const [pinFormError, setPinFormError] = useState("");
+  const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null);
+  const [statusPromptError, setStatusPromptError] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePromptError, setDeletePromptError] = useState("");
@@ -184,6 +189,9 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
   }), [users]);
 
   const pinLocked = Boolean(pinStatus?.locked_until);
+  // This only controls which buttons are shown. Every destructive action is
+  // independently authorized by Supabase with the same immutable account id.
+  const isPrimaryOwner = currentRole === "super_admin" && currentUserId === PRIMARY_OWNER_USER_ID;
   const removingCoins = adjustmentMode === "remove";
   const adminAccessPending = pinStatus === null;
   const adminAccessRequired = Boolean(pinStatus?.has_pin) && !adminAccessGranted;
@@ -349,21 +357,38 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
     await Promise.all([loadAdminData(), onChanged()]);
   }
 
-  async function changeAccountStatus(target: AdminUser) {
+  function openAccountStatusChange(target: AdminUser) {
+    if (!isPrimaryOwner && currentRole !== "admin") {
+      setError("Nur Haupt-Owner Robyn darf Konten bannen oder entbannen.");
+      return;
+    }
+    if (!isPrimaryOwner && target.role !== "user") {
+      setError("Dieses Konto darfst du nicht bannen oder entbannen.");
+      return;
+    }
+    setStatusTarget(target);
+    setStatusPromptError("");
+    setError("");
+    setMessage("");
+  }
+
+  async function changeAccountStatus() {
+    if (!statusTarget) return;
+    const target = statusTarget;
     const nextStatus = target.wallet_status === "active" ? "locked" : "active";
-    const confirmation = nextStatus === "locked"
-      ? `${target.display_name} wirklich bannen? Die Person wird automatisch abgemeldet und kann sich danach nicht mehr anmelden.`
-      : `Bann für ${target.display_name} wirklich aufheben? Die Person kann sich danach wieder anmelden.`;
-    if (!window.confirm(confirmation)) return;
     const supabase = getSupabase();
     if (!supabase) return;
-    setActionBusy(`status:${target.user_id}`); setError(""); setMessage("");
+    setActionBusy(`status:${target.user_id}`); setStatusPromptError(""); setError(""); setMessage("");
     const { data, error: functionError } = await supabase.functions.invoke("admin-account-status", {
       body: { target_user_id: target.user_id, status: nextStatus },
     });
     setActionBusy("");
     const result = data as { error?: string } | null;
-    if (functionError || result?.error) { setError(adminError(result?.error ?? functionError?.message)); return; }
+    if (functionError || result?.error) {
+      setStatusPromptError(adminError(result?.error ?? functionError?.message));
+      return;
+    }
+    setStatusTarget(null);
     setMessage(nextStatus === "locked" ? `${target.display_name} wurde gebannt und wird automatisch abgemeldet.` : `${target.display_name} wurde entbannt und kann sich wieder anmelden.`);
     await Promise.all([loadAdminData(), onChanged()]);
   }
@@ -391,7 +416,11 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       setError("Du kannst dein eigenes Konto nicht löschen.");
       return;
     }
-    if (target.role === "super_admin") {
+    if (!isPrimaryOwner && currentRole !== "admin") {
+      setError("Nur Haupt-Owner Robyn darf Konten löschen.");
+      return;
+    }
+    if (target.role === "super_admin" && !isPrimaryOwner) {
       setError("Das Owner-Konto kann nicht gelöscht werden.");
       return;
     }
@@ -576,15 +605,17 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       </form>}
 
       <div className="admin-users-head">
-        <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{currentRole === "super_admin" ? "Als Owner kannst du Benutzer und Admins bannen, Rollen verwalten, Reset-Links senden und alle fremden Konten dauerhaft löschen. Dein Owner-Konto ist systemweit gegen Löschung geschützt." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}<br /><span className="admin-demo-disclaimer">Fun-Ränge sind nur visuell und geben niemals Rechte.</span></p></div>
+        <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{isPrimaryOwner ? "Als Haupt-Owner kann Robyn alle fremden Konten bannen, entbannen und dauerhaft löschen – auch andere Owner-Konten. Das eigene Konto bleibt geschützt." : currentRole === "super_admin" ? "Als weiterer Owner kannst du Rollen und andere Owner-Funktionen nutzen. Bannen, Entbannen und Löschen sind ausschließlich Haupt-Owner Robyn erlaubt." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}<br /><span className="admin-demo-disclaimer">Fun-Ränge sind nur visuell und geben niemals Rechte.</span></p></div>
         <span>{filteredUsers.length} Konten</span>
       </div>
+      {currentRole === "super_admin" && <div className={isPrimaryOwner ? "primary-owner-status active" : "primary-owner-status restricted"} role="status"><strong>{isPrimaryOwner ? "Haupt-Owner Robyn aktiv" : "Weiterer Owner aktiv"}</strong><span>{isPrimaryOwner ? "Du kannst auch andere Owner wie Ilja bannen, entbannen und löschen." : "Dieses Konto kann keine Benutzer bannen oder löschen. Melde dich dafür als Robyn an."}</span></div>}
       <div className="admin-user-list">
         {filteredUsers.map((item) => {
           const ownAccount = item.user_id === currentUserId;
           const protectedAccount = item.role === "super_admin";
           const peerAdmin = currentRole === "admin" && item.role === "admin";
-          const deleteProtected = ownAccount || protectedAccount || peerAdmin;
+          const canManageDestructive = !ownAccount && (isPrimaryOwner || (currentRole === "admin" && item.role === "user"));
+          const deleteProtected = !canManageDestructive;
           const roleBusy = actionBusy === `role:${item.user_id}`;
           const statusBusy = actionBusy === `status:${item.user_id}`;
           const passwordBusy = actionBusy === `password:${item.user_id}`;
@@ -603,8 +634,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
               {currentRole === "super_admin" ? <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || actionBusy !== ""} onClick={() => void changeRole(item)}>{roleBusy ? "Speichert …" : item.role === "admin" ? "Admin entfernen" : "Admin geben"}</button> : <span className="owner-only-note">Nur Owner</span>}
               {currentRole !== "user" && !protectedAccount && !ownAccount && <div className="admin-demo-actions" aria-label={`Fun-Rang für ${item.display_name}`}><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_admin")}>{actionBusy === `visual:${item.user_id}:demo_admin` ? "Speichert …" : "Admin 1 · Anzeige"}</button><button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, "demo_owner")}>{actionBusy === `visual:${item.user_id}:demo_owner` ? "Speichert …" : "Owner 1 · Anzeige"}</button>{item.visual_role && <button className="secondary compact" type="button" disabled={!adminAccessGranted || actionBusy !== ""} onClick={() => void setVisualRole(item, null)}>{actionBusy === `visual:${item.user_id}:none` ? "Entfernt …" : "Entfernen"}</button>}</div>}
               <button className="secondary compact" type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void sendPasswordReset(item)}>{passwordBusy ? "Sendet …" : "Passwort-Reset"}</button>
-              <button className={item.wallet_status === "locked" ? "secondary compact" : "admin-danger compact"} type="button" disabled={ownAccount || protectedAccount || peerAdmin || actionBusy !== ""} onClick={() => void changeAccountStatus(item)}>{statusBusy ? "Speichert …" : item.wallet_status === "locked" ? "Entbannen" : "Bannen"}</button>
-              <button className="account-delete compact" type="button" disabled={deleteProtected || actionBusy !== ""} title={protectedAccount ? "Das Owner-Konto ist geschützt" : peerAdmin ? "Admins können keine anderen Admins löschen" : ownAccount ? "Das eigene Konto kann nicht gelöscht werden" : undefined} onClick={() => openAccountDeletion(item)}>{deleteBusy ? "Löscht …" : "Löschen"}</button>
+              <button className={item.wallet_status === "locked" ? "secondary compact" : "admin-danger compact"} type="button" disabled={!canManageDestructive || actionBusy !== ""} title={!canManageDestructive ? ownAccount ? "Das eigene Konto kann nicht gebannt werden" : currentRole === "super_admin" ? "Nur Haupt-Owner Robyn darf Konten bannen" : protectedAccount || peerAdmin ? "Dieses Konto ist geschützt" : undefined : undefined} onClick={() => openAccountStatusChange(item)}>{statusBusy ? "Speichert …" : item.wallet_status === "locked" ? "Entbannen" : "Bannen"}</button>
+              <button className="account-delete compact" type="button" disabled={deleteProtected || actionBusy !== ""} title={deleteProtected ? ownAccount ? "Das eigene Konto kann nicht gelöscht werden" : currentRole === "super_admin" ? "Nur Haupt-Owner Robyn darf Konten löschen" : protectedAccount || peerAdmin ? "Dieses Konto ist geschützt" : undefined : undefined} onClick={() => openAccountDeletion(item)}>{deleteBusy ? "Löscht …" : "Löschen"}</button>
             </div>
           </article>;
         })}
@@ -612,6 +643,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
 
       {message && <p className="message" role="status">{message}</p>}
       {error && <p className="message error" role="alert">{error}</p>}
+
+      {statusTarget && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !actionBusy) { setStatusTarget(null); setStatusPromptError(""); } }}><section className="pin-modal account-status-modal" role="dialog" aria-modal="true" aria-labelledby="account-status-title"><div className="delete-warning" aria-hidden="true">!</div><h3 id="account-status-title">{statusTarget.wallet_status === "active" ? `${statusTarget.display_name} bannen?` : `Bann für ${statusTarget.display_name} aufheben?`}</h3><p>{statusTarget.wallet_status === "active" ? "Die Person wird sofort abgemeldet und kann sich erst nach dem Entbannen wieder anmelden." : "Die Person kann sich danach wieder anmelden und ihr Wallet verwenden."}</p>{statusPromptError && <p className="pin-modal-error" role="alert">{statusPromptError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={Boolean(actionBusy)} onClick={() => { setStatusTarget(null); setStatusPromptError(""); }}>Abbrechen</button><button className={statusTarget.wallet_status === "active" ? "admin-danger compact" : "primary compact"} type="button" disabled={Boolean(actionBusy)} onClick={() => void changeAccountStatus()}>{actionBusy ? "Wird gespeichert …" : statusTarget.wallet_status === "active" ? "Jetzt bannen" : "Jetzt entbannen"}</button></div></section></div>}
 
       {statsResetOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && actionBusy !== "stats-reset") { setStatsResetOpen(false); setStatsResetError(""); } }}><section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="stats-reset-title"><div className="pin-lock" aria-hidden="true">±</div><h3 id="stats-reset-title">Plus/Minus auf 0 setzen?</h3><p>Nur deine persönlichen Zähler werden neu gestartet. Guthaben, Konten, Transaktionen und das Admin-Protokoll bleiben vollständig erhalten. Deine PIN-Freigabe für diesen Adminpanel-Besuch wird verwendet.</p><form onSubmit={resetCoinStats}>{statsResetError && <p className="pin-modal-error" role="alert">{statsResetError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={actionBusy === "stats-reset"} onClick={() => { setStatsResetOpen(false); setStatsResetError(""); }}>Abbrechen</button><button className="admin-danger compact" type="submit" disabled={actionBusy === "stats-reset"}>{actionBusy === "stats-reset" ? "Setzt zurück …" : "Sicher zurücksetzen"}</button></div></form></section></div>}
 

@@ -16,6 +16,8 @@ type AuthorizationResult = {
 
 type FinalizeResult = { ok?: boolean; error?: string };
 
+const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea";
+
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), { status, headers: responseHeaders });
 }
@@ -71,10 +73,6 @@ Deno.serve(async (request) => {
       const status = deletionAuthorization?.error === "user_not_found" ? 404 : 403;
       return jsonResponse({ error: deletionAuthorization?.error ?? "account_delete_not_authorized" }, status);
     }
-    if (deletionAuthorization.role === "super_admin") {
-      return jsonResponse({ error: "cannot_delete_owner" }, 403);
-    }
-
     // Recheck both authoritative roles immediately before touching Auth. The
     // database DELETE trigger remains the final race-safe guard.
     const { data: currentProfiles, error: currentProfilesError } = await admin
@@ -90,7 +88,11 @@ Deno.serve(async (request) => {
     if (!actorProfile || !["admin", "super_admin"].includes(actorProfile.role)) {
       return jsonResponse({ error: "admin_required" }, 403);
     }
-    if (targetProfile.role === "super_admin") {
+    const actorIsPrimaryOwner = actorProfile.role === "super_admin" && authData.user.id === PRIMARY_OWNER_USER_ID;
+    if (actorProfile.role === "super_admin" && !actorIsPrimaryOwner) {
+      return jsonResponse({ error: "primary_owner_required" }, 403);
+    }
+    if (targetProfile.role === "super_admin" && !actorIsPrimaryOwner) {
       return jsonResponse({ error: "cannot_delete_owner" }, 403);
     }
     if (actorProfile.role === "admin" && targetProfile.role === "admin") {

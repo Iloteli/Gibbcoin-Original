@@ -8,6 +8,8 @@ const responseHeaders = {
 
 type AccountStatus = "active" | "locked";
 
+const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea";
+
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), { status, headers: responseHeaders });
 }
@@ -73,7 +75,11 @@ Deno.serve(async (request) => {
     }
     if (targetError || !target) return jsonResponse({ error: "user_not_found" }, 404);
     if (targetWalletError || !targetWallet) return jsonResponse({ error: "wallet_not_found" }, 404);
-    if (target.role === "super_admin") {
+    const callerIsPrimaryOwner = caller.role === "super_admin" && authData.user.id === PRIMARY_OWNER_USER_ID;
+    if (caller.role === "super_admin" && !callerIsPrimaryOwner) {
+      return jsonResponse({ error: "primary_owner_required" }, 403);
+    }
+    if (target.role === "super_admin" && !callerIsPrimaryOwner) {
       return jsonResponse({ error: "cannot_modify_super_admin" }, 403);
     }
     if (caller.role === "admin" && target.role === "admin") {

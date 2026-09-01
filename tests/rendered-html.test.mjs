@@ -241,6 +241,25 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
   assert.match(deletionFunction, /admin_authorize_account_deletion/);
 });
 
+test("reserves account bans and Owner deletion for Robyn as primary Owner", async () => {
+  const [adminPanel, migration, statusFunction, deletionFunction] = await Promise.all([
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260901071439_restrict_account_management_to_primary_owner.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/admin-account-status/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/functions/owner-delete-account/index.ts", import.meta.url), "utf8"),
+  ]);
+  assert.match(migration, /create or replace function private\.is_primary_owner/);
+  assert.match(migration, /d465d88f-0acb-4bff-ad55-945761acaeea/);
+  assert.match(migration, /primary_owner_required/);
+  assert.match(migration, /target_role in \('user', 'admin', 'super_admin'\)/);
+  assert.match(migration, /v_target_role = 'super_admin' and not v_actor_is_primary_owner/);
+  assert.match(statusFunction, /caller\.role === "super_admin" && !callerIsPrimaryOwner/);
+  assert.match(deletionFunction, /actorProfile\.role === "super_admin" && !actorIsPrimaryOwner/);
+  assert.match(adminPanel, /get_my_admin_account_capabilities/);
+  assert.match(adminPanel, /Nur Haupt-Owner Robyn darf Konten bannen/);
+  assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
+});
+
 test("prevents normal Admins from self-credit while preserving Owner self-credit", async () => {
   const [adminPanel, migration] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
