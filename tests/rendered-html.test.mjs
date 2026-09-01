@@ -255,9 +255,15 @@ test("reserves account bans and Owner deletion for Robyn as primary Owner", asyn
   assert.match(migration, /v_target_role = 'super_admin' and not v_actor_is_primary_owner/);
   assert.match(statusFunction, /caller\.role === "super_admin" && !callerIsPrimaryOwner/);
   assert.match(deletionFunction, /actorProfile\.role === "super_admin" && !actorIsPrimaryOwner/);
-  assert.match(adminPanel, /get_my_admin_account_capabilities/);
+  assert.match(adminPanel, /const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea"/);
+  assert.match(adminPanel, /currentRole === "super_admin" && currentUserId === PRIMARY_OWNER_USER_ID/);
+  assert.doesNotMatch(adminPanel, /get_my_admin_account_capabilities/);
   assert.match(adminPanel, /Nur Haupt-Owner Robyn darf Konten bannen/);
   assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
+  assert.match(adminPanel, /Haupt-Owner Robyn aktiv/);
+  assert.match(adminPanel, /Jetzt bannen/);
+  assert.match(adminPanel, /function openAccountStatusChange/);
+  assert.match(adminPanel, /statusTarget && <div className="modal-backdrop"/);
 });
 
 test("prevents normal Admins from self-credit while preserving Owner self-credit", async () => {
