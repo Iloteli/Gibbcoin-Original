@@ -408,8 +408,9 @@ test("hard-deletes accounts so their email can be registered again", async () =>
   assert.match(deletionFunction, /email_reusable: true/);
   assert.match(adminPanel, /E-Mail-Adresse ist sofort wieder/);
   assert.match(login, /Auch nach einer Kontolöschung darfst du dieselbe E-Mail wiederverwenden/);
-  assert.match(login, /EMAIL_RATE_LIMIT_COOLDOWN_MS/);
-  assert.match(login, /Supabase hat nur sein Bestätigungs-E-Mail-Limit erreicht/);
+  assert.match(login, /const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000/);
+  assert.match(login, /cooldownUntil - Date\.now\(\) > EMAIL_RATE_LIMIT_COOLDOWN_MS/);
+  assert.match(login, /Der E-Mail-Versand war kurz ausgelastet/);
 });
 
 test("creates every new account with a valid unique username and ten starting coins", async () => {

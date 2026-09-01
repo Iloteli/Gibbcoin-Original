@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
 const REGISTRATION_COOLDOWN_MS = 60_000;
-const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60 * 60_000;
+const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000;
 const REGISTRATION_COOLDOWN_KEY = "gibb-registration-cooldown-until";
 
 function isEmailSendRateLimit(error?: { code?: string; message?: string; status?: number }) {
@@ -74,7 +74,11 @@ export function LoginPage() {
 
   useEffect(() => {
     function updateRegistrationCooldown() {
-      const cooldownUntil = Number(window.sessionStorage.getItem(REGISTRATION_COOLDOWN_KEY) ?? 0);
+      let cooldownUntil = Number(window.sessionStorage.getItem(REGISTRATION_COOLDOWN_KEY) ?? 0);
+      if (cooldownUntil - Date.now() > EMAIL_RATE_LIMIT_COOLDOWN_MS) {
+        window.sessionStorage.removeItem(REGISTRATION_COOLDOWN_KEY);
+        cooldownUntil = 0;
+      }
       const seconds = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
       setRegistrationCooldownSeconds(seconds);
       if (seconds === 0) window.sessionStorage.removeItem(REGISTRATION_COOLDOWN_KEY);
@@ -132,8 +136,7 @@ export function LoginPage() {
           const retryAt = Date.now() + EMAIL_RATE_LIMIT_COOLDOWN_MS;
           window.sessionStorage.setItem(REGISTRATION_COOLDOWN_KEY, String(retryAt));
           setRegistrationCooldownSeconds(Math.ceil(EMAIL_RATE_LIMIT_COOLDOWN_MS / 1000));
-          const retryTime = new Intl.DateTimeFormat("de-CH", { hour: "2-digit", minute: "2-digit" }).format(retryAt);
-          setError(`Deine E-Mail-Adresse ist frei und kann wiederverwendet werden. Supabase hat nur sein Bestätigungs-E-Mail-Limit erreicht. Versuche die Registrierung ab ${retryTime} genau einmal erneut.`);
+          setError("Deine E-Mail-Adresse ist frei und kann wiederverwendet werden. Der E-Mail-Versand war kurz ausgelastet. Versuche die Registrierung in 60 Sekunden genau einmal erneut.");
         } else {
           setError(registrationErrorMessage(authError));
         }
