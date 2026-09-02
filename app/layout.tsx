@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 import "./globals.css";
 
 const title = "GIBB Coin – Dein Campus Wallet";
@@ -31,7 +32,12 @@ export async function generateMetadata(): Promise<Metadata> {
       title: "GIBB Coin",
     },
     icons: {
-      icon: "/favicon.svg",
+      icon: [
+        { url: "/favicon.svg", type: "image/svg+xml" },
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/icons/icon-180.png", sizes: "180x180", type: "image/png" }],
     },
     openGraph: {
       title,
@@ -53,7 +59,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <body>{children}</body>
+      <body><ServiceWorkerRegistration />{children}</body>
     </html>
   );
 }

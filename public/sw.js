@@ -1,5 +1,5 @@
-const CACHE_NAME = "gibb-coin-static-v47";
-const PRECACHE = ["/manifest.json", "/favicon.svg"];
+const CACHE_NAME = "gibb-coin-static-v48";
+const PRECACHE = ["/manifest.json", "/favicon.svg", "/icons/icon-180.png", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));

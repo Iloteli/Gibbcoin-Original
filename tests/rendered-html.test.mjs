@@ -327,13 +327,22 @@ test("closed admin tickets disappear immediately and stay filtered", async () =>
 });
 
 test("keeps the installable app assets available", async () => {
-  const [manifest, worker] = await Promise.all([
+  const [manifest, worker, layout, serviceWorkerRegistration] = await Promise.all([
     readFile(new URL("../public/manifest.json", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/ServiceWorkerRegistration.tsx", import.meta.url), "utf8"),
   ]);
   const parsed = JSON.parse(manifest);
   assert.equal(parsed.display, "standalone");
+  assert.equal(parsed.prefer_related_applications, false);
+  assert.ok(parsed.icons.some((icon) => icon.sizes === "192x192" && icon.type === "image/png"));
+  assert.ok(parsed.icons.some((icon) => icon.sizes === "512x512" && icon.type === "image/png"));
   assert.match(worker, /CACHE_NAME/);
+  assert.match(worker, /icon-192\.png/);
+  assert.match(worker, /icon-512\.png/);
+  assert.match(layout, /<ServiceWorkerRegistration \/>/);
+  assert.match(serviceWorkerRegistration, /navigator\.serviceWorker\.register\("\/sw\.js", \{ scope: "\/" \}\)/);
 });
 
 test("ships premium layout-preserving motion with reduced-motion support", async () => {

@@ -2,14 +2,19 @@
   "name": "GIBB Coin – Campus Wallet",
   "short_name": "GIBB Coin",
   "description": "GIBB Coins sicher senden, empfangen und gemeinsam verwalten.",
+  "id": "/",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "orientation": "any",
   "background_color": "#070b0a",
   "theme_color": "#070b0a",
   "lang": "de-CH",
   "categories": ["education", "finance", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
-    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ]
 }
