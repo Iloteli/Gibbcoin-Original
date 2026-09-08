@@ -1,5 +1,5 @@
-const CACHE_NAME = "gibb-coin-static-v48";
-const PRECACHE = ["/manifest.json", "/favicon.svg", "/icons/icon-180.png", "/icons/icon-192.png", "/icons/icon-512.png"];
+const CACHE_NAME = "gibb-coin-static-v49";
+const PRECACHE = ["/", "/manifest.json", "/favicon.svg", "/icons/icon-180.png", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(PRECACHE)).then(() => self.skipWaiting()));
@@ -19,7 +19,14 @@ self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin || request.mode === "navigate") return;
+  if (url.origin !== self.location.origin) return;
+  if (request.mode === "navigate") {
+    event.respondWith(fetch(request).then((response) => {
+      if (response.ok) void caches.open(CACHE_NAME).then((cache) => cache.put("/", response.clone()));
+      return response;
+    }).catch(() => caches.match("/").then((cached) => cached || Response.error())));
+    return;
+  }
   const cacheable = url.pathname === "/manifest.json"
     || url.pathname === "/favicon.svg"
     || ["style", "script", "image", "font"].includes(request.destination);

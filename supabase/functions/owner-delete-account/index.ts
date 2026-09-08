@@ -47,7 +47,7 @@ Deno.serve(async (request) => {
     }
     const { data: assurance, error: assuranceError } = await admin.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
     if (assuranceError) return jsonResponse({ error: "authentication_required" }, 401);
-    if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+    if (assurance.currentLevel !== "aal2") {
       return jsonResponse({ error: "mfa_required" }, 403);
     }
 

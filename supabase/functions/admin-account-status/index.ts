@@ -39,13 +39,15 @@ Deno.serve(async (request) => {
     }
     const { data: assurance, error: assuranceError } = await admin.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
     if (assuranceError) return jsonResponse({ error: "authentication_required" }, 401);
-    if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+    if (assurance.currentLevel !== "aal2") {
       return jsonResponse({ error: "mfa_required" }, 403);
     }
 
     const body = await request.json() as {
       target_user_id?: string;
       status?: AccountStatus;
+      duration_minutes?: number | null;
+      reason?: string;
     };
 
     if (!body.target_user_id || !["active", "locked"].includes(body.status ?? "")) {
@@ -54,6 +56,15 @@ Deno.serve(async (request) => {
     if (body.target_user_id === authData.user.id) {
       return jsonResponse({ error: "cannot_lock_own_account" }, 403);
     }
+    const allowedDurations = [60, 1440, 10080];
+    const durationMinutes = body.status === "locked" && body.duration_minutes != null
+      ? Number(body.duration_minutes)
+      : null;
+    if (durationMinutes !== null && !allowedDurations.includes(durationMinutes)) {
+      return jsonResponse({ error: "invalid_lock_duration" }, 400);
+    }
+    const customReason = (body.reason ?? "").trim();
+    if (customReason.length > 120) return jsonResponse({ error: "invalid_admin_reason" }, 400);
 
     const [
       { data: caller, error: callerError },
@@ -64,7 +75,7 @@ Deno.serve(async (request) => {
       admin.from("profiles").select("role").eq("id", authData.user.id).maybeSingle(),
       admin.from("wallets").select("status").eq("user_id", authData.user.id).maybeSingle(),
       admin.from("profiles").select("role").eq("id", body.target_user_id).maybeSingle(),
-      admin.from("wallets").select("status").eq("user_id", body.target_user_id).maybeSingle(),
+      admin.from("wallets").select("status,locked_until,lock_reason").eq("user_id", body.target_user_id).maybeSingle(),
     ]);
 
     if (callerError || !caller || !["admin", "super_admin"].includes(caller.role)) {
@@ -87,28 +98,38 @@ Deno.serve(async (request) => {
     }
 
     const { error: updateError } = await admin.auth.admin.updateUserById(body.target_user_id, {
-      ban_duration: body.status === "locked" ? "876000h" : "none",
+      ban_duration: body.status === "locked"
+        ? durationMinutes === null ? "876000h" : `${durationMinutes}m`
+        : "none",
     });
     if (updateError) throw updateError;
 
+    const lockedUntil = body.status === "locked" && durationMinutes !== null
+      ? new Date(Date.now() + durationMinutes * 60_000).toISOString()
+      : null;
     const reason = body.status === "locked"
-      ? "Konto im Adminpanel gebannt"
+      ? customReason || "Konto im Adminpanel gebannt"
       : "Bann im Adminpanel aufgehoben";
-    const { error: walletUpdateError } = await admin.rpc("admin_apply_wallet_status", {
+    const { error: walletUpdateError } = await admin.rpc("admin_apply_wallet_status_v2", {
       p_admin_user_id: authData.user.id,
       p_target_user_id: body.target_user_id,
       p_status: body.status,
       p_reason: reason,
+      p_locked_until: lockedUntil,
     });
 
     if (walletUpdateError) {
       await admin.auth.admin.updateUserById(body.target_user_id, {
-        ban_duration: targetWallet.status === "locked" ? "876000h" : "none",
+        ban_duration: targetWallet.status === "locked"
+          ? targetWallet.locked_until
+            ? `${Math.max(1, Math.ceil((new Date(targetWallet.locked_until).getTime() - Date.now()) / 60_000))}m`
+            : "876000h"
+          : "none",
       });
       throw walletUpdateError;
     }
 
-    return jsonResponse({ user_id: body.target_user_id, status: body.status }, 200);
+    return jsonResponse({ user_id: body.target_user_id, status: body.status, locked_until: lockedUntil }, 200);
   } catch (error) {
     console.error("admin-account-status failed", error);
     return jsonResponse({ error: "account_status_update_failed" }, 500);

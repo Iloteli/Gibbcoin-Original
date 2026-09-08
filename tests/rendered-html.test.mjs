@@ -30,7 +30,7 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with centralized admin controls", async () => {
-  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration] = await Promise.all([
+  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration, upgradeMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
@@ -45,6 +45,7 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
     readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260826121128_add_plinko_game.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260827185502_add_casino_games_leaderboards.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260908063951_community_rewards_safety_upgrade.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -78,18 +79,12 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /Math\.max\(Math\.floor\(currentBalance\), 0\)/);
   assert.match(gameCenter, /All-in · \{allInWager\.toLocaleString\("de-CH"\)\}/);
   assert.doesNotMatch(gameCenter, /currentBalance < wager\}/);
-  assert.match(gameCenter, /Eigener Eintritt · kein Limit/);
+  assert.match(gameCenter, /Eigener Einsatz · persönliche Limits gelten/);
   assert.doesNotMatch(gameCenter, /1%-GEWINNMODUS AKTIV/);
-  assert.match(gameAdminControls, /ADMIN &amp; OWNER · VISUELLER SPASSMODUS/);
-  assert.match(gameAdminControls, /Gewinn <b>\{setting\.win_chance\} %/);
-  assert.match(gameAdminControls, /Verlust <b>\{100 - setting\.win_chance\} %/);
-  assert.match(gameAdminControls, /Alle Benutzer/);
-  assert.match(gameAdminControls, /Nur eine Person/);
-  assert.match(gameAdminControls, /admin_set_game_visual_prank/);
-  assert.match(gameAdminControls, /get_game_extras_admin_state/);
-  assert.match(gameAdminControls, /plinko: "●"/);
-  assert.match(gameCenter, /get_effective_visual_pranks/);
-  assert.match(gameCenter, /play_visual_prank_game/);
+  assert.match(gameAdminControls, /Gewinnchancen bleiben fest und für alle gleich/);
+  assert.match(gameAdminControls, /get_dino_admin_state/);
+  assert.doesNotMatch(gameAdminControls, /prank|Nur eine Person|admin_set_game_visual_prank/i);
+  assert.doesNotMatch(gameCenter, /get_effective_visual_pranks|play_visual_prank_game|visual_prank/i);
   assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} step=\{1\}/);
   assert.doesNotMatch(gameCenter, /id="game-wager"[^>]* max=/);
   assert.match(gameCenter, /game-ambient/);
@@ -155,6 +150,9 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(casinoMigration, /create or replace function public\.play_casino_game/);
   for (const gameKey of ["slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"]) assert.match(casinoMigration, new RegExp(`'${gameKey}'`));
   assert.doesNotMatch(gameCenter, /Math\.random/);
+  assert.match(upgradeMigration, /update private\.coin_flip_prank_settings set enabled = false/);
+  assert.match(upgradeMigration, /revoke all on function public\.play_visual_prank_game/);
+  assert.match(upgradeMigration, /create or replace function public\.get_my_player_safety/);
 });
 
 test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verified leaderboard", async () => {

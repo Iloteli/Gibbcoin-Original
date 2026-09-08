@@ -13,11 +13,15 @@ import { GameCenter } from "./GameCenter";
 import { NotificationCenter } from "./NotificationCenter";
 import { PaymentsHub } from "./PaymentsHub";
 import { PwaInstallCard } from "./PwaInstallCard";
+import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
+import { ProfileEditor } from "./ProfileEditor";
 import { QrWallet } from "./QrWallet";
+import { RewardsHub } from "./RewardsHub";
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
 type DashboardView = "home" | "send" | "games" | "community" | "activity" | "account" | "admin";
+type OfflineSnapshot = { profile: Profile; wallet: Wallet; transactions: Transaction[]; savedAt: string };
 
 const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: string; icon: string }> = [
   { key: "home", label: "Home", icon: "⌂" },
@@ -88,6 +92,11 @@ function transactionTypeLabel(type: string) {
   return type.replaceAll("_", " ").toLocaleLowerCase("de-CH");
 }
 
+function downloadText(filename: string, content: string, type = "text/plain;charset=utf-8") {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url);
+}
+
 export function Dashboard({ user }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -115,16 +124,41 @@ export function Dashboard({ user }: Props) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeView, setActiveView] = useState<DashboardView>("home");
+  const [offlineMode, setOfflineMode] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
     setRefreshing(true);
+    const snapshotKey = `gibb-offline-snapshot:${user.id}`;
+    const restoreCachedSnapshot = () => {
+      try {
+        const cached = JSON.parse(localStorage.getItem(snapshotKey) ?? "null") as OfflineSnapshot | null;
+        if (!cached) return false;
+        setProfile(cached.profile);
+        setWallet(cached.wallet);
+        setTransactions(cached.transactions);
+        setLastUpdated(new Date(cached.savedAt));
+        setOfflineMode(true);
+        setDataError("Offline-Ansicht: letzter sicher gespeicherter Stand. Senden und Spielen benötigen Internet.");
+        setRefreshing(false);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (!navigator.onLine && restoreCachedSnapshot()) return;
+    if (navigator.onLine) await supabase.rpc("refresh_my_wallet_status");
 
     const fetchWalletData = () => Promise.all([
-      supabase.from("profiles").select("id,display_name,email,avatar_url,role").eq("id", user.id).single(),
+      supabase.from("profiles").select("id,display_name,email,avatar_url,role,bio,profile_color,equipped_title").eq("id", user.id).single(),
       supabase.from("wallets").select("*").eq("user_id", user.id).single(),
-      supabase.from("transactions").select("id,sender_user_id,receiver_user_id,sender_label,receiver_label,amount,type,previous_hash,hash,created_at").order("created_at", { ascending: false }).limit(100),
+      supabase.from("transactions").select("id,sender_user_id,receiver_user_id,sender_label,receiver_label,amount,type,note,previous_hash,hash,created_at").order("created_at", { ascending: false }).limit(250),
       supabase.rpc("verify_hash_chain"),
       supabase.rpc("get_my_visual_role"),
     ] as const);
@@ -141,22 +175,34 @@ export function Dashboard({ user }: Props) {
     const [profileResult, walletResult, transactionResult, chainResult, visualRoleResult] = results;
     const retryAuthError = results.map((result) => result.error).find(isSupabaseAuthError);
     if (retryAuthError) {
+      if (restoreCachedSnapshot()) return;
       setRefreshing(false);
       setDataError("Die Wallet-Verbindung konnte nicht aktualisiert werden. Deine Anmeldung bleibt gespeichert.");
       return;
     }
 
     const loadFailed = profileResult.error || walletResult.error || transactionResult.error;
+    if (loadFailed && (!profileResult.data || !walletResult.data)) {
+      if (restoreCachedSnapshot()) return;
+    }
     setDataError(loadFailed ? "Einige Wallet-Daten konnten gerade nicht aktualisiert werden." : "");
-    if (profileResult.data) setProfile({
+    const nextProfile = profileResult.data ? {
       ...(profileResult.data as Profile),
       visual_role: visualRoleResult.error ? null : visualRoleResult.data as Profile["visual_role"],
-    });
-    if (walletResult.data) setWallet(walletResult.data as Wallet);
-    if (transactionResult.data) setTransactions(transactionResult.data as Transaction[]);
+    } : null;
+    const nextWallet = walletResult.data as Wallet | null;
+    const nextTransactions = (transactionResult.data ?? []) as Transaction[];
+    if (nextProfile) setProfile(nextProfile);
+    if (nextWallet) setWallet(nextWallet);
+    if (transactionResult.data) setTransactions(nextTransactions);
     const chain = (chainResult.data as Array<{ valid: boolean }> | null)?.[0];
     setChainValid(chainResult.error ? null : chain?.valid ?? false);
     setLastUpdated(new Date());
+    setOfflineMode(false);
+    if (nextProfile && nextWallet && transactionResult.data) {
+      const snapshot: OfflineSnapshot = { profile: nextProfile, wallet: nextWallet, transactions: nextTransactions.slice(0, 40), savedAt: new Date().toISOString() };
+      localStorage.setItem(snapshotKey, JSON.stringify(snapshot));
+    }
     setRefreshing(false);
   }, [user.id]);
 
@@ -165,10 +211,14 @@ export function Dashboard({ user }: Props) {
     const refreshOnFocus = () => void loadData();
     const interval = window.setInterval(() => void loadData(), 60_000);
     window.addEventListener("focus", refreshOnFocus);
+    window.addEventListener("online", refreshOnFocus);
+    window.addEventListener("offline", refreshOnFocus);
     return () => {
       window.clearTimeout(timer);
       window.clearInterval(interval);
       window.removeEventListener("focus", refreshOnFocus);
+      window.removeEventListener("online", refreshOnFocus);
+      window.removeEventListener("offline", refreshOnFocus);
     };
   }, [loadData]);
 
@@ -261,16 +311,21 @@ export function Dashboard({ user }: Props) {
       const sent = tx.sender_user_id === user.id;
       if (transactionFilter === "sent" && !sent) return false;
       if (transactionFilter === "received" && sent) return false;
+      const created = new Date(tx.created_at).getTime();
+      if (dateFrom && created < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
+      if (dateTo && created > new Date(`${dateTo}T23:59:59.999`).getTime()) return false;
+      if (minAmount && tx.amount < Number(minAmount)) return false;
+      if (maxAmount && tx.amount > Number(maxAmount)) return false;
       if (!needle) return true;
-      return `${tx.sender_label} ${tx.receiver_label} ${tx.hash} ${tx.type}`.toLocaleLowerCase("de-CH").includes(needle);
+      return `${tx.sender_label} ${tx.receiver_label} ${tx.hash} ${tx.type} ${tx.note ?? ""}`.toLocaleLowerCase("de-CH").includes(needle);
     });
-  }, [transactionFilter, transactionQuery, transactions, user.id]);
+  }, [dateFrom, dateTo, maxAmount, minAmount, transactionFilter, transactionQuery, transactions, user.id]);
 
   const visibleTransactions = showAllTransactions ? filteredTransactions : filteredTransactions.slice(0, 8);
   const parsedAmount = Number(amount);
   const accountLocked = wallet?.status === "locked";
   const amountValid = Number.isInteger(parsedAmount) && parsedAmount > 0 && parsedAmount <= MAX_TRANSFER_AMOUNT;
-  const canSend = Boolean(selected && amountValid && !sending && !accountLocked && parsedAmount <= (wallet?.balance ?? 0));
+  const canSend = Boolean(selected && amountValid && !sending && !accountLocked && !offlineMode && parsedAmount <= (wallet?.balance ?? 0));
 
   async function sendCoins(event: React.FormEvent) {
     event.preventDefault();
@@ -296,6 +351,19 @@ export function Dashboard({ user }: Props) {
   async function logout() {
     const supabase = getSupabase();
     if (supabase) await supabase.auth.signOut({ scope: "local" });
+    localStorage.removeItem(`gibb-offline-snapshot:${user.id}`);
+  }
+
+  function exportTransactions() {
+    const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const rows = [["Datum", "Typ", "Von", "An", "Betrag", "Notiz", "Hash"], ...filteredTransactions.map((tx) => [tx.created_at, transactionTypeLabel(tx.type), tx.sender_label, tx.receiver_label, tx.amount, tx.note ?? "", tx.hash])];
+    downloadText(`gibb-transaktionen-${new Date().toISOString().slice(0, 10)}.csv`, "\uFEFF" + rows.map((row) => row.map(escape).join(";")).join("\n"), "text/csv;charset=utf-8");
+  }
+
+  function downloadReceipt(tx: Transaction) {
+    const sent = tx.sender_user_id === user.id;
+    const receipt = ["GIBB COIN · TRANSAKTIONSBELEG", "", `ID: ${tx.id}`, `Datum: ${new Date(tx.created_at).toLocaleString("de-CH")}`, `Typ: ${transactionTypeLabel(tx.type)}`, `Von: ${tx.sender_label}`, `An: ${tx.receiver_label}`, `Betrag: ${tx.amount} GIBB`, `Richtung: ${sent ? "Ausgang" : "Eingang"}`, `Notiz: ${tx.note || "–"}`, `Hash: ${tx.hash}`, `Vorheriger Hash: ${tx.previous_hash}`, "", "Dieser Beleg dokumentiert virtuelle GIBB Coins und ist kein Echtgeld-Zahlungsbeleg."].join("\n");
+    downloadText(`gibb-beleg-${tx.id.slice(0, 8)}.txt`, receipt);
   }
 
   async function buyCoins(packId: (typeof coinPacks)[number]["id"]) {
@@ -315,7 +383,7 @@ export function Dashboard({ user }: Props) {
   const displayName = profile?.display_name || user.user_metadata?.full_name || "GIBB Benutzer";
   const firstName = displayName.split(" ")[0];
   const avatar = profile?.avatar_url || user.user_metadata?.avatar_url;
-  const roleLabel = profile?.role === "super_admin" ? "Owner" : profile?.role === "admin" ? "Admin" : "Mitglied";
+  const roleLabel = profile?.role === "super_admin" ? "Owner" : profile?.role === "admin" ? "Admin" : profile?.equipped_title || "Mitglied";
   const visualRoleLabel = profile?.visual_role === "demo_owner" ? "Owner 1 · nur Anzeige" : profile?.visual_role === "demo_admin" ? "Admin 1 · nur Anzeige" : null;
   const formattedBalance = wallet ? new Intl.NumberFormat("de-CH").format(wallet.balance) : "—";
 
@@ -334,7 +402,7 @@ export function Dashboard({ user }: Props) {
             <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
             <div className="menu-wrap">
               <button className="profile-button" type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-haspopup="menu">
-                {avatar ? <Image className="avatar" src={avatar} alt="" width={40} height={40} unoptimized referrerPolicy="no-referrer" /> : <span className="avatar">{displayName[0]}</span>}
+                {avatar ? <Image className="avatar" src={avatar} alt="" width={40} height={40} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}
                 <span className="profile-meta"><strong>{displayName}</strong><span>{formattedBalance} GIBB</span></span><span aria-hidden="true">⌄</span>
               </button>
               {menuOpen && <nav className="menu" aria-label="Benutzermenü"><button type="button" onClick={() => openView("home", "wallet")}>Mein Wallet</button><button type="button" onClick={() => openView("games", "game-center")}>Game Center</button><button type="button" onClick={() => openView("send", "requests")}>Anfragen & Kontakte</button><button type="button" onClick={() => openView("send", "qr-code")}>Mein QR-Code</button><button type="button" onClick={() => openView("community", "group-wallets")}>Gruppen-Wallets</button><button type="button" onClick={() => openView("community", "reports")}>Sicherheit & Meldungen</button><button type="button" onClick={() => openView("activity", "transactions")}>Transaktionen</button><button type="button" onClick={() => openView("activity", "notifications")}>Benachrichtigungen</button>{profile?.role !== "user" && <><button type="button" onClick={() => openView("admin", "security")}>2FA-Sicherheit</button><button type="button" onClick={() => openView("admin", "admin-panel")}>Adminpanel</button></>}<button type="button" onClick={() => openView("account", "profile")}>Profil</button><button className="danger" type="button" onClick={logout}>Abmelden</button></nav>}
@@ -344,6 +412,7 @@ export function Dashboard({ user }: Props) {
       </header>
 
       <main className="container main" id="top">
+        {offlineMode && <div className="offline-banner" role="status"><strong>Offline-Modus</strong><span>Du siehst den zuletzt gespeicherten Stand. Schreibende Aktionen sind pausiert.</span><button type="button" onClick={() => void loadData()}>Neu verbinden</button></div>}
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
           {dashboardViews.map((view) => <button className={activeView === view.key ? "active" : ""} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
@@ -397,21 +466,17 @@ export function Dashboard({ user }: Props) {
 
         </div>
 
-        <QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} />
-
-        <PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} />
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "games"} aria-label="Spiele">
         <div className="view-heading"><span>GAME CENTER</span><h1>Spiele</h1><p>Ein Wallet, echte Synchronisierung und serverseitig verbuchte Runden.</p></div>
-        <GameCenter walletBalance={wallet?.balance ?? 0} onChanged={loadData} />
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Spiele sind offline pausiert</strong><p>Damit jeder Einsatz korrekt verbucht wird, startet das Game Center nur mit Serververbindung.</p></section> : <><PlayerSafetyPanel /><GameCenter walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
         <div className="view-heading"><span>GEMEINSAM & SICHER</span><h1>Community</h1><p>Gruppen-Wallets verwalten und verdächtige Vorgänge melden.</p></div>
-        <GroupWallets onChanged={loadData} />
-
-        <AbuseReports transactions={transactions} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} />
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /><GroupWallets onChanged={loadData} /><AbuseReports transactions={transactions} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} /></>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">
@@ -419,22 +484,24 @@ export function Dashboard({ user }: Props) {
         <section className={`card card-pad transactions ${transactionsCollapsed ? "collapsed" : ""}`} id="transactions">
           <div className="section-heading transaction-heading"><div><span className="section-number">04</span><h2>Transaktionen</h2></div><div className="transaction-heading-actions"><span>{filteredTransactions.length} Ergebnisse</span><button className="transaction-collapse" type="button" aria-expanded={!transactionsCollapsed} aria-controls="transaction-content" onClick={() => setTransactionsCollapsed((collapsed) => !collapsed)}><span>{transactionsCollapsed ? "Öffnen" : "Minimieren"}</span><b aria-hidden="true">{transactionsCollapsed ? "+" : "−"}</b></button></div></div>
           <div id="transaction-content" hidden={transactionsCollapsed}>
-            <div className="transaction-tools"><div className="filter-tabs" role="group" aria-label="Transaktionen filtern">{(["all", "received", "sent"] as const).map((filter) => <button type="button" key={filter} className={transactionFilter === filter ? "active" : ""} onClick={() => { setTransactionFilter(filter); setShowAllTransactions(false); }}>{filter === "all" ? "Alle" : filter === "received" ? "Eingänge" : "Ausgänge"}</button>)}</div><input className="input transaction-search" aria-label="Transaktionen durchsuchen" value={transactionQuery} onChange={(event) => { setTransactionQuery(event.target.value); setShowAllTransactions(false); }} placeholder="Name oder Hash suchen …" /></div>
-            <div className="transaction-list">{visibleTransactions.length === 0 && <div className="empty">Keine passenden Transaktionen gefunden.</div>}{visibleTransactions.map((tx) => { const sent = tx.sender_user_id === user.id; const date = new Date(tx.created_at); return <article className={`tx ${sent ? "sent" : "received"}`} key={tx.id}><div className="tx-icon" aria-hidden="true">{sent ? "↗" : "↙"}</div><div className="tx-main"><div><strong>{sent ? tx.receiver_label : tx.sender_label}</strong><span className="tx-type">{transactionTypeLabel(tx.type)}</span></div><span title={tx.hash}>#{tx.hash.slice(0, 12)}</span></div><div className="tx-value"><strong>{sent ? "−" : "+"}{tx.amount} GIBB</strong><span>{date.toLocaleDateString("de-CH", { day: "2-digit", month: "short" })} · {date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</span></div></article>; })}</div>
+            <div className="transaction-tools"><div className="filter-tabs" role="group" aria-label="Transaktionen filtern">{(["all", "received", "sent"] as const).map((filter) => <button type="button" key={filter} className={transactionFilter === filter ? "active" : ""} onClick={() => { setTransactionFilter(filter); setShowAllTransactions(false); }}>{filter === "all" ? "Alle" : filter === "received" ? "Eingänge" : "Ausgänge"}</button>)}</div><input className="input transaction-search" aria-label="Transaktionen durchsuchen" value={transactionQuery} onChange={(event) => { setTransactionQuery(event.target.value); setShowAllTransactions(false); }} placeholder="Name, Notiz oder Hash …" /><button className="secondary compact" type="button" disabled={!filteredTransactions.length} onClick={exportTransactions}>CSV exportieren</button></div>
+            <div className="transaction-range"><label>Von<input className="input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>Bis<input className="input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label><label>Mindestens<input className="input" type="number" min={0} value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0 GIBB" /></label><label>Höchstens<input className="input" type="number" min={0} value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} placeholder="beliebig" /></label><button className="secondary compact" type="button" onClick={() => { setDateFrom(""); setDateTo(""); setMinAmount(""); setMaxAmount(""); setTransactionQuery(""); }}>Filter löschen</button></div>
+            <div className="transaction-list">{visibleTransactions.length === 0 && <div className="empty">Keine passenden Transaktionen gefunden.</div>}{visibleTransactions.map((tx) => { const sent = tx.sender_user_id === user.id; const date = new Date(tx.created_at); return <article className={`tx ${sent ? "sent" : "received"}`} key={tx.id}><div className="tx-icon" aria-hidden="true">{sent ? "↗" : "↙"}</div><div className="tx-main"><div><strong>{sent ? tx.receiver_label : tx.sender_label}</strong><span className="tx-type">{transactionTypeLabel(tx.type)}</span></div><span title={tx.hash}>#{tx.hash.slice(0, 12)}</span>{tx.note && <small>{tx.note}</small>}</div><div className="tx-value"><strong>{sent ? "−" : "+"}{tx.amount} GIBB</strong><span>{date.toLocaleDateString("de-CH", { day: "2-digit", month: "short" })} · {date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</span><button className="receipt-button" type="button" onClick={() => downloadReceipt(tx)}>Beleg ↓</button></div></article>; })}</div>
             {filteredTransactions.length > 8 && <button className="show-more" type="button" onClick={() => setShowAllTransactions((current) => !current)}>{showAllTransactions ? "Weniger anzeigen" : `Alle ${filteredTransactions.length} anzeigen`}</button>}
           </div>
         </section>
 
-        <NotificationCenter userId={user.id} onNotification={loadData} onUnreadChange={setUnreadNotifications} />
+        {!offlineMode && <NotificationCenter userId={user.id} onNotification={loadData} onUnreadChange={setUnreadNotifications} />}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
         <div className="view-heading"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
-        <section className="card card-pad profile-card" id="profile"><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" /> : <span className="profile-avatar">{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.email || user.email}</p></div></div><div className="profile-facts"><div><span>Rolle</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Fun-Rang</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
+        <section className="card card-pad profile-card" id="profile" style={{ borderColor: profile?.profile_color }}><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="profile-avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.bio || "Dein persönliches GIBB Coin Profil"}</p></div></div><div className="profile-facts"><div><span>Rolle / Titel</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Fun-Rang</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? wallet?.locked_until ? `Gesperrt bis ${new Date(wallet.locked_until).toLocaleString("de-CH")}` : "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
+        {profile && !offlineMode && <ProfileEditor userId={user.id} profile={profile} onChanged={loadData} />}
         <PwaInstallCard />
         </div>
 
-        {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} onChanged={loadData} onExit={() => openView("home")} />}</div>}
+        {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div>{offlineMode ? <section className="card card-pad offline-placeholder"><strong>Adminpanel offline gesperrt</strong><p>Administrative Aktionen benötigen immer eine aktuelle MFA- und Serverprüfung.</p></section> : <><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} onChanged={loadData} onExit={() => openView("home")} />}</>}</div>}
         <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. Coins können nicht mit echtem Geld gekauft werden, sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur in der App nutzbar. Die dargestellte Hash-Kette ist serverseitig geprüft und keine öffentliche Blockchain.</p>
         <p className="creator-credit">Diese Seite wurde von <strong>Robyn Rüfenacht</strong> erstellt.</p>
       </main>

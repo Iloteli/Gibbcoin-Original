@@ -13,8 +13,8 @@ export const viewport: Viewport = {
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const forwardedHost = requestHeaders.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const requestedHost = forwardedHost || requestHeaders.get("host") || "gibb-coin.kbb8vy5sjy.workers.dev";
-  const host = /^[a-z0-9.-]+(?::\d+)?$/i.test(requestedHost) ? requestedHost : "gibb-coin.kbb8vy5sjy.workers.dev";
+  const requestedHost = forwardedHost || requestHeaders.get("host") || "gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site";
+  const host = /^[a-z0-9.-]+(?::\d+)?$/i.test(requestedHost) ? requestedHost : "gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site";
   const forwardedProtocol = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const protocol = forwardedProtocol === "http" || forwardedProtocol === "https" ? forwardedProtocol : host.startsWith("localhost") ? "http" : "https";
   const origin = new URL(`${protocol}://${host}`);
