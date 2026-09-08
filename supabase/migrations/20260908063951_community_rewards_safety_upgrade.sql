@@ -602,8 +602,10 @@ update public.marketplace_items
 set active = false, updated_at = now()
 where cosmetic_value is null;
 
-create unique index if not exists purchases_user_item_unique
-  on public.purchases (user_id, item_id);
+-- Historical marketplace purchases may legitimately contain repeated items.
+-- New purchases are serialized by the wallet/item row locks in
+-- buy_marketplace_item(), so preserve the existing ledger instead of forcing a
+-- destructive de-duplication here.
 
 alter table public.marketplace_items enable row level security;
 alter table public.marketplace_items force row level security;
