@@ -1,11 +1,513 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#070b0a">
+<title>GIBB Coin – Dein Campus Wallet</title>
+<style>
+  :root {
+    --bg: #070b0a;
+    --panel: #0e1613;
+    --panel-border: #1c2925;
+    --text: #e9efeb;
+    --text-muted: #8ba69c;
+    --gold: #e3b34d;
+    --gold-dim: #7a6633;
+    --teal: #4fd1ae;
+    --danger: #e0654f;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+    --sans: "Space Grotesk", "Inter", system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 48px 20px 80px;
+  }
+
+  main {
+    width: 100%;
+    max-width: 480px;
+  }
+
+  header.page-head {
+    margin-bottom: 28px;
+  }
+
+  header.page-head .mark {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--gold);
+    letter-spacing: 0.02em;
+  }
+
+  header.page-head h1 {
+    font-size: 28px;
+    font-weight: 600;
+    margin: 6px 0 0;
+    letter-spacing: -0.01em;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    border-radius: 14px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .address-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .address-row input {
+    flex: 1;
+  }
+
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+  }
+
+  input, button {
+    font-family: var(--sans);
+    font-size: 15px;
+  }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    background: #0a1210;
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+  }
+
+  input:focus, button:focus-visible {
+    outline: 2px solid var(--gold-dim);
+    outline-offset: 1px;
+  }
+
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-weight: 600;
+  }
+
+  button.primary {
+    background: var(--gold);
+    color: #1a1305;
+  }
+
+  button.primary:hover { background: #eec569; }
+
+  button.secondary {
+    background: transparent;
+    border: 1px solid var(--panel-border);
+    color: var(--text);
+  }
+
+  button.secondary:hover { border-color: var(--gold-dim); }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .balance-hero {
+    text-align: left;
+  }
+
+  .balance-hero .label {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .balance-hero .amount {
+    font-family: var(--mono);
+    font-size: 44px;
+    font-weight: 600;
+    color: var(--gold);
+    margin: 4px 0 0;
+    line-height: 1;
+  }
+
+  .balance-hero .amount .unit {
+    font-size: 20px;
+    color: var(--text-muted);
+    margin-left: 6px;
+  }
+
+  .field-group {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .actions button { flex: 1; }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin: 0 0 12px;
+    text-transform: none;
+  }
+
+  .tx-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .tx-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: #0a1210;
+    border-radius: 8px;
+    border: 1px solid var(--panel-border);
+  }
+
+  .tx-row .tx-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .tx-row .tx-parties {
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  .tx-row .tx-time {
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
+  .tx-row .tx-amount {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 15px;
+  }
+
+  .tx-amount.in { color: var(--teal); }
+  .tx-amount.out { color: var(--danger); }
+
+  .status-pill {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-left: 8px;
+  }
+
+  .status-pill.pending {
+    background: rgba(227, 179, 77, 0.15);
+    color: var(--gold);
+  }
+
+  .status-pill.confirmed {
+    background: rgba(79, 209, 174, 0.15);
+    color: var(--teal);
+  }
+
+  .empty-state {
+    color: var(--text-muted);
+    font-size: 14px;
+    padding: 12px 0;
+  }
+
+  .message {
+    font-size: 13px;
+    margin-top: 10px;
+    min-height: 18px;
+  }
+
+  .message.error { color: var(--danger); }
+  .message.success { color: var(--teal); }
+
+  .chain-status {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    padding-top: 12px;
+    border-top: 1px solid var(--panel-border);
+    margin-top: 16px;
+  }
+
+  .setup-note {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .setup-note code {
+    background: #0a1210;
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--mono);
+    color: var(--gold);
+  }
+</style>
 </head>
 <body>
-    
+<main>
+  <header class="page-head">
+    <div class="mark">GIBB · CAMPUS WALLET</div>
+    <h1>GIBB Coin</h1>
+  </header>
+
+  <section class="card">
+    <label for="address-input">Deine Wallet-Adresse</label>
+    <div class="address-row">
+      <input id="address-input" type="text" placeholder="z.B. dein Name oder Kürzel" autocomplete="off">
+      <button id="address-save" class="secondary">Speichern</button>
+    </div>
+  </section>
+
+  <section class="card balance-hero">
+    <div class="label">Kontostand</div>
+    <div class="amount"><span id="balance-value">–</span><span class="unit">GBC</span></div>
+  </section>
+
+  <section class="card">
+    <p class="section-title">Coins senden</p>
+    <div class="field-group">
+      <div>
+        <label for="recipient-input">Empfänger</label>
+        <input id="recipient-input" type="text" placeholder="Adresse des Empfängers">
+      </div>
+      <div>
+        <label for="amount-input">Betrag</label>
+        <input id="amount-input" type="number" min="1" step="1" placeholder="0">
+      </div>
+    </div>
+    <div class="actions">
+      <button id="send-btn" class="primary">Senden</button>
+    </div>
+    <p id="send-message" class="message"></p>
+  </section>
+
+  <section class="card">
+    <p class="section-title">Minen</p>
+    <p class="setup-note" style="margin-bottom: 12px;">
+      Bestätigt alle offenen Transaktionen in einem neuen Block und schreibt dir die Mining-Belohnung gut.
+    </p>
+    <div class="actions">
+      <button id="mine-btn" class="secondary">Jetzt minen</button>
+    </div>
+    <p id="mine-message" class="message"></p>
+  </section>
+
+  <section class="card">
+    <p class="section-title">Transaktionen</p>
+    <div id="tx-list" class="tx-list">
+      <p class="empty-state">Noch keine Adresse gesetzt.</p>
+    </div>
+    <div class="chain-status">
+      <span id="chain-blocks">– Blöcke</span>
+      <span id="chain-valid">–</span>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Passe diese URL an, sobald das API-Backend gehostet ist
+  // (z.B. auf Render, Fly.io, Railway, oder einem eigenen Server).
+  // Lokal zum Testen: uvicorn api:app --reload --port 8000
+  const API_BASE = window.GIBBCOIN_API_BASE || "http://localhost:8000";
+
+  const els = {
+    addressInput: document.getElementById("address-input"),
+    addressSave: document.getElementById("address-save"),
+    balanceValue: document.getElementById("balance-value"),
+    recipientInput: document.getElementById("recipient-input"),
+    amountInput: document.getElementById("amount-input"),
+    sendBtn: document.getElementById("send-btn"),
+    sendMessage: document.getElementById("send-message"),
+    mineBtn: document.getElementById("mine-btn"),
+    mineMessage: document.getElementById("mine-message"),
+    txList: document.getElementById("tx-list"),
+    chainBlocks: document.getElementById("chain-blocks"),
+    chainValid: document.getElementById("chain-valid"),
+  };
+
+  function getAddress() {
+    return localStorage.getItem("gibbcoin_address") || "";
+  }
+
+  function setAddress(value) {
+    localStorage.setItem("gibbcoin_address", value);
+  }
+
+  function showMessage(el, text, kind) {
+    el.textContent = text;
+    el.className = "message" + (kind ? " " + kind : "");
+  }
+
+  function formatTime(iso) {
+    const date = new Date(iso);
+    return date.toLocaleString("de-CH", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function apiGet(path) {
+    const res = await fetch(API_BASE + path);
+    if (!res.ok) throw new Error("Anfrage fehlgeschlagen (" + res.status + ")");
+    return res.json();
+  }
+
+  async function apiPost(path, body) {
+    const res = await fetch(API_BASE + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || "Anfrage fehlgeschlagen (" + res.status + ")");
+    return data;
+  }
+
+  async function refreshBalance(address) {
+    if (!address) {
+      els.balanceValue.textContent = "–";
+      return;
+    }
+    try {
+      const data = await apiGet("/api/balance/" + encodeURIComponent(address));
+      els.balanceValue.textContent = data.balance;
+    } catch (err) {
+      els.balanceValue.textContent = "?";
+    }
+  }
+
+  async function refreshTransactions(address) {
+    if (!address) {
+      els.txList.innerHTML = '<p class="empty-state">Noch keine Adresse gesetzt.</p>';
+      return;
+    }
+    try {
+      const data = await apiGet("/api/transactions/" + encodeURIComponent(address));
+      if (!data.transactions.length) {
+        els.txList.innerHTML = '<p class="empty-state">Noch keine Transaktionen.</p>';
+        return;
+      }
+      els.txList.innerHTML = data.transactions.map((tx) => {
+        const incoming = tx.recipient === address;
+        const sign = incoming ? "+" : "−";
+        const cls = incoming ? "in" : "out";
+        const other = incoming ? tx.sender : tx.recipient;
+        return `
+          <div class="tx-row">
+            <div class="tx-meta">
+              <span class="tx-parties">${incoming ? "von" : "an"} ${other}</span>
+              <span class="tx-time">${formatTime(tx.timestamp)}
+                <span class="status-pill ${tx.status}">${tx.status === "pending" ? "ausstehend" : "bestätigt"}</span>
+              </span>
+            </div>
+            <span class="tx-amount ${cls}">${sign}${tx.amount}</span>
+          </div>
+        `;
+      }).join("");
+    } catch (err) {
+      els.txList.innerHTML = '<p class="empty-state">Transaktionen konnten nicht geladen werden.</p>';
+    }
+  }
+
+  async function refreshStatus() {
+    try {
+      const data = await apiGet("/api/status");
+      els.chainBlocks.textContent = data.block_count + " Blöcke · " + data.pending_count + " offen";
+      els.chainValid.textContent = data.is_valid ? "Chain gültig" : "Chain ungültig";
+    } catch (err) {
+      els.chainBlocks.textContent = "API nicht erreichbar";
+      els.chainValid.textContent = "";
+    }
+  }
+
+  async function refreshAll() {
+    const address = getAddress();
+    await Promise.all([refreshBalance(address), refreshTransactions(address), refreshStatus()]);
+  }
+
+  els.addressInput.value = getAddress();
+
+  els.addressSave.addEventListener("click", () => {
+    const value = els.addressInput.value.trim();
+    if (!value) return;
+    setAddress(value);
+    refreshAll();
+  });
+
+  els.sendBtn.addEventListener("click", async () => {
+    const sender = getAddress();
+    const recipient = els.recipientInput.value.trim();
+    const amount = parseInt(els.amountInput.value, 10);
+
+    if (!sender) {
+      showMessage(els.sendMessage, "Bitte zuerst deine Adresse speichern.", "error");
+      return;
+    }
+    if (!recipient || !amount || amount <= 0) {
+      showMessage(els.sendMessage, "Empfänger und ein positiver Betrag sind nötig.", "error");
+      return;
+    }
+
+    els.sendBtn.disabled = true;
+    try {
+      await apiPost("/api/transactions", { sender, recipient, amount });
+      showMessage(els.sendMessage, "Transaktion eingereicht — wartet auf Mining.", "success");
+      els.recipientInput.value = "";
+      els.amountInput.value = "";
+      await refreshAll();
+    } catch (err) {
+      showMessage(els.sendMessage, err.message, "error");
+    } finally {
+      els.sendBtn.disabled = false;
+    }
+  });
+
+  els.mineBtn.addEventListener("click", async () => {
+    const miner = getAddress();
+    if (!miner) {
+      showMessage(els.mineMessage, "Bitte zuerst deine Adresse speichern.", "error");
+      return;
+    }
+    els.mineBtn.disabled = true;
+    showMessage(els.mineMessage, "Mining läuft …", "");
+    try {
+      const data = await apiPost("/api/mine", { miner });
+      showMessage(els.mineMessage, "Block #" + data.block.index + " gemint!", "success");
+      await refreshAll();
+    } catch (err) {
+      showMessage(els.mineMessage, err.message, "error");
+    } finally {
+      els.mineBtn.disabled = false;
+    }
+  });
+
+  refreshAll();
+  setInterval(refreshStatus, 15000);
+</script>
 </body>
 </html>
