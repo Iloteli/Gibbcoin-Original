@@ -1,6 +1,7 @@
 export type Profile = {
   id: string;
   display_name: string;
+  username?: string;
   email: string;
   avatar_url: string | null;
   bio?: string | null;

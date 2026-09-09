@@ -535,6 +535,33 @@ test("lets every user reset the home wallet statistics without touching the ledg
   assert.doesNotMatch(migration, /update public\.wallets/);
 });
 
+test("lets every user pick their own username in the profile tab", async () => {
+  const [profileEditor, dashboard, types, migration] = await Promise.all([
+    readFile(new URL("../app/components/ProfileEditor.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/types.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260909140000_allow_username_change.sql", import.meta.url), "utf8"),
+  ]);
+
+  // Der Benutzername ist im Profil-Tab editierbar und wird serverseitig geprueft.
+  assert.match(profileEditor, /htmlFor="profile-username"/);
+  assert.match(profileEditor, /supabase\.rpc\("set_my_username", \{ p_username: nextUsername \}\)/);
+  assert.match(profileEditor, /username_taken/);
+  assert.match(profileEditor, /bereits vergeben/);
+  assert.match(types, /username\?: string;/);
+  assert.match(dashboard, /select\("id,display_name,username,email/);
+
+  // Gleiche Regeln wie bei der Registrierung, Eindeutigkeit case-insensitiv.
+  assert.match(migration, /create or replace function public\.set_my_username\(p_username text\)/);
+  assert.match(migration, /\^\[a-z0-9\]\[a-z0-9\._-\]\{2,23\}\$/);
+  assert.match(migration, /private\.require_active_user\(\)/);
+  assert.match(migration, /pg_catalog\.lower\(p\.username\) = v_username/);
+  assert.match(migration, /when unique_violation then/);
+  assert.match(migration, /grant execute on function public\.set_my_username\(text\)/);
+  assert.doesNotMatch(migration, /update public\.wallets/);
+  assert.doesNotMatch(migration, /set role =/);
+});
+
 test("guards the production Supabase migration workflow behind manual confirmation", async () => {
   const [production, staging, readme] = await Promise.all([
     readFile(new URL("../.github/workflows/production-supabase.yml", import.meta.url), "utf8"),

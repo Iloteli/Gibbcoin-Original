@@ -188,7 +188,7 @@ export function Dashboard({ user }: Props) {
     if (navigator.onLine) await supabase.rpc("refresh_my_wallet_status");
 
     const fetchWalletData = () => Promise.all([
-      supabase.from("profiles").select("id,display_name,email,avatar_url,role,bio,profile_color,equipped_title").eq("id", user.id).single(),
+      supabase.from("profiles").select("id,display_name,username,email,avatar_url,role,bio,profile_color,equipped_title").eq("id", user.id).single(),
       supabase.from("wallets").select("*").eq("user_id", user.id).single(),
       supabase.from("transactions").select("id,sender_user_id,receiver_user_id,sender_label,receiver_label,amount,type,note,previous_hash,hash,created_at").order("created_at", { ascending: false }).limit(250),
       supabase.rpc("verify_hash_chain"),

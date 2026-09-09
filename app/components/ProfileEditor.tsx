@@ -9,6 +9,7 @@ type Props = { userId: string; profile: Profile; onChanged: () => Promise<void> 
 
 export function ProfileEditor({ userId, profile, onChanged }: Props) {
   const [displayName, setDisplayName] = useState(profile.display_name);
+  const [username, setUsername] = useState(profile.username ?? "");
   const [bio, setBio] = useState(profile.bio ?? "");
   const [color, setColor] = useState(profile.profile_color ?? "#35e070");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? "");
@@ -45,6 +46,26 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
     const supabase = getSupabase();
     if (!supabase) return;
     setBusy(true); setError(""); setMessage("");
+
+    // Der Benutzername wird nur angefasst, wenn er wirklich geändert wurde.
+    const nextUsername = username.trim().toLowerCase();
+    if (nextUsername !== (profile.username ?? "")) {
+      const { data, error: nameError } = await supabase.rpc("set_my_username", { p_username: nextUsername });
+      const nameResult = data as { ok?: boolean; error?: string } | null;
+      if (nameError?.code === "PGRST202") {
+        setBusy(false);
+        setError("Benutzernamen lassen sich auf diesem Server noch nicht ändern. Die übrigen Angaben wurden nicht gespeichert.");
+        return;
+      }
+      if (nameError || !nameResult?.ok) {
+        setBusy(false);
+        setError(nameResult?.error === "username_taken"
+          ? "Dieser Benutzername ist bereits vergeben. Wähle einen anderen."
+          : "Benutzername ungültig: 3 bis 24 Zeichen, nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich und Unterstrich, Beginn mit Buchstabe oder Ziffer.");
+        return;
+      }
+    }
+
     const { error: rpcError } = await supabase.rpc("update_my_profile", {
       p_display_name: displayName.trim(), p_bio: bio.trim() || null,
       p_profile_color: color, p_avatar_url: avatarUrl || null,
@@ -60,10 +81,11 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
     <form onSubmit={save} className="profile-editor-grid">
       <div className="profile-preview" style={{ borderColor: color }}>
         {avatarUrl ? <Image src={avatarUrl} alt="Profilbild Vorschau" width={92} height={92} unoptimized /> : <span style={{ background: color }}>{displayName[0]?.toUpperCase() || "G"}</span>}
-        <strong>{displayName || "Dein Name"}</strong><small>{profile.equipped_title || "GIBB Mitglied"}</small><p>{bio || "Deine kurze Profilbeschreibung erscheint hier."}</p>
+        <strong>{displayName || "Dein Name"}</strong><small>{username ? `@${username}` : profile.equipped_title || "GIBB Mitglied"}</small><p>{bio || "Deine kurze Profilbeschreibung erscheint hier."}</p>
       </div>
       <div className="profile-fields">
         <div className="field"><label htmlFor="profile-name">Anzeigename</label><input id="profile-name" className="input" minLength={2} maxLength={60} required value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></div>
+        <div className="field"><label htmlFor="profile-username">Benutzername <span>{username.length}/24</span></label><input id="profile-username" className="input" minLength={3} maxLength={24} required pattern="[a-z0-9][a-z0-9._\-]{2,23}" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 24))} placeholder="z.B. ilja.p" /><small className="field-hint">3–24 Zeichen: Kleinbuchstaben, Ziffern, Punkt, Bindestrich, Unterstrich. Eindeutig für alle.</small></div>
         <div className="field"><label htmlFor="profile-bio">Über mich <span>{bio.length}/180</span></label><textarea id="profile-bio" className="input" maxLength={180} rows={3} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Kurz und freundlich …" /></div>
         <div className="profile-small-fields"><div className="field"><label htmlFor="profile-color">Profilfarbe</label><input id="profile-color" className="input color-input" type="color" value={color} onChange={(event) => setColor(event.target.value)} /></div><div className="field"><label htmlFor="profile-avatar">Profilbild</label><input id="profile-avatar" className="input" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => void uploadAvatar(event.target.files?.[0])} /></div></div>
         <button className="primary" type="submit" disabled={busy}>{busy ? "Speichert …" : "Profil speichern"}</button>
