@@ -1863,6 +1863,62 @@ a:focus-visible {
   50% { transform: translateY(-3px); filter: brightness(1.08); }
 }
 
+/* Motion coverage for the surfaces the system did not reach yet: modals other
+   than the PIN dialog, sections missing from the enter list, and the controls
+   added most recently. Reduced motion is handled globally below. */
+.modal-backdrop > .public-profile-modal {
+  animation: premium-modal-in var(--motion-slow) var(--ease-spring) both;
+  transform-origin: center;
+}
+
+.dashboard-view:not([hidden]) > :is(.profile-editor, .safety-panel, .send-card, .rewards-hub, .game-center, .offline-placeholder) {
+  animation: premium-section-enter var(--motion-slow) var(--ease-out) both;
+  animation-delay: 70ms;
+}
+
+/* Die Home-Kacheln laufen gestaffelt ein statt alle gleichzeitig. */
+.dashboard-view:not([hidden]) > .overview-grid > .stat-card {
+  animation: premium-row-enter var(--motion-normal) var(--ease-out) both;
+}
+.dashboard-view:not([hidden]) > .overview-grid > .stat-card:nth-of-type(2) { animation-delay: 120ms; }
+.dashboard-view:not([hidden]) > .overview-grid > .stat-card:nth-of-type(3) { animation-delay: 165ms; }
+
+.home-stats-reset,
+.admin-access-actions,
+.mfa-skip {
+  animation: premium-row-enter var(--motion-normal) var(--ease-out) both;
+  animation-delay: 200ms;
+}
+
+.home-stats-reset,
+.home-shortcuts button {
+  transition: translate var(--motion-normal) var(--ease-out), border-color var(--motion-normal) var(--ease-out), box-shadow var(--motion-normal) var(--ease-out);
+}
+
+.home-stats-note {
+  animation: premium-success-in var(--motion-normal) var(--ease-spring) both;
+}
+
+.home-stats-note.error {
+  animation: premium-error-shake 360ms var(--ease-out) both;
+}
+
+.field-hint {
+  animation: premium-row-enter var(--motion-fast) var(--ease-out) both;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .home-shortcuts button:hover,
+  .home-stats-reset:hover {
+    translate: 0 -2px;
+    box-shadow: 0 22px 60px rgba(0,0,0,.18), 0 0 28px rgba(124,245,157,.045);
+  }
+
+  .home-stats-reset:hover {
+    border-color: rgba(246,200,95,.32);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
 

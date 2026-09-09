@@ -356,6 +356,23 @@ test("ships premium layout-preserving motion with reduced-motion support", async
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation-duration: \.01ms !important/);
   assert.match(styles, /@keyframes wallet-scan[\s\S]*translateX\(543%\)/);
   assert.match(styles, /@keyframes play-shimmer[\s\S]*translateX\(472%\)/);
+
+  // Jede Modal-Art wird animiert, nicht nur der PIN-Dialog.
+  assert.match(styles, /\.modal-backdrop > \.public-profile-modal \{\s*\n\s*animation: premium-modal-in/);
+
+  // Die Sektionen, die bisher ohne Auftritt erschienen.
+  assert.match(styles, /\.profile-editor, \.safety-panel, \.send-card, \.rewards-hub, \.game-center, \.offline-placeholder/);
+
+  // Gestaffelter Auftritt der Home-Kacheln statt gleichzeitigem Einblenden.
+  assert.match(styles, /\.overview-grid > \.stat-card:nth-of-type\(2\) \{ animation-delay: 120ms; \}/);
+  assert.match(styles, /\.overview-grid > \.stat-card:nth-of-type\(3\) \{ animation-delay: 165ms; \}/);
+
+  // Die zuletzt ergaenzten Bedienelemente bewegen sich wie der Rest.
+  assert.match(styles, /\.home-stats-reset,\n\.admin-access-actions,\n\.mfa-skip \{/);
+  assert.match(styles, /\.home-stats-note \{\s*\n\s*animation: premium-success-in/);
+  assert.match(styles, /\.home-stats-note\.error \{\s*\n\s*animation: premium-error-shake/);
+  assert.match(styles, /\.field-hint \{\s*\n\s*animation: premium-row-enter/);
+  assert.match(styles, /\.home-shortcuts button:hover,\n\s*\.home-stats-reset:hover \{/);
 });
 
 test("unlocks the Admin panel once per visit without persisting the PIN", async () => {
