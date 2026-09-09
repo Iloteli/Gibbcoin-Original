@@ -103,6 +103,26 @@ function isMissingFunction(error: { code?: string } | null | undefined) {
   return error?.code === "PGRST202";
 }
 
+// Solange die Datenbankfunktion fehlt, merkt sich der Browser den Reset-Zeitpunkt.
+// Sobald die Migration angewendet ist, gewinnt der Serverwert automatisch.
+const statsResetKey = (userId: string) => `gibb-stats-reset:${userId}`;
+
+function readLocalStatsReset(userId: string) {
+  try {
+    return localStorage.getItem(statsResetKey(userId));
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStatsReset(userId: string, value: string) {
+  try {
+    localStorage.setItem(statsResetKey(userId), value);
+  } catch {
+    // Privater Modus ohne Speicher: der Reset gilt dann nur für diese Sitzung.
+  }
+}
+
 export function Dashboard({ user }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -139,7 +159,7 @@ export function Dashboard({ user }: Props) {
   const [statsResetBusy, setStatsResetBusy] = useState(false);
   const [statsMessage, setStatsMessage] = useState("");
   const [statsError, setStatsError] = useState("");
-  const [statsResetReady, setStatsResetReady] = useState(true);
+  const [statsServerBacked, setStatsServerBacked] = useState(true);
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
@@ -211,9 +231,12 @@ export function Dashboard({ user }: Props) {
     const chain = (chainResult.data as Array<{ valid: boolean }> | null)?.[0];
     setChainValid(chainResult.error ? null : chain?.valid ?? false);
     // Fehlt die RPC (noch nicht migrierte Datenbank), bleibt die Statistik ungefiltert.
-    const nextStatsResetAt = statsResetResult.error ? null : (statsResetResult.data as { since?: string | null } | null)?.since ?? null;
+    const statsRpcMissing = isMissingFunction(statsResetResult.error);
+    const nextStatsResetAt = statsResetResult.error
+      ? (statsRpcMissing ? readLocalStatsReset(user.id) : null)
+      : (statsResetResult.data as { since?: string | null } | null)?.since ?? null;
     setStatsResetAt(nextStatsResetAt);
-    setStatsResetReady(!isMissingFunction(statsResetResult.error));
+    setStatsServerBacked(!statsRpcMissing);
     setLastUpdated(new Date());
     setOfflineMode(false);
     if (nextProfile && nextWallet && transactionResult.data) {
@@ -340,8 +363,11 @@ export function Dashboard({ user }: Props) {
     setStatsResetBusy(false);
     const result = data as { ok?: boolean; since?: string | null } | null;
     if (isMissingFunction(rpcError)) {
-      setStatsResetReady(false);
-      setStatsError("Der Reset ist auf diesem Server noch nicht freigeschaltet.");
+      const localSince = new Date().toISOString();
+      writeLocalStatsReset(user.id, localSince);
+      setStatsResetAt(localSince);
+      setStatsServerBacked(false);
+      setStatsMessage("Statistik auf 0 gesetzt. Der Reset gilt vorerst nur in diesem Browser.");
       return;
     }
     if (rpcError || !result?.ok) {
@@ -351,7 +377,7 @@ export function Dashboard({ user }: Props) {
     setStatsResetAt(result.since ?? new Date().toISOString());
     setStatsMessage("Deine Plus/Minus-Statistik wurde auf 0 gesetzt. Guthaben und Verlauf blieben unverändert.");
     await loadData();
-  }, [loadData, offlineMode]);
+  }, [loadData, offlineMode, user.id]);
 
   const filteredTransactions = useMemo(() => {
     const needle = transactionQuery.trim().toLocaleLowerCase("de-CH");
@@ -479,9 +505,9 @@ export function Dashboard({ user }: Props) {
           <article className="stat-card"><span>Gesendet</span><strong className="negative">−{new Intl.NumberFormat("de-CH").format(activity.sentAmount)}</strong><small>{activity.sentCount} Ausgänge</small></article>
           <div className="home-stats-reset">
             <p>{statsResetAt ? `Gezählt seit ${new Date(statsResetAt).toLocaleString("de-CH", { dateStyle: "short", timeStyle: "short" })}.` : "Gezählt seit deiner ersten Buchung."} Der Reset verändert weder dein Guthaben noch den Verlauf.</p>
-            <button className="secondary compact" type="button" disabled={statsResetBusy || offlineMode || !statsResetReady} onClick={() => void resetHomeStats()}>{statsResetBusy ? "Wird zurückgesetzt …" : "Statistik zurücksetzen"}</button>
+            <button className="secondary compact" type="button" disabled={statsResetBusy || offlineMode} onClick={() => void resetHomeStats()}>{statsResetBusy ? "Wird zurückgesetzt …" : "Statistik zurücksetzen"}</button>
           </div>
-          {!statsResetReady && <p className="home-stats-note error">Der Reset ist auf diesem Server noch nicht freigeschaltet.</p>}
+          {!statsServerBacked && <p className="home-stats-note">Hinweis: Der Reset wird nur in diesem Browser gespeichert, bis die Datenbank-Migration angewendet ist.</p>}
           {statsMessage && <p className="home-stats-note" role="status">{statsMessage}</p>}
           {statsError && <p className="home-stats-note error" role="alert">{statsError}</p>}
         </section>

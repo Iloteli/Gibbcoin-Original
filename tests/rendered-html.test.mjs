@@ -515,9 +515,13 @@ test("lets every user reset the home wallet statistics without touching the ledg
   assert.match(dashboard, /home-stats-reset/);
   // Fehlt die Migration, wird der Button gesperrt statt eine irrefuehrende Meldung zu zeigen.
   assert.match(dashboard, /error\?\.code === "PGRST202"/);
-  assert.match(dashboard, /disabled=\{statsResetBusy \|\| offlineMode \|\| !statsResetReady\}/);
-  assert.match(dashboard, /Der Reset ist auf diesem Server noch nicht freigeschaltet\./);
+  // Fehlt die Migration, weicht der Reset auf den Browser-Speicher aus statt zu scheitern.
+  assert.match(dashboard, /const statsResetKey = \(userId: string\) => `gibb-stats-reset:\$\{userId\}`;/);
+  assert.match(dashboard, /writeLocalStatsReset\(user\.id, localSince\)/);
+  assert.match(dashboard, /statsRpcMissing \? readLocalStatsReset\(user\.id\) : null/);
+  assert.match(dashboard, /nur in diesem Browser/);
   assert.doesNotMatch(dashboard, /Die Statistik konnte gerade nicht zurückgesetzt werden/);
+  assert.doesNotMatch(dashboard, /statsResetReady/);
   assert.match(styles, /\.home-stats-reset \{/);
 
   // Der Reset speichert nur eine Zeitmarke pro Benutzer und bleibt damit rein visuell.
