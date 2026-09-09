@@ -51,6 +51,8 @@ Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherhe
 
 ## Sicherheitsmodell
 
+Für die Produktivdatenbank gibt es `.github/workflows/production-supabase.yml`. Der Workflow ist ebenfalls nur manuell startbar, verlangt beim Start die Eingabe `MIGRATE` und eine Backup-Bestätigung, läuft im GitHub-Environment `production` und wendet Migrationen erst nach Lint, Build, Tests und einem Trockenlauf an. Benötigt werden dort `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` und `SUPABASE_PROJECT_ID`. Diese Werte gehören ausschliesslich in die GitHub-Secrets, niemals ins Repository.
+
 - Ein `auth.users`-Trigger legt Profil und Wallet atomar an. `UNIQUE(user_id)` verhindert mehrfaches Startguthaben.
 - Der Client besitzt keinerlei `INSERT`-, `UPDATE`- oder `DELETE`-Rechte auf Wallets und Transaktionen.
 - Der Browser besitzt auch keine Schreibrechte auf Rollen. Manipulierte DevTools-, JavaScript- oder REST-Aufrufe können weder Coins erzeugen noch den eigenen Benutzer zum Admin machen.
