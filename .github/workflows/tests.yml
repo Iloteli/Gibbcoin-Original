@@ -1,0 +1,25 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  unittest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Tests
+        run: python -m unittest discover -s tests -v
+      - name: Smoke test (Wallet + 2 Bloecke minen)
+        run: |
+          python -m gibbcoin --data chain.json --wallet wallet.json wallet --new
+          python -m gibbcoin --data chain.json --wallet wallet.json mine --blocks 2
+          python -m gibbcoin --data chain.json --wallet wallet.json info
