@@ -513,6 +513,11 @@ test("lets every user reset the home wallet statistics without touching the ledg
   assert.match(dashboard, /new Date\(tx\.created_at\)\.getTime\(\) >= since/);
   assert.match(dashboard, /Statistik zurücksetzen/);
   assert.match(dashboard, /home-stats-reset/);
+  // Fehlt die Migration, wird der Button gesperrt statt eine irrefuehrende Meldung zu zeigen.
+  assert.match(dashboard, /error\?\.code === "PGRST202"/);
+  assert.match(dashboard, /disabled=\{statsResetBusy \|\| offlineMode \|\| !statsResetReady\}/);
+  assert.match(dashboard, /Der Reset ist auf diesem Server noch nicht freigeschaltet\./);
+  assert.doesNotMatch(dashboard, /Die Statistik konnte gerade nicht zurückgesetzt werden/);
   assert.match(styles, /\.home-stats-reset \{/);
 
   // Der Reset speichert nur eine Zeitmarke pro Benutzer und bleibt damit rein visuell.
