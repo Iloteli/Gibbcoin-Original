@@ -498,6 +498,26 @@ test("service worker replaces every legacy tab without blocking activation", asy
   assert.deepEqual(navigatedUrls, ["https://example.test/"]);
 });
 
+test("keeps the admin panel reachable when a single admin query fails", async () => {
+  const [adminPanel, styles] = await Promise.all([
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  // Frueher blockierte jeder Fehlschlag den Zugang: pinStatus blieb null und
+  // das Lade-Modal verdeckte die Meldung dauerhaft.
+  assert.doesNotMatch(adminPanel, /if \(usersError \|\| pinStatusError \|\| statsError \|\| visualRolesError \|\| accountLocksError\) \{/);
+  assert.match(adminPanel, /const loadFailure = usersError \?\? pinStatusError \?\? statsError \?\? visualRolesError \?\? accountLocksError;/);
+  assert.match(adminPanel, /if \(pinStatusError\) \{ setPinUnavailable\(true\); return; \}/);
+  assert.match(adminPanel, /setPinUnavailable\(false\);/);
+
+  // Scheitert die PIN-Abfrage selbst, gibt es einen Ausweg statt eines Spinners.
+  assert.match(adminPanel, /adminAccessPending \? pinUnavailable \?/);
+  assert.match(adminPanel, /Erneut versuchen/);
+  assert.match(adminPanel, /Zurück zum Wallet/);
+  assert.match(styles, /\.admin-access-actions \{/);
+});
+
 test("lets every user reset the home wallet statistics without touching the ledger", async () => {
   const [dashboard, styles, migration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),

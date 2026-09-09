@@ -123,6 +123,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
   const [entryPin, setEntryPin] = useState("");
   const [entryPinError, setEntryPinError] = useState("");
   const [adminAccessGranted, setAdminAccessGranted] = useState(false);
+  const [pinUnavailable, setPinUnavailable] = useState(false);
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
@@ -159,10 +160,13 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       supabase.rpc("admin_list_visual_roles"),
       supabase.rpc("admin_list_account_locks"),
     ]);
-    if (usersError || pinStatusError || statsError || visualRolesError || accountLocksError) {
-      setError(adminError(usersError?.message ?? pinStatusError?.message ?? statsError?.message ?? visualRolesError?.message ?? accountLocksError?.message));
-      return;
-    }
+    // Ein einzelner Fehlschlag darf den Zugang nicht blockieren. Vorher kehrte
+    // die Funktion hier zurück, pinStatus blieb null und das Panel hing
+    // dauerhaft hinter dem Lade-Modal, während die Meldung unsichtbar blieb.
+    const loadFailure = usersError ?? pinStatusError ?? statsError ?? visualRolesError ?? accountLocksError;
+    if (loadFailure) setError(adminError(loadFailure.message));
+    if (pinStatusError) { setPinUnavailable(true); return; }
+    setPinUnavailable(false);
     const visualRoleByUser = new Map<string, AdminUser["visual_role"]>(
       ((visualRoles ?? []) as Array<{ user_id: string; visual_role: AdminUser["visual_role"] }>).map((item) => [item.user_id, item.visual_role]),
     );
@@ -677,7 +681,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
         <section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-access-title">
           <div className="pin-lock" aria-hidden="true">••••</div>
           <h3 id="admin-access-title">{ownerPinRecovery ? "Owner-PIN zurücksetzen" : "Adminpanel entsperren"}</h3>
-          {adminAccessPending ? <><div className="loader" aria-hidden="true" /><p>Dein geschützter Admin-Zugang wird vorbereitet …</p></> : ownerPinRecovery ? <>
+          {adminAccessPending ? pinUnavailable ? <><p className="message error" role="alert">{error || "Der Admin-Zugang konnte nicht geladen werden."}</p><div className="admin-access-actions"><button className="primary compact" type="button" onClick={() => void loadAdminData()}>Erneut versuchen</button><button className="secondary compact" type="button" onClick={onExit}>Zurück zum Wallet</button></div></> : <><div className="loader" aria-hidden="true" /><p>Dein geschützter Admin-Zugang wird vorbereitet …</p></> : ownerPinRecovery ? <>
             <p>Lege einen neuen persönlichen Owner-PIN fest. Nach dem sicheren Zurücksetzen ist das Adminpanel für diesen Besuch direkt freigeschaltet.</p>
             <form onSubmit={savePin}>
               <div className="field"><label htmlFor="entry-owner-pin">Neuer PIN</label><input className="input pin-modal-input" id="entry-owner-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder="0000" value={newPin} onChange={(event) => { setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setPinFormError(""); }} /></div>
