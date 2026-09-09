@@ -592,6 +592,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .field label span { color: var(--muted); font-weight: 500; }
 .field-hint { display: block; margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.5; }
 .admin-access-actions { display: flex; gap: 8px; justify-content: center; margin-top: 14px; }
+.mfa-skip { width: 100%; margin-top: 12px; }
 .input { min-height: 46px; border-color: #293730; background: rgba(4,8,6,.62); }
 .input::placeholder { color: #617068; }
 .search-control { position: relative; }

@@ -498,6 +498,30 @@ test("service worker replaces every legacy tab without blocking activation", asy
   assert.deepEqual(navigatedUrls, ["https://example.test/"]);
 });
 
+test("makes two factor confirmation optional instead of mandatory", async () => {
+  const [app, challenge, migration] = await Promise.all([
+    readFile(new URL("../app/components/GibbCoinApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/MfaChallengePage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260909180000_make_admin_mfa_optional.sql", import.meta.url), "utf8"),
+  ]);
+
+  // Die Challenge sperrt die App nicht mehr aus.
+  assert.match(app, /onSkip=\{\(\) => setMfaRequired\(false\)\}/);
+  assert.match(challenge, /onSkip\?: \(\) => void/);
+  assert.match(challenge, /Ohne Zwei-Faktor-Code fortfahren/);
+
+  // Serverseitig ist die Pruefung schaltbar und standardmaessig aus.
+  assert.match(migration, /create table if not exists private\.security_settings/);
+  assert.match(migration, /values \('require_admin_mfa', false\)/);
+  assert.match(migration, /if not coalesce\(/);
+  assert.match(migration, /return;/);
+
+  // Die Identitaetspruefung und die Faktor-Logik bleiben erhalten.
+  assert.match(migration, /raise exception 'authentication_required'/);
+  assert.match(migration, /raise exception 'mfa_required'/);
+  assert.match(migration, /from auth\.mfa_factors f/);
+});
+
 test("keeps the admin panel reachable when a single admin query fails", async () => {
   const [adminPanel, styles] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
