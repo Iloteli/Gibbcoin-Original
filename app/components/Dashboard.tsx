@@ -98,6 +98,11 @@ function downloadText(filename: string, content: string, type = "text/plain;char
   const anchor = document.createElement("a"); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url);
 }
 
+// PostgREST meldet eine fehlende Datenbankfunktion mit PGRST202.
+function isMissingFunction(error: { code?: string } | null | undefined) {
+  return error?.code === "PGRST202";
+}
+
 export function Dashboard({ user }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
@@ -134,6 +139,7 @@ export function Dashboard({ user }: Props) {
   const [statsResetBusy, setStatsResetBusy] = useState(false);
   const [statsMessage, setStatsMessage] = useState("");
   const [statsError, setStatsError] = useState("");
+  const [statsResetReady, setStatsResetReady] = useState(true);
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
@@ -207,6 +213,7 @@ export function Dashboard({ user }: Props) {
     // Fehlt die RPC (noch nicht migrierte Datenbank), bleibt die Statistik ungefiltert.
     const nextStatsResetAt = statsResetResult.error ? null : (statsResetResult.data as { since?: string | null } | null)?.since ?? null;
     setStatsResetAt(nextStatsResetAt);
+    setStatsResetReady(!isMissingFunction(statsResetResult.error));
     setLastUpdated(new Date());
     setOfflineMode(false);
     if (nextProfile && nextWallet && transactionResult.data) {
@@ -332,8 +339,13 @@ export function Dashboard({ user }: Props) {
     const { data, error: rpcError } = await supabase.rpc("reset_my_wallet_stats");
     setStatsResetBusy(false);
     const result = data as { ok?: boolean; since?: string | null } | null;
+    if (isMissingFunction(rpcError)) {
+      setStatsResetReady(false);
+      setStatsError("Der Reset ist auf diesem Server noch nicht freigeschaltet.");
+      return;
+    }
     if (rpcError || !result?.ok) {
-      setStatsError("Die Statistik konnte gerade nicht zurückgesetzt werden. Bitte versuche es später erneut.");
+      setStatsError("Der Reset hat nicht geklappt. Deine Statistik ist unverändert.");
       return;
     }
     setStatsResetAt(result.since ?? new Date().toISOString());
@@ -467,8 +479,9 @@ export function Dashboard({ user }: Props) {
           <article className="stat-card"><span>Gesendet</span><strong className="negative">−{new Intl.NumberFormat("de-CH").format(activity.sentAmount)}</strong><small>{activity.sentCount} Ausgänge</small></article>
           <div className="home-stats-reset">
             <p>{statsResetAt ? `Gezählt seit ${new Date(statsResetAt).toLocaleString("de-CH", { dateStyle: "short", timeStyle: "short" })}.` : "Gezählt seit deiner ersten Buchung."} Der Reset verändert weder dein Guthaben noch den Verlauf.</p>
-            <button className="secondary compact" type="button" disabled={statsResetBusy || offlineMode} onClick={() => void resetHomeStats()}>{statsResetBusy ? "Wird zurückgesetzt …" : "Statistik zurücksetzen"}</button>
+            <button className="secondary compact" type="button" disabled={statsResetBusy || offlineMode || !statsResetReady} onClick={() => void resetHomeStats()}>{statsResetBusy ? "Wird zurückgesetzt …" : "Statistik zurücksetzen"}</button>
           </div>
+          {!statsResetReady && <p className="home-stats-note error">Der Reset ist auf diesem Server noch nicht freigeschaltet.</p>}
           {statsMessage && <p className="home-stats-note" role="status">{statsMessage}</p>}
           {statsError && <p className="home-stats-note error" role="alert">{statsError}</p>}
         </section>
