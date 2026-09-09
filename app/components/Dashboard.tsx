@@ -17,6 +17,7 @@ import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
 import { ProfileEditor } from "./ProfileEditor";
 import { QrWallet } from "./QrWallet";
 import { RewardsHub } from "./RewardsHub";
+import { UserProfileModal } from "./UserProfileModal";
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
@@ -505,6 +506,7 @@ export function Dashboard({ user }: Props) {
         <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. Coins können nicht mit echtem Geld gekauft werden, sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur in der App nutzbar. Die dargestellte Hash-Kette ist serverseitig geprüft und keine öffentliche Blockchain.</p>
         <p className="creator-credit">Diese Seite wurde von <strong>Robyn Rüfenacht</strong> erstellt.</p>
       </main>
+      <UserProfileModal />
     </div>
   );
 }

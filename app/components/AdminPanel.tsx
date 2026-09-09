@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 import { AdminAuditLog } from "./AdminAuditLog";
 import { GameAdminControls } from "./GameAdminControls";
+import { openUserProfile } from "./UserProfileModal";
 
 type AdminUser = {
   user_id: string;
@@ -638,8 +639,10 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
           const deleteBusy = actionBusy === `delete:${item.user_id}`;
           return <article className="admin-user" key={item.user_id}>
             <div className="admin-user-main">
-              <strong>{item.display_name}</strong>
-              <span>@{item.username} · {item.balance} GIBB</span>
+              <button className="user-profile-link" type="button" onClick={() => openUserProfile(item.user_id)}>
+                <strong>{item.display_name}</strong>
+                <span>@{item.username} · {item.balance} GIBB</span>
+              </button>
             </div>
             <div className="admin-user-badges">
               <span className={`admin-badge role-${item.role}`}>{item.role === "super_admin" ? "Owner" : item.role === "admin" ? "Admin" : "Benutzer"}</span>

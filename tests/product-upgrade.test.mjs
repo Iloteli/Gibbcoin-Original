@@ -38,6 +38,29 @@ test("enforces transparent games, personal protection and period leaderboards", 
   assert.match(migration, /revoke all on function public\.play_visual_prank_game/);
 });
 
+test("enforces global game limits and opens privacy-safe public user profiles", async () => {
+  const [adminGames, safety, game, dashboard, profileModal, groups, payments, admin, migration] = await Promise.all([
+    read("app/components/GameAdminControls.tsx"), read("app/components/PlayerSafetyPanel.tsx"),
+    read("app/components/GameCenter.tsx"), read("app/components/Dashboard.tsx"),
+    read("app/components/UserProfileModal.tsx"), read("app/components/GroupWallets.tsx"),
+    read("app/components/PaymentsHub.tsx"), read("app/components/AdminPanel.tsx"),
+    read("supabase/migrations/20260909081539_admin_global_game_limits_and_public_profiles.sql"),
+  ]);
+  assert.match(adminGames, /Globale Spielgrenzen/);
+  assert.match(adminGames, /admin_set_global_game_limits/);
+  assert.match(safety, /global_max_wager/);
+  assert.match(game, /global_wager_limit/);
+  assert.match(migration, /create table if not exists private\.global_game_limits/);
+  assert.match(migration, /create or replace function private\.enforce_session_safety/);
+  assert.match(migration, /create or replace function public\.get_public_user_profile\(p_user_id uuid\)/);
+  assert.match(migration, /grant execute on function public\.get_public_user_profile\(uuid\) to authenticated/);
+  assert.match(profileModal, /gibb:open-profile/);
+  assert.match(profileModal, /Es werden nur öffentliche Profildaten angezeigt/);
+  assert.doesNotMatch(profileModal, /\.email|password|admin_pin/);
+  assert.match(dashboard, /<UserProfileModal/);
+  assert.match(`${game}\n${groups}\n${payments}\n${admin}`, /openUserProfile/);
+});
+
 test("ships audit, timed bans, hardened group codes, offline snapshot and transaction exports", async () => {
   const [dashboard, admin, audit, groups, sw, edge, migration, readme, layout, staging] = await Promise.all([
     read("app/components/Dashboard.tsx"), read("app/components/AdminPanel.tsx"),

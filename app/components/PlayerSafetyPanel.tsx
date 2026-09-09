@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
-type Safety = { max_wager: number | null; daily_loss_limit: number | null; cooldown_seconds: number; break_until: string | null; loss_today: number };
+type Safety = { max_wager: number | null; daily_loss_limit: number | null; cooldown_seconds: number; global_max_wager: number | null; global_daily_loss_limit: number | null; global_cooldown_seconds: number; break_until: string | null; loss_today: number };
 
 function safetyError(message?: string) {
   if (message?.includes("player_break_active") || message?.includes("game_break_active")) return "Deine Spielpause ist noch aktiv.";
@@ -56,9 +56,9 @@ export function PlayerSafetyPanel() {
   const breakActive = Boolean(safety?.break_until && new Date(safety.break_until).getTime() > checkedAt);
   return <section className="card card-pad safety-panel" id="player-safety">
     <div className="section-heading compact-heading"><div><span className="section-number">SAFE PLAY</span><h2>Deine Spielgrenzen</h2></div><b className={breakActive ? "status-badge locked" : "status-badge active"}>{breakActive ? "Pause aktiv" : "Spielbereit"}</b></div>
-    <p>Du bestimmst Einsatzlimit, Tagesverlust und Pause. Die Regeln werden vor jeder serverbestätigten Runde geprüft.</p>
+    <p>Du bestimmst Einsatzlimit, Tagesverlust und Pause. Globale Admin-Grenzen gelten zusätzlich; der Server verwendet immer die strengere Regel.</p>
     <form className="safety-grid" onSubmit={save}><div className="field"><label htmlFor="max-wager">Maximaler Einsatz <span>leer = kein eigenes Limit</span></label><input id="max-wager" className="input" type="number" min={1} max={1000000000} value={maxWager} onChange={(event) => setMaxWager(event.target.value)} /></div><div className="field"><label htmlFor="daily-loss">Maximaler Tagesverlust</label><input id="daily-loss" className="input" type="number" min={1} max={1000000000} value={dailyLoss} onChange={(event) => setDailyLoss(event.target.value)} /></div><div className="field"><label htmlFor="cooldown">Pause zwischen Runden</label><select id="cooldown" className="input" value={cooldown} onChange={(event) => setCooldown(event.target.value)}><option value="0">Keine</option><option value="5">5 Sekunden</option><option value="15">15 Sekunden</option><option value="30">30 Sekunden</option><option value="60">60 Sekunden</option></select></div><button className="primary" type="submit" disabled={busy}>Limits speichern</button></form>
-    <div className="safety-summary"><span>Heute verloren: <strong>{safety?.loss_today ?? 0} GIBB</strong></span>{breakActive && <span>Pause bis <strong>{new Date(safety!.break_until!).toLocaleString("de-CH")}</strong></span>}</div>
+    <div className="safety-summary"><span>Heute verloren: <strong>{safety?.loss_today ?? 0} GIBB</strong></span><span>Für alle: <strong>Einsatz {safety?.global_max_wager ?? "∞"} · Verlust {safety?.global_daily_loss_limit ?? "∞"} · Pause {safety?.global_cooldown_seconds ?? 0}s</strong></span>{breakActive && <span>Pause bis <strong>{new Date(safety!.break_until!).toLocaleString("de-CH")}</strong></span>}</div>
     <div className="break-buttons"><span>Unwiderrufliche Pause starten</span>{[[15,"15 Min"],[60,"1 Std"],[1440,"24 Std"],[10080,"7 Tage"]].map(([minutes,label]) => <button type="button" className="secondary compact" disabled={busy || breakActive} key={minutes} onClick={() => void startBreak(Number(minutes))}>{label}</button>)}</div>
     {message && <p className="message success-message" role="status">{message}</p>}{error && <p className="message error" role="alert">{error}</p>}
   </section>;

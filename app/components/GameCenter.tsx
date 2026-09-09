@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getSupabase } from "../lib/supabase";
 import { DinoRunner } from "./DinoRunner";
+import { openUserProfile } from "./UserProfileModal";
 
 type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "plinko" | "dino_run" | "slots" | "baccarat" | "keno" | "wheel" | "mines" | "bingo" | "crash";
 type LeaderboardPeriod = "today" | "week" | "all";
@@ -145,6 +146,9 @@ function gameError(message?: string) {
   if (message?.includes("insufficient_balance")) return "Dein Wallet hat nicht genügend GIBB für diesen Einsatz.";
   if (message?.includes("game_disabled")) return "Dieses Spiel wurde von einem Admin deaktiviert.";
   if (message?.includes("game_too_fast")) return "Kurz warten – die vorige Runde wird noch verbucht.";
+  if (message?.includes("global_wager_limit")) return "Dieser Einsatz überschreitet das globale Admin-Limit.";
+  if (message?.includes("global_daily_loss_limit")) return "Das globale Tagesverlust-Limit für dein Konto ist erreicht.";
+  if (message?.includes("global_or_player_cooldown")) return "Die vorgeschriebene Pause zwischen zwei Runden ist noch nicht vorbei.";
   if (message?.includes("personal_wager_limit") || message?.includes("player_wager_limit")) return "Der Einsatz liegt über deinem persönlichen Spielschutz-Limit.";
   if (message?.includes("daily_loss_limit") || message?.includes("player_daily_loss_limit")) return "Dein persönliches Tagesverlust-Limit ist erreicht.";
   if (message?.includes("game_break_active") || message?.includes("player_break_active")) return "Deine selbst gesetzte Spielpause ist noch aktiv.";
@@ -606,7 +610,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       {dinoLeaderboard === null ? <p className="dino-leaderboard-empty">Bestenliste wird geladen …</p> : entries.length === 0 ? <p className="dino-leaderboard-empty">Noch keine abgeschlossenen Läufe. Sei der Erste!</p> : <ol className="dino-leaderboard-list">
         {entries.map((entry) => <li className={entry.is_me ? "is-me" : ""} key={entry.user_id}>
           <span className="dino-leaderboard-rank">{String(entry.rank).padStart(2, "0")}</span>
-          <div><strong>{entry.username}{entry.is_me ? " · Du" : ""}</strong><small>{entry.reward_total.toLocaleString("de-CH")} GIBB Prämien</small></div>
+          <div><button className="user-profile-link" type="button" onClick={() => openUserProfile(entry.user_id)}><strong>{entry.username}{entry.is_me ? " · Du" : ""}</strong><small>{entry.reward_total.toLocaleString("de-CH")} GIBB Prämien</small></button></div>
           <b>{entry.score.toLocaleString("de-CH")}</b>
         </li>)}
       </ol>}
@@ -624,7 +628,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       <div className="game-leaderboard-head"><div><span>ONLINE · SERVERBESTÄTIGT</span><strong id="game-leaderboard-title">{gameName(selectedGame)} Leaderboard</strong></div><b>TOP 10</b></div>
       <div className="leaderboard-periods" role="group" aria-label="Zeitraum der Bestenliste">{(["today", "week", "all"] as const).map((period) => <button type="button" className={leaderboardPeriod === period ? "active" : ""} key={period} onClick={() => setLeaderboardPeriod(period)}>{period === "today" ? "Heute" : period === "week" ? "Woche" : "Gesamt"}</button>)}</div>
       {leaderboard === null ? <p className="game-leaderboard-empty">Bestenliste wird geladen …</p> : entries.length === 0 ? <p className="game-leaderboard-empty">Noch keine abgeschlossenen Runden. Sei der Erste!</p> : <ol className="game-leaderboard-list">
-        {entries.map((entry) => <li className={entry.is_me ? "is-me" : ""} key={entry.user_id}><span>{String(entry.rank).padStart(2, "0")}</span><div><strong>{entry.username}{entry.is_me ? " · Du" : ""}</strong><small>{entry.wins.toLocaleString("de-CH")} Gewinne · {entry.plays.toLocaleString("de-CH")} Runden</small></div><b className={entry.net >= 0 ? "positive" : "negative"}>{entry.net > 0 ? "+" : ""}{entry.net.toLocaleString("de-CH")}</b></li>)}
+        {entries.map((entry) => <li className={entry.is_me ? "is-me" : ""} key={entry.user_id}><span>{String(entry.rank).padStart(2, "0")}</span><div><button className="user-profile-link" type="button" onClick={() => openUserProfile(entry.user_id)}><strong>{entry.username}{entry.is_me ? " · Du" : ""}</strong><small>{entry.wins.toLocaleString("de-CH")} Gewinne · {entry.plays.toLocaleString("de-CH")} Runden</small></button></div><b className={entry.net >= 0 ? "positive" : "negative"}>{entry.net > 0 ? "+" : ""}{entry.net.toLocaleString("de-CH")}</b></li>)}
       </ol>}
       {myEntry && !listed && <p className="game-leaderboard-you">Dein Platz: <strong>#{myEntry.rank}</strong> · {myEntry.net > 0 ? "+" : ""}{myEntry.net.toLocaleString("de-CH")} GIBB netto</p>}
       <small className="game-leaderboard-note">Sortiert nach Nettoergebnis. Nur Benutzernamen, keine privaten Daten.</small>
