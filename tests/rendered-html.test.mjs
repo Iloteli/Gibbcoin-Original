@@ -562,6 +562,35 @@ test("lets every user pick their own username in the profile tab", async () => {
   assert.doesNotMatch(migration, /set role =/);
 });
 
+test("can protect single accounts from bans and deletion at the database level", async () => {
+  const [migration, adminPanel] = await Promise.all([
+    readFile(new URL("../supabase/migrations/20260909160000_protect_named_accounts.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  // Der Schutz haengt an der User-ID, nicht am aenderbaren Benutzernamen.
+  assert.match(migration, /create table if not exists private\.protected_accounts/);
+  assert.match(migration, /user_id uuid primary key references auth\.users\(id\)/);
+  assert.doesNotMatch(migration, /profiles\.username/);
+
+  // Bannen wird auf der Tabelle selbst verhindert, Entsperren bleibt erlaubt.
+  assert.match(migration, /create trigger protect_account_from_ban\nbefore update on public\.wallets/);
+  assert.match(migration, /new\.status = 'locked'\n\s+and old\.status is distinct from 'locked'/);
+
+  // Loeschen wird im bestehenden auth.users-Trigger abgefangen, vor allen anderen Regeln.
+  assert.match(migration, /if private\.is_protected_account\(old\.id\) then/);
+  assert.match(migration, /account_is_protected/);
+
+  // Die bestehenden Owner-Regeln bleiben erhalten.
+  assert.match(migration, /owner_account_is_protected/);
+  assert.match(migration, /account_deletion_not_authorized/);
+  assert.match(migration, /private\.is_primary_owner\(v_actor_user_id\)/);
+
+  // Die Oberflaeche erklaert beide Faelle.
+  assert.match(adminPanel, /dauerhaft geschützt und kann nicht gebannt werden/);
+  assert.match(adminPanel, /dauerhaft geschützt und kann nicht gelöscht werden/);
+});
+
 test("guards the production Supabase migration workflow behind manual confirmation", async () => {
   const [production, staging, readme] = await Promise.all([
     readFile(new URL("../.github/workflows/production-supabase.yml", import.meta.url), "utf8"),

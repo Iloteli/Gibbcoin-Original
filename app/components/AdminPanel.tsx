@@ -59,6 +59,7 @@ function adminError(message?: string) {
   if (message?.includes("mfa_required")) return "Bestätige diese Sitzung zuerst mit deinem Zwei-Faktor-Code.";
   if (message?.includes("cannot_change_own_role")) return "Du kannst deine eigene Adminrolle nicht ändern.";
   if (message?.includes("cannot_lock_own_account")) return "Du kannst dein eigenes Konto nicht sperren.";
+  if (message?.includes("account_is_protected")) return "Dieses Konto ist dauerhaft geschützt und kann nicht gebannt werden.";
   if (message?.includes("cannot_modify_super_admin")) return "Das Owner-Konto kann hier nicht geändert werden.";
   if (message?.includes("primary_owner_required")) return "Nur Haupt-Owner Robyn darf Konten bannen oder entbannen.";
   if (message?.includes("owner_required")) return "Nur der Owner darf Adminrechte vergeben oder entfernen.";
@@ -85,6 +86,7 @@ function accountDeletionError(code?: string) {
   if (code?.startsWith("admin_pin_")) return pinError(code);
   if (code?.includes("pin_must_have_four_digits")) return "Der Admin-PIN muss genau vier Ziffern enthalten.";
   if (code?.includes("cannot_delete_own_account")) return "Du kannst dein eigenes Konto nicht löschen.";
+  if (code?.includes("account_is_protected")) return "Dieses Konto ist dauerhaft geschützt und kann nicht gelöscht werden.";
   if (code?.includes("cannot_delete_owner")) return "Das Owner-Konto ist vor dem Löschen geschützt.";
   if (code?.includes("primary_owner_required")) return "Nur Haupt-Owner Robyn darf Konten löschen.";
   if (code?.includes("cannot_delete_peer_admin")) return "Admins können keine anderen Admin-Konten löschen.";
