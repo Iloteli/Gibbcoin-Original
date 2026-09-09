@@ -530,3 +530,34 @@ test("lets every user reset the home wallet statistics without touching the ledg
   assert.doesNotMatch(migration, /delete from public\.transactions/);
   assert.doesNotMatch(migration, /update public\.wallets/);
 });
+
+test("guards the production Supabase migration workflow behind manual confirmation", async () => {
+  const [production, staging, readme] = await Promise.all([
+    readFile(new URL("../.github/workflows/production-supabase.yml", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/staging-supabase.yml", import.meta.url), "utf8"),
+    readFile(new URL("../README.md", import.meta.url), "utf8"),
+  ]);
+
+  // Eine Produktionsmigration darf nie als Nebenwirkung eines Pushes laufen.
+  assert.match(production, /on:\s*\n\s*workflow_dispatch:/);
+  assert.doesNotMatch(production, /^\s{2}push:/m);
+  assert.match(production, /inputs\.confirm \}\}" != "MIGRATE"/);
+  assert.match(production, /inputs\.backup_done \}\}" != "true"/);
+  assert.match(production, /environment:\s*\n\s*name: production/);
+
+  // Erst testen, dann trocken laufen lassen, dann anwenden.
+  assert.match(production, /pnpm install --frozen-lockfile/);
+  assert.match(production, /pnpm lint/);
+  assert.match(production, /pnpm test/);
+  assert.match(production, /db push --dry-run/);
+
+  // Zugangsdaten kommen ausschliesslich aus GitHub-Secrets.
+  assert.match(production, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/);
+  assert.match(production, /SUPABASE_DB_PASSWORD: \$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/);
+  assert.match(production, /SUPABASE_PROJECT_ID: \$\{\{ secrets\.SUPABASE_PROJECT_ID \}\}/);
+  assert.doesNotMatch(production, /laduzigqgvvnrqcgfgab/);
+
+  // Der Staging-Workflow bleibt unangetastet und verweigert weiterhin die Produktion.
+  assert.match(staging, /Production project refused/);
+  assert.match(readme, /production-supabase\.yml/);
+});
