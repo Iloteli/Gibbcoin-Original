@@ -58,6 +58,7 @@ Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherhe
 - RLS erlaubt ausschließlich das eigene Profil, Wallet und eigene Transaktionen zu lesen.
 - Die Empfängersuche gibt nur Namen, Avatar und eine maskierte E-Mail zurück.
 - Interne Datenbankfehler werden in der UI nicht offengelegt.
+- Die Plus/Minus-Statistik auf der Home-Ansicht kann jeder Benutzer über `reset_my_wallet_stats` selbst zurücksetzen. Gespeichert wird nur ein Zeitpunkt pro Benutzer in `private.wallet_stats_resets`; Guthaben, Transaktionsverlauf und Hash-Kette bleiben unverändert.
 - Bezahlte Coins werden nur durch einen signierten Stripe-Webhook gutgeschrieben. Eindeutige Event- und Checkout-IDs machen Webhook-Wiederholungen idempotent.
 - `admin_set_role` prüft die aktuelle Rolle serverseitig; ein normaler Nutzer kann die RPC zwar anfragen, erhält aber immer `admin_required`.
 - Eine Kontosperre sperrt Wallet und Supabase-Auth-Konto gemeinsam über die JWT-geschützte Edge Function `admin-account-status`. Gesperrte Admins verlieren zusätzlich sofort ihre Admin-RPC-Rechte.

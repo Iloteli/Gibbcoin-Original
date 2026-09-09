@@ -497,3 +497,31 @@ test("service worker replaces every legacy tab without blocking activation", asy
   assert.equal(claimed, true);
   assert.deepEqual(navigatedUrls, ["https://example.test/"]);
 });
+
+test("lets every user reset the home wallet statistics without touching the ledger", async () => {
+  const [dashboard, styles, migration] = await Promise.all([
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260909120000_add_home_wallet_stats_reset.sql", import.meta.url), "utf8"),
+  ]);
+
+  // Die Home-Statistik zaehlt nur Buchungen ab dem gespeicherten Reset-Zeitpunkt.
+  assert.match(dashboard, /supabase\.rpc\("my_wallet_stats_reset"\)/);
+  assert.match(dashboard, /supabase\.rpc\("reset_my_wallet_stats"\)/);
+  assert.match(dashboard, /\[statsResetAt, setStatsResetAt\] = useState<string \| null>\(null\)/);
+  assert.match(dashboard, /const since = statsResetAt \? new Date\(statsResetAt\)\.getTime\(\) : null;/);
+  assert.match(dashboard, /new Date\(tx\.created_at\)\.getTime\(\) >= since/);
+  assert.match(dashboard, /Statistik zurücksetzen/);
+  assert.match(dashboard, /home-stats-reset/);
+  assert.match(styles, /\.home-stats-reset \{/);
+
+  // Der Reset speichert nur eine Zeitmarke pro Benutzer und bleibt damit rein visuell.
+  assert.match(migration, /create table if not exists private\.wallet_stats_resets/);
+  assert.match(migration, /create or replace function public\.my_wallet_stats_reset\(\)/);
+  assert.match(migration, /create or replace function public\.reset_my_wallet_stats\(\)/);
+  assert.match(migration, /private\.require_active_user\(\)/);
+  assert.match(migration, /revoke all on table private\.wallet_stats_resets/);
+  assert.match(migration, /grant execute on function public\.reset_my_wallet_stats\(\)/);
+  assert.doesNotMatch(migration, /delete from public\.transactions/);
+  assert.doesNotMatch(migration, /update public\.wallets/);
+});

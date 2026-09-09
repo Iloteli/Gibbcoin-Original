@@ -562,6 +562,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .stat-card strong { color: var(--green); font-size: clamp(29px, 3vw, 40px); letter-spacing: -.045em; margin: 14px 0 6px; }
 .stat-card strong.negative { color: #ff9b9b; }
 .stat-card small { color: var(--muted); font-size: 10px; }
+.home-stats-reset { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; border: 1px solid rgba(246,200,95,.18); border-radius: 18px; padding: 14px 18px; background: rgba(246,200,95,.025); }
+.home-stats-reset p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.home-stats-reset button { flex: 0 0 auto; }
+.home-stats-note { grid-column: 1 / -1; margin: 0; color: var(--green); font-size: 11px; }
+.home-stats-note.error { color: #ff9b9b; }
 
 .home-launchpad { display: grid; grid-template-columns: minmax(220px,.7fr) minmax(0,1.3fr); align-items: center; gap: 28px; margin-top: 18px; padding: 26px; }
 .home-launchpad-copy h2 { margin: 7px 0 8px; font-size: 22px; letter-spacing: -.035em; }
@@ -792,6 +797,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .premium-balance { grid-column: auto; padding: 22px; }
   .premium-balance .balance { font-size: 56px; }
   .stat-card { min-height: 125px; padding: 20px; }
+  .home-stats-reset { align-items: stretch; flex-direction: column; }
   .balance-actions a { flex: 1; min-width: 0; }
   .card-pad { padding: 20px; }
   .section-heading { align-items: flex-start; }

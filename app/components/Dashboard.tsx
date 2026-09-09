@@ -22,7 +22,7 @@ import { UserProfileModal } from "./UserProfileModal";
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
 type DashboardView = "home" | "send" | "games" | "community" | "activity" | "account" | "admin";
-type OfflineSnapshot = { profile: Profile; wallet: Wallet; transactions: Transaction[]; savedAt: string };
+type OfflineSnapshot = { profile: Profile; wallet: Wallet; transactions: Transaction[]; savedAt: string; statsResetAt?: string | null };
 
 const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: string; icon: string }> = [
   { key: "home", label: "Home", icon: "⌂" },
@@ -130,6 +130,10 @@ export function Dashboard({ user }: Props) {
   const [dateTo, setDateTo] = useState("");
   const [minAmount, setMinAmount] = useState("");
   const [maxAmount, setMaxAmount] = useState("");
+  const [statsResetAt, setStatsResetAt] = useState<string | null>(null);
+  const [statsResetBusy, setStatsResetBusy] = useState(false);
+  const [statsMessage, setStatsMessage] = useState("");
+  const [statsError, setStatsError] = useState("");
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
@@ -143,6 +147,7 @@ export function Dashboard({ user }: Props) {
         setProfile(cached.profile);
         setWallet(cached.wallet);
         setTransactions(cached.transactions);
+        setStatsResetAt(cached.statsResetAt ?? null);
         setLastUpdated(new Date(cached.savedAt));
         setOfflineMode(true);
         setDataError("Offline-Ansicht: letzter sicher gespeicherter Stand. Senden und Spielen benötigen Internet.");
@@ -162,6 +167,7 @@ export function Dashboard({ user }: Props) {
       supabase.from("transactions").select("id,sender_user_id,receiver_user_id,sender_label,receiver_label,amount,type,note,previous_hash,hash,created_at").order("created_at", { ascending: false }).limit(250),
       supabase.rpc("verify_hash_chain"),
       supabase.rpc("get_my_visual_role"),
+      supabase.rpc("my_wallet_stats_reset"),
     ] as const);
 
     let results = await fetchWalletData();
@@ -173,7 +179,7 @@ export function Dashboard({ user }: Props) {
       results = await fetchWalletData();
     }
 
-    const [profileResult, walletResult, transactionResult, chainResult, visualRoleResult] = results;
+    const [profileResult, walletResult, transactionResult, chainResult, visualRoleResult, statsResetResult] = results;
     const retryAuthError = results.map((result) => result.error).find(isSupabaseAuthError);
     if (retryAuthError) {
       if (restoreCachedSnapshot()) return;
@@ -198,10 +204,13 @@ export function Dashboard({ user }: Props) {
     if (transactionResult.data) setTransactions(nextTransactions);
     const chain = (chainResult.data as Array<{ valid: boolean }> | null)?.[0];
     setChainValid(chainResult.error ? null : chain?.valid ?? false);
+    // Fehlt die RPC (noch nicht migrierte Datenbank), bleibt die Statistik ungefiltert.
+    const nextStatsResetAt = statsResetResult.error ? null : (statsResetResult.data as { since?: string | null } | null)?.since ?? null;
+    setStatsResetAt(nextStatsResetAt);
     setLastUpdated(new Date());
     setOfflineMode(false);
     if (nextProfile && nextWallet && transactionResult.data) {
-      const snapshot: OfflineSnapshot = { profile: nextProfile, wallet: nextWallet, transactions: nextTransactions.slice(0, 40), savedAt: new Date().toISOString() };
+      const snapshot: OfflineSnapshot = { profile: nextProfile, wallet: nextWallet, transactions: nextTransactions.slice(0, 40), savedAt: new Date().toISOString(), statsResetAt: nextStatsResetAt };
       localStorage.setItem(snapshotKey, JSON.stringify(snapshot));
     }
     setRefreshing(false);
@@ -296,15 +305,41 @@ export function Dashboard({ user }: Props) {
   }, []);
 
   const activity = useMemo(() => {
-    const sent = transactions.filter((tx) => tx.sender_user_id === user.id);
-    const received = transactions.filter((tx) => tx.receiver_user_id === user.id);
+    // Der Reset blendet ältere Buchungen nur aus der Statistik aus. Verlauf,
+    // Guthaben und Hash-Kette bleiben vollständig erhalten.
+    const since = statsResetAt ? new Date(statsResetAt).getTime() : null;
+    const counted = since === null ? transactions : transactions.filter((tx) => new Date(tx.created_at).getTime() >= since);
+    const sent = counted.filter((tx) => tx.sender_user_id === user.id);
+    const received = counted.filter((tx) => tx.receiver_user_id === user.id);
     return {
       sentCount: sent.length,
       receivedCount: received.length,
       sentAmount: sent.reduce((sum, tx) => sum + tx.amount, 0),
       receivedAmount: received.reduce((sum, tx) => sum + tx.amount, 0),
     };
-  }, [transactions, user.id]);
+  }, [statsResetAt, transactions, user.id]);
+
+  const resetHomeStats = useCallback(async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setStatsMessage(""); setStatsError("");
+    if (offlineMode) {
+      setStatsError("Im Offline-Modus lässt sich die Statistik nicht zurücksetzen.");
+      return;
+    }
+    if (!window.confirm("Plus/Minus-Statistik auf 0 setzen? Guthaben, Transaktionsverlauf und Hash-Kette bleiben unverändert.")) return;
+    setStatsResetBusy(true);
+    const { data, error: rpcError } = await supabase.rpc("reset_my_wallet_stats");
+    setStatsResetBusy(false);
+    const result = data as { ok?: boolean; since?: string | null } | null;
+    if (rpcError || !result?.ok) {
+      setStatsError("Die Statistik konnte gerade nicht zurückgesetzt werden. Bitte versuche es später erneut.");
+      return;
+    }
+    setStatsResetAt(result.since ?? new Date().toISOString());
+    setStatsMessage("Deine Plus/Minus-Statistik wurde auf 0 gesetzt. Guthaben und Verlauf blieben unverändert.");
+    await loadData();
+  }, [loadData, offlineMode]);
 
   const filteredTransactions = useMemo(() => {
     const needle = transactionQuery.trim().toLocaleLowerCase("de-CH");
@@ -430,6 +465,12 @@ export function Dashboard({ user }: Props) {
           <article className="card balance-card premium-balance" id="wallet"><div className="balance-top"><span>Verfügbares Guthaben</span><b className={accountLocked ? "locked" : "active"}>{accountLocked ? "Gesperrt" : "Aktiv"}</b></div><div className="balance">{formattedBalance} <small>GIBB</small></div><p>Dein Guthaben ist serverseitig geschützt und sofort einsatzbereit.</p><div className="balance-actions"><a href="#send-coins">Senden <span aria-hidden="true">↗</span></a><a href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Aufladen" : "Anfordern"} <span aria-hidden="true">＋</span></a></div></article>
           <article className="stat-card"><span>Erhalten</span><strong>+{new Intl.NumberFormat("de-CH").format(activity.receivedAmount)}</strong><small>{activity.receivedCount} Eingänge</small></article>
           <article className="stat-card"><span>Gesendet</span><strong className="negative">−{new Intl.NumberFormat("de-CH").format(activity.sentAmount)}</strong><small>{activity.sentCount} Ausgänge</small></article>
+          <div className="home-stats-reset">
+            <p>{statsResetAt ? `Gezählt seit ${new Date(statsResetAt).toLocaleString("de-CH", { dateStyle: "short", timeStyle: "short" })}.` : "Gezählt seit deiner ersten Buchung."} Der Reset verändert weder dein Guthaben noch den Verlauf.</p>
+            <button className="secondary compact" type="button" disabled={statsResetBusy || offlineMode} onClick={() => void resetHomeStats()}>{statsResetBusy ? "Wird zurückgesetzt …" : "Statistik zurücksetzen"}</button>
+          </div>
+          {statsMessage && <p className="home-stats-note" role="status">{statsMessage}</p>}
+          {statsError && <p className="home-stats-note error" role="alert">{statsError}</p>}
         </section>
 
         <section className="home-launchpad card" aria-labelledby="home-launchpad-title">
