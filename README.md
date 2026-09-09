@@ -23,8 +23,8 @@ Python 3.10 oder neuer. Sonst nichts.
 ## Schnellstart
 
 ```bash
-git clone https://github.com/<dein-user>/gibbcoin.git
-cd gibbcoin
+git clone https://github.com/Iloteli/gibbcoin-original.git
+cd gibbcoin-original
 python -m gibbcoin wallet --new
 ```
 
