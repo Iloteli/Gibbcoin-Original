@@ -515,6 +515,41 @@ test("service worker replaces every legacy tab without blocking activation", asy
   assert.deepEqual(navigatedUrls, ["https://example.test/"]);
 });
 
+test("detects the device and adapts the layout for phones", async () => {
+  const [layout, deviceClass, styles] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DeviceClass.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  // Ohne viewportFit bleibt env(safe-area-inset-*) auf iPhones bei 0.
+  assert.match(layout, /viewportFit: "cover"/);
+  assert.match(layout, /width: "device-width"/);
+  assert.match(layout, /initialScale: 1/);
+  assert.match(layout, /<DeviceClass \/>/);
+
+  // Erkennung kombiniert Browser-Hinweis, Zeigegeraet und Breite.
+  assert.match(deviceClass, /userAgentData\?\.mobile/);
+  assert.match(deviceClass, /matchMedia\("\(pointer: coarse\)"\)/);
+  assert.match(deviceClass, /navigator\.maxTouchPoints/);
+  assert.match(deviceClass, /root\.dataset\.device = device/);
+  assert.match(deviceClass, /display-mode: standalone/);
+  assert.match(deviceClass, /orientationchange/);
+
+  // Die Hoehe folgt dem sichtbaren Bereich statt der ausfahrenden Adressleiste.
+  assert.match(styles, /\.app-shell \{ min-height: 100vh; min-height: 100dvh;/);
+  assert.match(styles, /\.auth-page, \.loading-page \{ min-height: 100vh; min-height: 100dvh;/);
+
+  // Sichere Bereiche und Fingerbedienung.
+  assert.match(styles, /\.header \{ padding-top: env\(safe-area-inset-top\); \}/);
+  assert.match(styles, /@media \(pointer: coarse\)[\s\S]*min-height: 44px/);
+  assert.match(styles, /@media \(pointer: coarse\)[\s\S]*font-size: 16px/);
+  assert.match(styles, /:root\[data-device="mobile"\]/);
+  assert.match(styles, /:root\[data-standalone="true"\]/);
+  assert.match(styles, /overscroll-behavior-y: contain/);
+  assert.match(styles, /-webkit-tap-highlight-color: transparent/);
+});
+
 test("makes two factor confirmation optional instead of mandatory", async () => {
   const [app, challenge, migration] = await Promise.all([
     readFile(new URL("../app/components/GibbCoinApp.tsx", import.meta.url), "utf8"),

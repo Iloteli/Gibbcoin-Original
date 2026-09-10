@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { DeviceClass } from "./components/DeviceClass";
 import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 import "./globals.css";
 
@@ -8,6 +9,12 @@ const description = "GIBB Coins sicher senden, empfangen, kaufen und mit persön
 
 export const viewport: Viewport = {
   themeColor: "#070b0a",
+  width: "device-width",
+  initialScale: 1,
+  // Ohne cover bleibt env(safe-area-inset-*) auf iPhones bei 0. Zusammen mit
+  // der durchscheinenden Statusleiste liefe der Inhalt sonst unter Notch und
+  // Home-Indikator.
+  viewportFit: "cover",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -59,7 +66,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <body><ServiceWorkerRegistration />{children}</body>
+      <body><DeviceClass /><ServiceWorkerRegistration />{children}</body>
     </html>
   );
 }

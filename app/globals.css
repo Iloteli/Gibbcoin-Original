@@ -21,7 +21,7 @@ select { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
 
-.app-shell { min-height: 100vh; background: radial-gradient(circle at 70% -20%, rgba(46,209,100,.1), transparent 38%), var(--bg); }
+.app-shell { min-height: 100vh; min-height: 100dvh; background: radial-gradient(circle at 70% -20%, rgba(46,209,100,.1), transparent 38%), var(--bg); }
 .container { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
 .header { position: sticky; top: 0; z-index: 20; border-bottom: 1px solid rgba(255,255,255,.07); background: rgba(7,11,10,.86); backdrop-filter: blur(16px); }
 .header-inner { height: 76px; display: flex; align-items: center; justify-content: space-between; gap: 18px; }
@@ -103,7 +103,7 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .empty { color: var(--muted); border-top: 1px solid var(--line); padding: 28px 0 8px; text-align: center; font-size: 13px; }
 .disclaimer { margin-top: 24px; border: 1px solid rgba(246,200,95,.15); color: #b9b4a3; border-radius: 14px; padding: 13px 15px; font-size: 11px; text-align: center; }
 
-.auth-page, .loading-page { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at 50% 20%, rgba(46,209,100,.13), transparent 38%), var(--bg); }
+.auth-page, .loading-page { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px; padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(24px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); background: radial-gradient(circle at 50% 20%, rgba(46,209,100,.13), transparent 38%), var(--bg); }
 .auth-card { width: min(460px, 100%); border: 1px solid var(--line); border-radius: 26px; padding: 40px; background: rgba(16,22,20,.94); box-shadow: 0 35px 100px rgba(0,0,0,.38); }
 .auth-logo { width: 58px; height: 58px; margin-bottom: 30px; font-size: 22px; }
 .auth-card h1 { font-size: 42px; letter-spacing: -.055em; margin: 0 0 8px; }
@@ -1918,6 +1918,86 @@ a:focus-visible {
     border-color: rgba(246,200,95,.32);
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Handy-Feinschliff. Greift über die Geräteklasse aus DeviceClass.tsx
+ * und über echte Geräte-Merkmale, nicht nur über die Fensterbreite.
+ * Alles ist additiv: Desktop und Tablet bleiben unverändert.
+ * ------------------------------------------------------------------ */
+
+/* Kein Aufblasen der Schrift beim Drehen, kein blauer Blitz beim Tippen. */
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: contain;
+}
+
+/* Sichere Bereiche: Notch oben, Home-Indikator unten, Kanten im Querformat. */
+.header { padding-top: env(safe-area-inset-top); }
+
+.container {
+  padding-right: max(0px, env(safe-area-inset-right));
+  padding-left: max(0px, env(safe-area-inset-left));
+}
+
+.main { padding-bottom: calc(48px + env(safe-area-inset-bottom)); }
+
+.notification-toast {
+  right: max(22px, env(safe-area-inset-right));
+  bottom: max(22px, env(safe-area-inset-bottom));
+}
+
+.modal-backdrop {
+  padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+/* Fingerbedienung: verlässliche Trefferflächen und ruhiges Wischen. */
+@media (pointer: coarse) {
+  button,
+  .primary-link,
+  .secondary-link,
+  .balance-actions a,
+  .show-more,
+  .favorite-button {
+    min-height: 44px;
+  }
+
+  .input,
+  select,
+  textarea {
+    min-height: 48px;
+    font-size: 16px;
+  }
+
+  .dashboard-tabs {
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .dashboard-tabs::-webkit-scrollbar { display: none; }
+  .dashboard-tabs button { scroll-snap-align: center; }
+}
+
+/* Nur echte Handys: engere Ränder, ruhigere Flächen, weniger Scrollweg. */
+:root[data-device="mobile"] .container { width: min(100% - 20px, 680px); }
+:root[data-device="mobile"] .main { padding-top: 22px; }
+:root[data-device="mobile"] .dashboard-tabs { top: calc(74px + env(safe-area-inset-top)); }
+:root[data-device="mobile"] .offline-banner { top: calc(70px + env(safe-area-inset-top)); }
+:root[data-device="mobile"] .card-pad { padding: 18px; }
+:root[data-device="mobile"] .hero h1 { font-size: clamp(38px, 11vw, 52px); }
+:root[data-device="mobile"] .home-stats-reset { align-items: stretch; flex-direction: column; }
+:root[data-device="mobile"] .home-stats-reset button { width: 100%; }
+:root[data-device="mobile"] .modal-actions { flex-direction: column-reverse; }
+:root[data-device="mobile"] .modal-actions > button { width: 100%; }
+:root[data-device="mobile"] .notification-toast { width: calc(100% - 24px); left: max(12px, env(safe-area-inset-left)); }
+
+/* Als installierte App gibt es keine Browserleiste, die Abstand schafft. */
+:root[data-standalone="true"] .header { padding-top: calc(env(safe-area-inset-top) + 6px); }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
