@@ -515,6 +515,25 @@ test("service worker replaces every legacy tab without blocking activation", asy
   assert.deepEqual(navigatedUrls, ["https://example.test/"]);
 });
 
+test("shows the admin access dialog at the top of the screen", async () => {
+  const [styles, adminPanel] = await Promise.all([
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  // Der Dialog haengt am oberen Rand, damit die Tastatur ihn nicht verdeckt.
+  assert.match(adminPanel, /className="modal-backdrop admin-access-backdrop"/);
+  assert.match(styles, /\.admin-access-backdrop \{\s*\n\s*align-items: start;/);
+  assert.match(styles, /\.admin-access-backdrop > \.pin-modal \{\s*\n\s*margin-top: max\(12px, env\(safe-area-inset-top\)\);/);
+  assert.match(styles, /\.admin-access-backdrop > \.pin-modal[\s\S]*transform-origin: top center;/);
+
+  // Ein zu hoher Dialog bleibt scrollbar statt abgeschnitten.
+  assert.match(styles, /\.admin-access-backdrop \{[\s\S]*overflow-y: auto;/);
+
+  // Die uebrigen Dialoge bleiben mittig.
+  assert.match(styles, /\.modal-backdrop \{ position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;/);
+});
+
 test("detects the device and adapts the layout for phones", async () => {
   const [layout, deviceClass, styles] = await Promise.all([
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),

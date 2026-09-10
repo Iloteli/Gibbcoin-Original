@@ -1955,6 +1955,20 @@ body {
   padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 }
 
+/* Das Admin-Anmeldefenster steht oben statt in der Mitte. Auf dem Handy
+   verdeckt die Tastatur sonst genau die Bildschirmmitte, in der das Feld
+   liegt. Oben bleibt es sichtbar und erreichbar. */
+.admin-access-backdrop {
+  align-items: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.admin-access-backdrop > .pin-modal {
+  margin-top: max(12px, env(safe-area-inset-top));
+  transform-origin: top center;
+}
+
 /* Fingerbedienung: verlässliche Trefferflächen und ruhiges Wischen. */
 @media (pointer: coarse) {
   button,
