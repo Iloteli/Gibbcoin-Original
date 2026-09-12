@@ -49,7 +49,10 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
       setAnnouncement({ title: String(notice.title ?? ""), message: String(notice.message ?? "") });
     }
   }, [active]);
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => void load(), 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   async function change(operation: Operation, status: Operation["status"]) {
     const supabase = getSupabase();
@@ -66,58 +69,59 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
       return;
     }
 
-    async function saveControl(key: string, value: Record<string, unknown>) {
-      const supabase = getSupabase();
-      if (!supabase || !pin) return;
-      setBusy(key); setError(""); setMessage("");
-      const { data, error: rpcError } = await supabase.rpc("admin_update_control", { p_key: key, p_value: value, p_pin: pin });
-      setBusy("");
-      if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Konfiguration konnte nicht gespeichert werden."); return; }
-      setMessage("Konfiguration gespeichert."); await load();
-    }
-
-    async function createClass(event: React.FormEvent) {
-      event.preventDefault();
-      const supabase = getSupabase();
-      if (!supabase || !className.trim()) return;
-      setBusy("class"); setError("");
-      const { data, error: rpcError } = await supabase.rpc("admin_create_class", { p_name: className, p_school_year: classYear, p_pin: pin });
-      setBusy("");
-      if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Klasse konnte nicht angelegt werden."); return; }
-      setClassName(""); setClassYear(""); setMessage("Klasse angelegt."); await load();
-    }
-
-    async function updateCase(item: Record<string, string>, status: string) {
-      const supabase = getSupabase();
-      if (!supabase) return;
-      setBusy(item.id);
-      const { data, error: rpcError } = await supabase.rpc("admin_update_case", { p_case_id: item.id, p_status: status, p_priority: item.priority, p_pin: pin });
-      setBusy("");
-      if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Das Ticket konnte nicht aktualisiert werden."); return; }
-      await load();
-    }
-
-    async function updateCatalog(kind: string, item: Record<string, string | boolean>, values: Record<string, string | boolean>) {
-      const supabase = getSupabase();
-      if (!supabase) return;
-      setBusy(String(item.id ?? item.task_key));
-      const id = String(item.id ?? item.task_key);
-      const { data, error: rpcError } = await supabase.rpc("admin_update_catalog", { p_kind: kind, p_id: id, p_values: values, p_pin: pin });
-      setBusy("");
-      if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Der Katalogeintrag konnte nicht gespeichert werden."); return; }
-      await load();
-    }
-
-    async function runHealthCheck() {
-      const supabase = getSupabase();
-      if (!supabase) return;
-      setBusy("health");
-      const { data, error: rpcError } = await supabase.rpc("admin_run_health_check", { p_pin: pin });
-      setBusy("");
-      if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Systemprüfung konnte nicht ausgeführt werden."); return; }
-      setMessage("Systemprüfung abgeschlossen."); await load();
-    }
     setMessage("Operation gespeichert."); await load();
+  }
+
+  async function saveControl(key: string, value: Record<string, unknown>) {
+    const supabase = getSupabase();
+    if (!supabase || !pin) return;
+    setBusy(key); setError(""); setMessage("");
+    const { data, error: rpcError } = await supabase.rpc("admin_update_control", { p_key: key, p_value: value, p_pin: pin });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Konfiguration konnte nicht gespeichert werden."); return; }
+    setMessage("Konfiguration gespeichert."); await load();
+  }
+
+  async function createClass(event: React.FormEvent) {
+    event.preventDefault();
+    const supabase = getSupabase();
+    if (!supabase || !className.trim()) return;
+    setBusy("class"); setError("");
+    const { data, error: rpcError } = await supabase.rpc("admin_create_class", { p_name: className, p_school_year: classYear, p_pin: pin });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Klasse konnte nicht angelegt werden."); return; }
+    setClassName(""); setClassYear(""); setMessage("Klasse angelegt."); await load();
+  }
+
+  async function updateCase(item: Record<string, string>, status: string) {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setBusy(item.id);
+    const { data, error: rpcError } = await supabase.rpc("admin_update_case", { p_case_id: item.id, p_status: status, p_priority: item.priority, p_pin: pin });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Das Ticket konnte nicht aktualisiert werden."); return; }
+    await load();
+  }
+
+  async function updateCatalog(kind: string, item: Record<string, string | boolean>, values: Record<string, string | boolean>) {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setBusy(String(item.id ?? item.task_key));
+    const id = String(item.id ?? item.task_key);
+    const { data, error: rpcError } = await supabase.rpc("admin_update_catalog", { p_kind: kind, p_id: id, p_values: values, p_pin: pin });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Der Katalogeintrag konnte nicht gespeichert werden."); return; }
+    await load();
+  }
+
+  async function runHealthCheck() {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setBusy("health");
+    const { data, error: rpcError } = await supabase.rpc("admin_run_health_check", { p_pin: pin });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Systemprüfung konnte nicht ausgeführt werden."); return; }
+    setMessage("Systemprüfung abgeschlossen."); await load();
   }
 
   if (!active) return null;
