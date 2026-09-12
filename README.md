@@ -44,14 +44,14 @@ pnpm dev
 - Ein `auth.users`-Trigger legt Profil und Wallet atomar an. `UNIQUE(user_id)` verhindert mehrfaches Startguthaben.
 - Der Client besitzt keinerlei `INSERT`-, `UPDATE`- oder `DELETE`-Rechte auf Wallets und Transaktionen.
 - Der Browser besitzt auch keine Schreibrechte auf Rollen. Manipulierte DevTools-, JavaScript- oder REST-Aufrufe können weder Coins erzeugen noch den eigenen Benutzer zum Admin machen.
-- Transfers laufen nur über `transfer_gibb`. Eine transaktionsweite Advisory-Sperre und Row Locks verhindern Double Spending und konkurrierende Hash-Verzweigungen.
+- Transfers laufen nur über die aktuelle geprüfte Transfer-RPC. Die veraltete `transfer_gibb`-RPC ist für Clientrollen deaktiviert. Eine transaktionsweite Advisory-Sperre und Row Locks verhindern Double Spending und konkurrierende Hash-Verzweigungen.
 - RLS erlaubt ausschließlich das eigene Profil, Wallet und eigene Transaktionen zu lesen.
 - Die Empfängersuche gibt nur Namen, Avatar und eine maskierte E-Mail zurück.
 - Interne Datenbankfehler werden in der UI nicht offengelegt.
 - Bezahlte Coins werden nur durch einen signierten Stripe-Webhook gutgeschrieben. Eindeutige Event- und Checkout-IDs machen Webhook-Wiederholungen idempotent.
 - `admin_set_role` prüft die aktuelle Rolle serverseitig; ein normaler Nutzer kann die RPC zwar anfragen, erhält aber immer `admin_required`.
 - Eine Kontosperre sperrt Wallet und Supabase-Auth-Konto gemeinsam über die JWT-geschützte Edge Function `admin-account-status`. Gesperrte Admins verlieren zusätzlich sofort ihre Admin-RPC-Rechte.
-- Jeder Admin richtet einen eigenen vierstelligen PIN ein. Der PIN wird ausschließlich als bcrypt-Hash gespeichert, nach fünf Fehlversuchen 15 Minuten gesperrt und bei jeder Coin-Gutschrift im Adminpanel erneut verlangt.
+- Jeder Admin richtet einen eigenen vierstelligen PIN ein. Der PIN wird ausschließlich als bcrypt-Hash gespeichert, nach fünf Fehlversuchen eine Stunde gesperrt und bei jeder Coin-Gutschrift im Adminpanel erneut verlangt. Privilegierte Aktionen erfordern zusätzlich eine AAL2-MFA-Sitzung.
 - Die alten Admin-Endpunkte für direkte Guthabenänderungen sind für Browserkonten gesperrt. Nur die PIN-geschützten Endpunkte können Admin-Coins gutschreiben oder einen Kontostand setzen.
 
 ## Manueller Abnahmetest

@@ -211,8 +211,8 @@ export function GroupWallets({ onChanged }: Props) {
         <button className="primary compact" type="submit" disabled={busy !== ""}>Erstellen</button>
       </form>
       <form className="group-join-form" onSubmit={joinGroup}>
-        <strong>Mit Code beitreten</strong><p>Den achtstelligen Code erhältst du von einem Gruppenmitglied.</p>
-        <div><input className="input join-code-input" value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} minLength={8} maxLength={8} required placeholder="A1B2C3D4" /><button className="secondary" type="submit" disabled={busy !== ""}>Beitreten</button></div>
+        <strong>Mit Code beitreten</strong><p>Den 32-stelligen Code erhältst du von einem Gruppenmitglied.</p>
+        <div><input className="input join-code-input" value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} minLength={32} maxLength={32} required placeholder="A1B2C3D4..." /><button className="secondary" type="submit" disabled={busy !== ""}>Beitreten</button></div>
       </form>
     </div>
 
