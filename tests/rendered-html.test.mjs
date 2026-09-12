@@ -689,8 +689,8 @@ test("can protect single accounts from bans and deletion at the database level",
   assert.doesNotMatch(migration, /profiles\.username/);
 
   // Bannen wird auf der Tabelle selbst verhindert, Entsperren bleibt erlaubt.
-  assert.match(migration, /create trigger protect_account_from_ban\nbefore update on public\.wallets/);
-  assert.match(migration, /new\.status = 'locked'\n\s+and old\.status is distinct from 'locked'/);
+  assert.match(migration, /create trigger protect_account_from_ban\r?\nbefore update on public\.wallets/);
+  assert.match(migration, /new\.status = 'locked'\r?\n\s+and old\.status is distinct from 'locked'/);
 
   // Loeschen wird im bestehenden auth.users-Trigger abgefangen, vor allen anderen Regeln.
   assert.match(migration, /if private\.is_protected_account\(old\.id\) then/);

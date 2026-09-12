@@ -733,8 +733,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .admin-adjust-form > .admin-danger { min-height: 43px; padding: 0 14px; white-space: nowrap; }
 .admin-adjust-form.awaiting-pin { opacity: .72; }
 .disclaimer { color: #7f8c85; background: rgba(255,255,255,.012); }
-.creator-credit { width: fit-content; margin: 12px auto 0; border: 1px solid rgba(124,245,157,.16); border-radius: 999px; padding: 7px 12px; color: var(--muted); background: rgba(124,245,157,.035); font-size: 10px; text-align: center; }
+.creator-credit { width: fit-content; display: block; margin: 12px auto 0; border: 1px solid rgba(124,245,157,.16); border-radius: 999px; padding: 7px 12px; color: var(--muted); background: rgba(124,245,157,.035); font-size: 10px; text-align: center; text-decoration: none; transition: border-color var(--motion-fast) var(--ease-out), color var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), transform var(--motion-fast) var(--ease-out); }
 .creator-credit strong { color: var(--green); font-weight: 850; }
+.creator-credit:hover { border-color: rgba(124,245,157,.42); color: var(--text); background: rgba(124,245,157,.075); transform: translateY(-1px); }
+.creator-credit:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; }
 
 @media (max-width: 1000px) {
   .desktop-nav { display: none; }
