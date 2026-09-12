@@ -30,7 +30,7 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with centralized admin controls", async () => {
-  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration] = await Promise.all([
+  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration, upgradeMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
@@ -45,6 +45,7 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
     readFile(new URL("../supabase/migrations/20260825145050_expand_visual_pranks_and_dino_controls.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260826121128_add_plinko_game.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260827185502_add_casino_games_leaderboards.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260908063951_community_rewards_safety_upgrade.sql", import.meta.url), "utf8"),
   ]);
   assert.match(dashboard, /<GameCenter/);
   assert.match(gameCenter, /Roulette/);
@@ -78,18 +79,12 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /Math\.max\(Math\.floor\(currentBalance\), 0\)/);
   assert.match(gameCenter, /All-in · \{allInWager\.toLocaleString\("de-CH"\)\}/);
   assert.doesNotMatch(gameCenter, /currentBalance < wager\}/);
-  assert.match(gameCenter, /Eigener Eintritt · kein Limit/);
+  assert.match(gameCenter, /Eigener Einsatz · persönliche Limits gelten/);
   assert.doesNotMatch(gameCenter, /1%-GEWINNMODUS AKTIV/);
-  assert.match(gameAdminControls, /ADMIN &amp; OWNER · VISUELLER SPASSMODUS/);
-  assert.match(gameAdminControls, /Gewinn <b>\{setting\.win_chance\} %/);
-  assert.match(gameAdminControls, /Verlust <b>\{100 - setting\.win_chance\} %/);
-  assert.match(gameAdminControls, /Alle Benutzer/);
-  assert.match(gameAdminControls, /Nur eine Person/);
-  assert.match(gameAdminControls, /admin_set_game_visual_prank/);
-  assert.match(gameAdminControls, /get_game_extras_admin_state/);
-  assert.match(gameAdminControls, /plinko: "●"/);
-  assert.match(gameCenter, /get_effective_visual_pranks/);
-  assert.match(gameCenter, /play_visual_prank_game/);
+  assert.match(gameAdminControls, /Gewinnchancen bleiben fest und für alle gleich/);
+  assert.match(gameAdminControls, /get_dino_admin_state/);
+  assert.doesNotMatch(gameAdminControls, /prank|Nur eine Person|admin_set_game_visual_prank/i);
+  assert.doesNotMatch(gameCenter, /get_effective_visual_pranks|play_visual_prank_game|visual_prank/i);
   assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} step=\{1\}/);
   assert.doesNotMatch(gameCenter, /id="game-wager"[^>]* max=/);
   assert.match(gameCenter, /game-ambient/);
@@ -155,6 +150,9 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(casinoMigration, /create or replace function public\.play_casino_game/);
   for (const gameKey of ["slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"]) assert.match(casinoMigration, new RegExp(`'${gameKey}'`));
   assert.doesNotMatch(gameCenter, /Math\.random/);
+  assert.match(upgradeMigration, /update private\.coin_flip_prank_settings set enabled = false/);
+  assert.match(upgradeMigration, /revoke all on function public\.play_visual_prank_game/);
+  assert.match(upgradeMigration, /create or replace function public\.get_my_player_safety/);
 });
 
 test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verified leaderboard", async () => {
@@ -358,6 +356,23 @@ test("ships premium layout-preserving motion with reduced-motion support", async
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation-duration: \.01ms !important/);
   assert.match(styles, /@keyframes wallet-scan[\s\S]*translateX\(543%\)/);
   assert.match(styles, /@keyframes play-shimmer[\s\S]*translateX\(472%\)/);
+
+  // Jede Modal-Art wird animiert, nicht nur der PIN-Dialog.
+  assert.match(styles, /\.modal-backdrop > \.public-profile-modal \{\s*\n\s*animation: premium-modal-in/);
+
+  // Die Sektionen, die bisher ohne Auftritt erschienen.
+  assert.match(styles, /\.profile-editor, \.safety-panel, \.send-card, \.rewards-hub, \.game-center, \.offline-placeholder/);
+
+  // Gestaffelter Auftritt der Home-Kacheln statt gleichzeitigem Einblenden.
+  assert.match(styles, /\.overview-grid > \.stat-card:nth-of-type\(2\) \{ animation-delay: 120ms; \}/);
+  assert.match(styles, /\.overview-grid > \.stat-card:nth-of-type\(3\) \{ animation-delay: 165ms; \}/);
+
+  // Die zuletzt ergaenzten Bedienelemente bewegen sich wie der Rest.
+  assert.match(styles, /\.home-stats-reset,\n\.admin-access-actions,\n\.mfa-skip \{/);
+  assert.match(styles, /\.home-stats-note \{\s*\n\s*animation: premium-success-in/);
+  assert.match(styles, /\.home-stats-note\.error \{\s*\n\s*animation: premium-error-shake/);
+  assert.match(styles, /\.field-hint \{\s*\n\s*animation: premium-row-enter/);
+  assert.match(styles, /\.home-shortcuts button:hover,\n\s*\.home-stats-reset:hover \{/);
 });
 
 test("unlocks the Admin panel once per visit without persisting the PIN", async () => {
@@ -498,4 +513,226 @@ test("service worker replaces every legacy tab without blocking activation", asy
   assert.deepEqual(deletedCaches, ["gibb-coin-static-v29", "gibb-coin-static-v30", "gibb-coin-static-v31", "gibb-coin-static-v32"]);
   assert.equal(claimed, true);
   assert.deepEqual(navigatedUrls, ["https://example.test/"]);
+});
+
+test("shows the admin access dialog at the top of the screen", async () => {
+  const [styles, adminPanel] = await Promise.all([
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  // Der Dialog haengt am oberen Rand, damit die Tastatur ihn nicht verdeckt.
+  assert.match(adminPanel, /className="modal-backdrop admin-access-backdrop"/);
+  assert.match(styles, /\.admin-access-backdrop \{\s*\n\s*align-items: start;/);
+  assert.match(styles, /\.admin-access-backdrop > \.pin-modal \{\s*\n\s*margin-top: max\(12px, env\(safe-area-inset-top\)\);/);
+  assert.match(styles, /\.admin-access-backdrop > \.pin-modal[\s\S]*transform-origin: top center;/);
+
+  // Ein zu hoher Dialog bleibt scrollbar statt abgeschnitten.
+  assert.match(styles, /\.admin-access-backdrop \{[\s\S]*overflow-y: auto;/);
+
+  // Die uebrigen Dialoge bleiben mittig.
+  assert.match(styles, /\.modal-backdrop \{ position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;/);
+});
+
+test("detects the device and adapts the layout for phones", async () => {
+  const [layout, deviceClass, styles] = await Promise.all([
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/DeviceClass.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  // Ohne viewportFit bleibt env(safe-area-inset-*) auf iPhones bei 0.
+  assert.match(layout, /viewportFit: "cover"/);
+  assert.match(layout, /width: "device-width"/);
+  assert.match(layout, /initialScale: 1/);
+  assert.match(layout, /<DeviceClass \/>/);
+
+  // Erkennung kombiniert Browser-Hinweis, Zeigegeraet und Breite.
+  assert.match(deviceClass, /userAgentData\?\.mobile/);
+  assert.match(deviceClass, /matchMedia\("\(pointer: coarse\)"\)/);
+  assert.match(deviceClass, /navigator\.maxTouchPoints/);
+  assert.match(deviceClass, /root\.dataset\.device = device/);
+  assert.match(deviceClass, /display-mode: standalone/);
+  assert.match(deviceClass, /orientationchange/);
+
+  // Die Hoehe folgt dem sichtbaren Bereich statt der ausfahrenden Adressleiste.
+  assert.match(styles, /\.app-shell \{ min-height: 100vh; min-height: 100dvh;/);
+  assert.match(styles, /\.auth-page, \.loading-page \{ min-height: 100vh; min-height: 100dvh;/);
+
+  // Sichere Bereiche und Fingerbedienung.
+  assert.match(styles, /\.header \{ padding-top: env\(safe-area-inset-top\); \}/);
+  assert.match(styles, /@media \(pointer: coarse\)[\s\S]*min-height: 44px/);
+  assert.match(styles, /@media \(pointer: coarse\)[\s\S]*font-size: 16px/);
+  assert.match(styles, /:root\[data-device="mobile"\]/);
+  assert.match(styles, /:root\[data-standalone="true"\]/);
+  assert.match(styles, /overscroll-behavior-y: contain/);
+  assert.match(styles, /-webkit-tap-highlight-color: transparent/);
+});
+
+test("makes two factor confirmation optional instead of mandatory", async () => {
+  const [app, challenge, migration] = await Promise.all([
+    readFile(new URL("../app/components/GibbCoinApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/MfaChallengePage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260909180000_make_admin_mfa_optional.sql", import.meta.url), "utf8"),
+  ]);
+
+  // Die Challenge sperrt die App nicht mehr aus.
+  assert.match(app, /onSkip=\{\(\) => setMfaRequired\(false\)\}/);
+  assert.match(challenge, /onSkip\?: \(\) => void/);
+  assert.match(challenge, /Ohne Zwei-Faktor-Code fortfahren/);
+
+  // Serverseitig ist die Pruefung schaltbar und standardmaessig aus.
+  assert.match(migration, /create table if not exists private\.security_settings/);
+  assert.match(migration, /values \('require_admin_mfa', false\)/);
+  assert.match(migration, /if not coalesce\(/);
+  assert.match(migration, /return;/);
+
+  // Die Identitaetspruefung und die Faktor-Logik bleiben erhalten.
+  assert.match(migration, /raise exception 'authentication_required'/);
+  assert.match(migration, /raise exception 'mfa_required'/);
+  assert.match(migration, /from auth\.mfa_factors f/);
+});
+
+test("keeps the admin panel reachable when a single admin query fails", async () => {
+  const [adminPanel, styles] = await Promise.all([
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  // Frueher blockierte jeder Fehlschlag den Zugang: pinStatus blieb null und
+  // das Lade-Modal verdeckte die Meldung dauerhaft.
+  assert.doesNotMatch(adminPanel, /if \(usersError \|\| pinStatusError \|\| statsError \|\| visualRolesError \|\| accountLocksError\) \{/);
+  assert.match(adminPanel, /const loadFailure = usersError \?\? pinStatusError \?\? statsError \?\? visualRolesError \?\? accountLocksError;/);
+  assert.match(adminPanel, /if \(pinStatusError\) \{ setPinUnavailable\(true\); return; \}/);
+  assert.match(adminPanel, /setPinUnavailable\(false\);/);
+
+  // Scheitert die PIN-Abfrage selbst, gibt es einen Ausweg statt eines Spinners.
+  assert.match(adminPanel, /adminAccessPending \? pinUnavailable \?/);
+  assert.match(adminPanel, /Erneut versuchen/);
+  assert.match(adminPanel, /Zurück zum Wallet/);
+  assert.match(styles, /\.admin-access-actions \{/);
+});
+
+test("lets every user reset the home wallet statistics without touching the ledger", async () => {
+  const [dashboard, styles, migration] = await Promise.all([
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260909120000_add_home_wallet_stats_reset.sql", import.meta.url), "utf8"),
+  ]);
+
+  // Die Home-Statistik zaehlt nur Buchungen ab dem gespeicherten Reset-Zeitpunkt.
+  assert.match(dashboard, /supabase\.rpc\("my_wallet_stats_reset"\)/);
+  assert.match(dashboard, /supabase\.rpc\("reset_my_wallet_stats"\)/);
+  assert.match(dashboard, /\[statsResetAt, setStatsResetAt\] = useState<string \| null>\(null\)/);
+  assert.match(dashboard, /const since = statsResetAt \? new Date\(statsResetAt\)\.getTime\(\) : null;/);
+  assert.match(dashboard, /new Date\(tx\.created_at\)\.getTime\(\) >= since/);
+  assert.match(dashboard, /Statistik zurücksetzen/);
+  assert.match(dashboard, /home-stats-reset/);
+  // Fehlt die Migration, wird der Button gesperrt statt eine irrefuehrende Meldung zu zeigen.
+  assert.match(dashboard, /error\?\.code === "PGRST202"/);
+  // Fehlt die Migration, weicht der Reset auf den Browser-Speicher aus statt zu scheitern.
+  assert.match(dashboard, /const statsResetKey = \(userId: string\) => `gibb-stats-reset:\$\{userId\}`;/);
+  assert.match(dashboard, /writeLocalStatsReset\(user\.id, localSince\)/);
+  assert.match(dashboard, /statsRpcMissing \? readLocalStatsReset\(user\.id\) : null/);
+  assert.match(dashboard, /nur in diesem Browser/);
+  assert.doesNotMatch(dashboard, /Die Statistik konnte gerade nicht zurückgesetzt werden/);
+  assert.doesNotMatch(dashboard, /statsResetReady/);
+  assert.match(styles, /\.home-stats-reset \{/);
+
+  // Der Reset speichert nur eine Zeitmarke pro Benutzer und bleibt damit rein visuell.
+  assert.match(migration, /create table if not exists private\.wallet_stats_resets/);
+  assert.match(migration, /create or replace function public\.my_wallet_stats_reset\(\)/);
+  assert.match(migration, /create or replace function public\.reset_my_wallet_stats\(\)/);
+  assert.match(migration, /private\.require_active_user\(\)/);
+  assert.match(migration, /revoke all on table private\.wallet_stats_resets/);
+  assert.match(migration, /grant execute on function public\.reset_my_wallet_stats\(\)/);
+  assert.doesNotMatch(migration, /delete from public\.transactions/);
+  assert.doesNotMatch(migration, /update public\.wallets/);
+});
+
+test("lets every user pick their own username in the profile tab", async () => {
+  const [profileEditor, dashboard, types, migration] = await Promise.all([
+    readFile(new URL("../app/components/ProfileEditor.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/lib/types.ts", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260909140000_allow_username_change.sql", import.meta.url), "utf8"),
+  ]);
+
+  // Der Benutzername ist im Profil-Tab editierbar und wird serverseitig geprueft.
+  assert.match(profileEditor, /htmlFor="profile-username"/);
+  assert.match(profileEditor, /supabase\.rpc\("set_my_username", \{ p_username: nextUsername \}\)/);
+  assert.match(profileEditor, /username_taken/);
+  assert.match(profileEditor, /bereits vergeben/);
+  assert.match(types, /username\?: string;/);
+  assert.match(dashboard, /select\("id,display_name,username,email/);
+
+  // Gleiche Regeln wie bei der Registrierung, Eindeutigkeit case-insensitiv.
+  assert.match(migration, /create or replace function public\.set_my_username\(p_username text\)/);
+  assert.match(migration, /\^\[a-z0-9\]\[a-z0-9\._-\]\{2,23\}\$/);
+  assert.match(migration, /private\.require_active_user\(\)/);
+  assert.match(migration, /pg_catalog\.lower\(p\.username\) = v_username/);
+  assert.match(migration, /when unique_violation then/);
+  assert.match(migration, /grant execute on function public\.set_my_username\(text\)/);
+  assert.doesNotMatch(migration, /update public\.wallets/);
+  assert.doesNotMatch(migration, /set role =/);
+});
+
+test("can protect single accounts from bans and deletion at the database level", async () => {
+  const [migration, adminPanel] = await Promise.all([
+    readFile(new URL("../supabase/migrations/20260909160000_protect_named_accounts.sql", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  ]);
+
+  // Der Schutz haengt an der User-ID, nicht am aenderbaren Benutzernamen.
+  assert.match(migration, /create table if not exists private\.protected_accounts/);
+  assert.match(migration, /user_id uuid primary key references auth\.users\(id\)/);
+  assert.doesNotMatch(migration, /profiles\.username/);
+
+  // Bannen wird auf der Tabelle selbst verhindert, Entsperren bleibt erlaubt.
+  assert.match(migration, /create trigger protect_account_from_ban\r?\nbefore update on public\.wallets/);
+  assert.match(migration, /new\.status = 'locked'\r?\n\s+and old\.status is distinct from 'locked'/);
+
+  // Loeschen wird im bestehenden auth.users-Trigger abgefangen, vor allen anderen Regeln.
+  assert.match(migration, /if private\.is_protected_account\(old\.id\) then/);
+  assert.match(migration, /account_is_protected/);
+
+  // Die bestehenden Owner-Regeln bleiben erhalten.
+  assert.match(migration, /owner_account_is_protected/);
+  assert.match(migration, /account_deletion_not_authorized/);
+  assert.match(migration, /private\.is_primary_owner\(v_actor_user_id\)/);
+
+  // Die Oberflaeche erklaert beide Faelle.
+  assert.match(adminPanel, /dauerhaft geschützt und kann nicht gebannt werden/);
+  assert.match(adminPanel, /dauerhaft geschützt und kann nicht gelöscht werden/);
+});
+
+test("guards the production Supabase migration workflow behind manual confirmation", async () => {
+  const [production, staging, readme] = await Promise.all([
+    readFile(new URL("../.github/workflows/production-supabase.yml", import.meta.url), "utf8"),
+    readFile(new URL("../.github/workflows/staging-supabase.yml", import.meta.url), "utf8"),
+    readFile(new URL("../README.md", import.meta.url), "utf8"),
+  ]);
+
+  // Eine Produktionsmigration darf nie als Nebenwirkung eines Pushes laufen.
+  assert.match(production, /on:\s*\n\s*workflow_dispatch:/);
+  assert.doesNotMatch(production, /^\s{2}push:/m);
+  assert.match(production, /inputs\.confirm \}\}" != "MIGRATE"/);
+  assert.match(production, /inputs\.backup_done \}\}" != "true"/);
+  assert.match(production, /environment:\s*\n\s*name: production/);
+
+  // Erst testen, dann trocken laufen lassen, dann anwenden.
+  assert.match(production, /pnpm install --frozen-lockfile/);
+  assert.match(production, /pnpm lint/);
+  assert.match(production, /pnpm test/);
+  assert.match(production, /db push --dry-run/);
+
+  // Zugangsdaten kommen ausschliesslich aus GitHub-Secrets.
+  assert.match(production, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/);
+  assert.match(production, /SUPABASE_DB_PASSWORD: \$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/);
+  assert.match(production, /SUPABASE_PROJECT_ID: \$\{\{ secrets\.SUPABASE_PROJECT_ID \}\}/);
+  assert.doesNotMatch(production, /laduzigqgvvnrqcgfgab/);
+
+  // Der Staging-Workflow bleibt unangetastet und verweigert weiterhin die Produktion.
+  assert.match(staging, /Production project refused/);
+  assert.match(readme, /production-supabase\.yml/);
 });

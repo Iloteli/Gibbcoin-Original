@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabase";
+import { AdminAuditLog } from "./AdminAuditLog";
+import { AdminOperations } from "./AdminOperations";
 import { GameAdminControls } from "./GameAdminControls";
+import { openUserProfile } from "./UserProfileModal";
 
 type AdminUser = {
   user_id: string;
@@ -12,6 +15,8 @@ type AdminUser = {
   visual_role: "demo_admin" | "demo_owner" | null;
   balance: number;
   wallet_status: "active" | "locked";
+  locked_until: string | null;
+  lock_reason: string | null;
 };
 
 type PinStatus = { has_pin: boolean; failed_attempts: number; locked_until: string | null };
@@ -55,6 +60,7 @@ function adminError(message?: string) {
   if (message?.includes("mfa_required")) return "Bestätige diese Sitzung zuerst mit deinem Zwei-Faktor-Code.";
   if (message?.includes("cannot_change_own_role")) return "Du kannst deine eigene Adminrolle nicht ändern.";
   if (message?.includes("cannot_lock_own_account")) return "Du kannst dein eigenes Konto nicht sperren.";
+  if (message?.includes("account_is_protected")) return "Dieses Konto ist dauerhaft geschützt und kann nicht gebannt werden.";
   if (message?.includes("cannot_modify_super_admin")) return "Das Owner-Konto kann hier nicht geändert werden.";
   if (message?.includes("primary_owner_required")) return "Nur Haupt-Owner Robyn darf Konten bannen oder entbannen.";
   if (message?.includes("owner_required")) return "Nur der Owner darf Adminrechte vergeben oder entfernen.";
@@ -64,6 +70,8 @@ function adminError(message?: string) {
   if (message?.startsWith("admin_pin_")) return pinError(message);
   if (message?.includes("wallet_not_found")) return "Für dieses Konto wurde kein Wallet gefunden.";
   if (message?.includes("account_status_update_failed")) return "Der Bann konnte nicht vollständig gespeichert werden. Versuche es erneut.";
+  if (message?.includes("invalid_lock_duration")) return "Diese Bann-Dauer ist nicht erlaubt.";
+  if (message?.includes("invalid_admin_reason")) return "Der Bann-Grund darf höchstens 120 Zeichen haben.";
   if (message?.includes("admin_required")) return "Für diese Aktion fehlen dir die Adminrechte.";
   return "Die Admin-Aktion konnte nicht ausgeführt werden.";
 }
@@ -79,6 +87,7 @@ function accountDeletionError(code?: string) {
   if (code?.startsWith("admin_pin_")) return pinError(code);
   if (code?.includes("pin_must_have_four_digits")) return "Der Admin-PIN muss genau vier Ziffern enthalten.";
   if (code?.includes("cannot_delete_own_account")) return "Du kannst dein eigenes Konto nicht löschen.";
+  if (code?.includes("account_is_protected")) return "Dieses Konto ist dauerhaft geschützt und kann nicht gelöscht werden.";
   if (code?.includes("cannot_delete_owner")) return "Das Owner-Konto ist vor dem Löschen geschützt.";
   if (code?.includes("primary_owner_required")) return "Nur Haupt-Owner Robyn darf Konten löschen.";
   if (code?.includes("cannot_delete_peer_admin")) return "Admins können keine anderen Admin-Konten löschen.";
@@ -115,6 +124,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
   const [entryPin, setEntryPin] = useState("");
   const [entryPinError, setEntryPinError] = useState("");
   const [adminAccessGranted, setAdminAccessGranted] = useState(false);
+  const [pinUnavailable, setPinUnavailable] = useState(false);
   const [newPin, setNewPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [currentPin, setCurrentPin] = useState("");
@@ -123,6 +133,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
   const [pinFormError, setPinFormError] = useState("");
   const [statusTarget, setStatusTarget] = useState<AdminUser | null>(null);
   const [statusPromptError, setStatusPromptError] = useState("");
+  const [banDuration, setBanDuration] = useState("1440");
+  const [banReason, setBanReason] = useState("Verstoss gegen die Community-Regeln");
   const [deleteTarget, setDeleteTarget] = useState<AdminUser | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
   const [deletePromptError, setDeletePromptError] = useState("");
@@ -140,23 +152,33 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       { data: listedUsers, error: usersError },
       { data: status, error: pinStatusError },
       { data: stats, error: statsError },
-      { data: visualRoles },
+      { data: visualRoles, error: visualRolesError },
+      { data: accountLocks, error: accountLocksError },
     ] = await Promise.all([
       supabase.rpc("admin_list_users", { p_query: "" }),
       supabase.rpc("admin_pin_status"),
       supabase.rpc("admin_coin_stats"),
       supabase.rpc("admin_list_visual_roles"),
+      supabase.rpc("admin_list_account_locks"),
     ]);
-    if (usersError || pinStatusError || statsError) {
-      setError(adminError(usersError?.message ?? pinStatusError?.message ?? statsError?.message));
-      return;
-    }
+    // Ein einzelner Fehlschlag darf den Zugang nicht blockieren. Vorher kehrte
+    // die Funktion hier zurück, pinStatus blieb null und das Panel hing
+    // dauerhaft hinter dem Lade-Modal, während die Meldung unsichtbar blieb.
+    const loadFailure = usersError ?? pinStatusError ?? statsError ?? visualRolesError ?? accountLocksError;
+    if (loadFailure) setError(adminError(loadFailure.message));
+    if (pinStatusError) { setPinUnavailable(true); return; }
+    setPinUnavailable(false);
     const visualRoleByUser = new Map<string, AdminUser["visual_role"]>(
       ((visualRoles ?? []) as Array<{ user_id: string; visual_role: AdminUser["visual_role"] }>).map((item) => [item.user_id, item.visual_role]),
     );
-    setUsers(((listedUsers ?? []) as Array<Omit<AdminUser, "visual_role">>).map((item) => ({
+    const lockByUser = new Map<string, { locked_until: string | null; lock_reason: string | null }>(
+      ((accountLocks ?? []) as Array<{ user_id: string; locked_until: string | null; lock_reason: string | null }>).map((item) => [item.user_id, item]),
+    );
+    setUsers(((listedUsers ?? []) as Array<Omit<AdminUser, "visual_role" | "locked_until" | "lock_reason">>).map((item) => ({
       ...item,
       visual_role: visualRoleByUser.get(item.user_id) ?? null,
+      locked_until: lockByUser.get(item.user_id)?.locked_until ?? null,
+      lock_reason: lockByUser.get(item.user_id)?.lock_reason ?? null,
     })));
     setPinStatus((status ?? { has_pin: false, failed_attempts: 0, locked_until: null }) as PinStatus);
     setCoinStats((stats ?? { given: 0, removed: 0, since: null }) as AdminCoinStats);
@@ -367,6 +389,8 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       return;
     }
     setStatusTarget(target);
+    setBanDuration("1440");
+    setBanReason("Verstoss gegen die Community-Regeln");
     setStatusPromptError("");
     setError("");
     setMessage("");
@@ -380,7 +404,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
     if (!supabase) return;
     setActionBusy(`status:${target.user_id}`); setStatusPromptError(""); setError(""); setMessage("");
     const { data, error: functionError } = await supabase.functions.invoke("admin-account-status", {
-      body: { target_user_id: target.user_id, status: nextStatus },
+      body: { target_user_id: target.user_id, status: nextStatus, duration_minutes: nextStatus === "locked" && banDuration !== "permanent" ? Number(banDuration) : null, reason: banReason.trim() },
     });
     setActionBusy("");
     const result = data as { error?: string } | null;
@@ -389,7 +413,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       return;
     }
     setStatusTarget(null);
-    setMessage(nextStatus === "locked" ? `${target.display_name} wurde gebannt und wird automatisch abgemeldet.` : `${target.display_name} wurde entbannt und kann sich wieder anmelden.`);
+    setMessage(nextStatus === "locked" ? `${target.display_name} wurde ${banDuration === "permanent" ? "dauerhaft" : "zeitlich"} gebannt und wird automatisch abgemeldet.` : `${target.display_name} wurde entbannt und kann sich wieder anmelden.`);
     await Promise.all([loadAdminData(), onChanged()]);
   }
 
@@ -584,6 +608,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
       </form>}
 
       <GameAdminControls adminPin={adminSessionPin} currentRole={currentRole} pinReady={Boolean(pinStatus?.has_pin)} pinLocked={pinLocked} onPinRejected={expireAdminAccess} />
+      <AdminOperations pin={adminSessionPin} active={adminAccessGranted} />
 
       <div className="admin-credit-head"><div><strong>{removingCoins ? "Coins von einem Benutzer entfernen" : pinStatus?.has_pin ? "Coins aus der Admin-Reserve gutschreiben" : "2. Coins gutschreiben"}</strong><p>{removingCoins ? currentRole === "super_admin" ? "Als Owner kannst du Coins von deinem eigenen und von fremden Konten entziehen. Andere Admins können dein Owner-Guthaben nicht verändern. Kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : "Als Admin kannst du Coins von deinem eigenen und von anderen Benutzerkonten entziehen. Das Owner-Konto bleibt geschützt, kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : currentRole === "super_admin" ? "Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben. Jede Gutschrift wird protokolliert." : "Nur an andere Konten. Eigengutschriften sind serverseitig gesperrt und jede erlaubte Gutschrift wird protokolliert."}</p></div><span>{pinStatus?.has_pin ? "PIN geschützt" : "PIN fehlt"}</span></div>
       <div className="admin-adjust-tabs" role="tablist" aria-label="Coin-Aktion"><button type="button" role="tab" aria-selected={!removingCoins} className={!removingCoins ? "active" : ""} onClick={() => chooseAdjustmentMode("credit")}>Coins geben</button><button type="button" role="tab" aria-selected={removingCoins} className={removingCoins ? "active remove" : ""} onClick={() => chooseAdjustmentMode("remove")}>Coins entfernen</button></div>
@@ -622,12 +647,14 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
           const deleteBusy = actionBusy === `delete:${item.user_id}`;
           return <article className="admin-user" key={item.user_id}>
             <div className="admin-user-main">
-              <strong>{item.display_name}</strong>
-              <span>@{item.username} · {item.balance} GIBB</span>
+              <button className="user-profile-link" type="button" onClick={() => openUserProfile(item.user_id)}>
+                <strong>{item.display_name}</strong>
+                <span>@{item.username} · {item.balance} GIBB</span>
+              </button>
             </div>
             <div className="admin-user-badges">
               <span className={`admin-badge role-${item.role}`}>{item.role === "super_admin" ? "Owner" : item.role === "admin" ? "Admin" : "Benutzer"}</span>
-              <span className={`admin-badge status-${item.wallet_status}`}>{item.wallet_status === "locked" ? "Gebannt" : "Aktiv"}</span>
+              <span className={`admin-badge status-${item.wallet_status}`} title={item.lock_reason ?? undefined}>{item.wallet_status === "locked" ? item.locked_until ? `Gebannt bis ${new Date(item.locked_until).toLocaleDateString("de-CH")}` : "Dauerhaft gebannt" : "Aktiv"}</span>
               {item.visual_role && <span className="admin-badge visual-role-demo">{visualRoleLabel(item.visual_role)}</span>}
             </div>
             <div className="admin-user-actions">
@@ -641,10 +668,12 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
         })}
       </div>
 
+      <AdminAuditLog active={adminAccessGranted} />
+
       {message && <p className="message" role="status">{message}</p>}
       {error && <p className="message error" role="alert">{error}</p>}
 
-      {statusTarget && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !actionBusy) { setStatusTarget(null); setStatusPromptError(""); } }}><section className="pin-modal account-status-modal" role="dialog" aria-modal="true" aria-labelledby="account-status-title"><div className="delete-warning" aria-hidden="true">!</div><h3 id="account-status-title">{statusTarget.wallet_status === "active" ? `${statusTarget.display_name} bannen?` : `Bann für ${statusTarget.display_name} aufheben?`}</h3><p>{statusTarget.wallet_status === "active" ? "Die Person wird sofort abgemeldet und kann sich erst nach dem Entbannen wieder anmelden." : "Die Person kann sich danach wieder anmelden und ihr Wallet verwenden."}</p>{statusPromptError && <p className="pin-modal-error" role="alert">{statusPromptError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={Boolean(actionBusy)} onClick={() => { setStatusTarget(null); setStatusPromptError(""); }}>Abbrechen</button><button className={statusTarget.wallet_status === "active" ? "admin-danger compact" : "primary compact"} type="button" disabled={Boolean(actionBusy)} onClick={() => void changeAccountStatus()}>{actionBusy ? "Wird gespeichert …" : statusTarget.wallet_status === "active" ? "Jetzt bannen" : "Jetzt entbannen"}</button></div></section></div>}
+      {statusTarget && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !actionBusy) { setStatusTarget(null); setStatusPromptError(""); } }}><section className="pin-modal account-status-modal" role="dialog" aria-modal="true" aria-labelledby="account-status-title"><div className="delete-warning" aria-hidden="true">!</div><h3 id="account-status-title">{statusTarget.wallet_status === "active" ? `${statusTarget.display_name} bannen?` : `Bann für ${statusTarget.display_name} aufheben?`}</h3><p>{statusTarget.wallet_status === "active" ? "Die Person wird sofort abgemeldet. Zeitliche Banns enden automatisch." : "Die Person kann sich danach wieder anmelden und ihr Wallet verwenden."}</p>{statusTarget.wallet_status === "active" && <><div className="field"><label htmlFor="ban-duration">Dauer</label><select id="ban-duration" className="input" value={banDuration} onChange={(event) => setBanDuration(event.target.value)}><option value="60">1 Stunde</option><option value="1440">24 Stunden</option><option value="10080">7 Tage</option><option value="permanent">Dauerhaft</option></select></div><div className="field"><label htmlFor="ban-reason">Grund</label><input id="ban-reason" className="input" maxLength={120} value={banReason} onChange={(event) => setBanReason(event.target.value)} /></div></>}{statusTarget.wallet_status === "locked" && statusTarget.lock_reason && <p><strong>Grund:</strong> {statusTarget.lock_reason}</p>}{statusPromptError && <p className="pin-modal-error" role="alert">{statusPromptError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={Boolean(actionBusy)} onClick={() => { setStatusTarget(null); setStatusPromptError(""); }}>Abbrechen</button><button className={statusTarget.wallet_status === "active" ? "admin-danger compact" : "primary compact"} type="button" disabled={Boolean(actionBusy)} onClick={() => void changeAccountStatus()}>{actionBusy ? "Wird gespeichert …" : statusTarget.wallet_status === "active" ? "Jetzt bannen" : "Jetzt entbannen"}</button></div></section></div>}
 
       {statsResetOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && actionBusy !== "stats-reset") { setStatsResetOpen(false); setStatsResetError(""); } }}><section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="stats-reset-title"><div className="pin-lock" aria-hidden="true">±</div><h3 id="stats-reset-title">Plus/Minus auf 0 setzen?</h3><p>Nur deine persönlichen Zähler werden neu gestartet. Guthaben, Konten, Transaktionen und das Admin-Protokoll bleiben vollständig erhalten. Deine PIN-Freigabe für diesen Adminpanel-Besuch wird verwendet.</p><form onSubmit={resetCoinStats}>{statsResetError && <p className="pin-modal-error" role="alert">{statsResetError}</p>}<div className="modal-actions"><button className="secondary" type="button" disabled={actionBusy === "stats-reset"} onClick={() => { setStatsResetOpen(false); setStatsResetError(""); }}>Abbrechen</button><button className="admin-danger compact" type="submit" disabled={actionBusy === "stats-reset"}>{actionBusy === "stats-reset" ? "Setzt zurück …" : "Sicher zurücksetzen"}</button></div></form></section></div>}
 
@@ -654,7 +683,7 @@ export function AdminPanel({ currentRole, currentUserId, onChanged, onExit }: Pr
         <section className="pin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-access-title">
           <div className="pin-lock" aria-hidden="true">••••</div>
           <h3 id="admin-access-title">{ownerPinRecovery ? "Owner-PIN zurücksetzen" : "Adminpanel entsperren"}</h3>
-          {adminAccessPending ? <><div className="loader" aria-hidden="true" /><p>Dein geschützter Admin-Zugang wird vorbereitet …</p></> : ownerPinRecovery ? <>
+          {adminAccessPending ? pinUnavailable ? <><p className="message error" role="alert">{error || "Der Admin-Zugang konnte nicht geladen werden."}</p><div className="admin-access-actions"><button className="primary compact" type="button" onClick={() => void loadAdminData()}>Erneut versuchen</button><button className="secondary compact" type="button" onClick={onExit}>Zurück zum Wallet</button></div></> : <><div className="loader" aria-hidden="true" /><p>Dein geschützter Admin-Zugang wird vorbereitet …</p></> : ownerPinRecovery ? <>
             <p>Lege einen neuen persönlichen Owner-PIN fest. Nach dem sicheren Zurücksetzen ist das Adminpanel für diesen Besuch direkt freigeschaltet.</p>
             <form onSubmit={savePin}>
               <div className="field"><label htmlFor="entry-owner-pin">Neuer PIN</label><input className="input pin-modal-input" id="entry-owner-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} autoComplete="off" placeholder="0000" value={newPin} onChange={(event) => { setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4)); setPinFormError(""); }} /></div>

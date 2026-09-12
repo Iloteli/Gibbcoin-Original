@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabase";
+import { openUserProfile } from "./UserProfileModal";
 
 type GroupWallet = {
   group_id: string;
@@ -211,8 +212,8 @@ export function GroupWallets({ onChanged }: Props) {
         <button className="primary compact" type="submit" disabled={busy !== ""}>Erstellen</button>
       </form>
       <form className="group-join-form" onSubmit={joinGroup}>
-        <strong>Mit Code beitreten</strong><p>Den 32-stelligen Code erhältst du von einem Gruppenmitglied.</p>
-        <div><input className="input join-code-input" value={joinCode} onChange={(event) => setJoinCode(event.target.value.toUpperCase())} minLength={32} maxLength={32} required placeholder="A1B2C3D4..." /><button className="secondary" type="submit" disabled={busy !== ""}>Beitreten</button></div>
+        <strong>Mit Code beitreten</strong><p>Den sicheren 32-stelligen Code erhältst du von einem Gruppenmitglied.</p>
+        <div><input className="input join-code-input" value={joinCode} onChange={(event) => setJoinCode(event.target.value.replace(/[^a-fA-F0-9]/g, "").toUpperCase())} minLength={32} maxLength={32} required placeholder="32-stelliger Gruppencode" /><button className="secondary" type="submit" disabled={busy !== ""}>Beitreten</button></div>
       </form>
     </div>
 
@@ -227,7 +228,7 @@ export function GroupWallets({ onChanged }: Props) {
           {(selected.member_role === "owner" || selected.member_role === "manager") && <form className="group-payout-form" onSubmit={payout}><strong>An Mitglied auszahlen</strong><div className="group-inline-fields payout"><select className="input" required value={payoutUserId} onChange={(event) => setPayoutUserId(event.target.value)}><option value="">Mitglied wählen</option>{members.map((member) => <option value={member.user_id} key={member.user_id}>{member.display_name}</option>)}</select><input className="input" type="number" min="1" max="100000" step="1" required value={payoutAmount} onChange={(event) => setPayoutAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={payoutNote} onChange={(event) => setPayoutNote(event.target.value)} placeholder="Notiz" /><button className="secondary" disabled={busy !== ""}>Auszahlen</button></div></form>}
         </div>
         <div className="group-details-grid">
-          <div><div className="group-list-heading"><strong>Mitglieder</strong><span>{selected.member_count}</span></div><div className="group-member-list">{members.map((member) => <div className="group-member" key={member.user_id}><span className="recipient-avatar">{member.display_name[0]}</span><div><strong>{member.display_name}</strong><small>@{member.username} · {roleLabel(member.member_role)}</small></div>{selected.member_role === "owner" && member.member_role !== "owner" && <button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void changeRole(member)}>{member.member_role === "manager" ? "Zu Mitglied" : "Verantwortlich"}</button>}</div>)}</div>{selected.member_role !== "owner" && <button className="group-leave" type="button" onClick={() => void leaveGroup()} disabled={busy !== ""}>Gruppe verlassen</button>}</div>
+          <div><div className="group-list-heading"><strong>Mitglieder</strong><span>{selected.member_count}</span></div><div className="group-member-list">{members.map((member) => <div className="group-member" key={member.user_id}><span className="recipient-avatar">{member.display_name[0]}</span><div><button className="user-profile-link" type="button" onClick={() => openUserProfile(member.user_id)}><strong>{member.display_name}</strong><small>@{member.username} · {roleLabel(member.member_role)}</small></button></div>{selected.member_role === "owner" && member.member_role !== "owner" && <button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void changeRole(member)}>{member.member_role === "manager" ? "Zu Mitglied" : "Verantwortlich"}</button>}</div>)}</div>{selected.member_role !== "owner" && <button className="group-leave" type="button" onClick={() => void leaveGroup()} disabled={busy !== ""}>Gruppe verlassen</button>}</div>
           <div><div className="group-list-heading"><strong>Gruppenverlauf</strong><span>{history.length}</span></div><div className="group-history">{history.length === 0 && <div className="empty">Noch keine Gruppenbewegungen.</div>}{history.map((entry) => <article key={entry.entry_id}><span className={entry.kind}>{entry.kind === "deposit" ? "↓" : "↑"}</span><div><strong>{entry.kind === "deposit" ? `${entry.actor_label} hat eingezahlt` : entry.actor_label === entry.recipient_label ? `${entry.actor_label} hat Coins entnommen` : `${entry.actor_label} → ${entry.recipient_label}`}</strong><small>{entry.note || new Date(entry.created_at).toLocaleString("de-CH")}</small></div><b>{entry.kind === "deposit" ? "+" : "−"}{entry.amount}</b></article>)}</div></div>
         </div>
       </div>}

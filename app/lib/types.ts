@@ -1,8 +1,12 @@
 export type Profile = {
   id: string;
   display_name: string;
+  username?: string;
   email: string;
   avatar_url: string | null;
+  bio?: string | null;
+  profile_color?: string;
+  equipped_title?: string | null;
   role: "user" | "admin" | "super_admin";
   visual_role?: "demo_admin" | "demo_owner" | null;
 };
@@ -14,6 +18,8 @@ export type Wallet = {
   created_at: string;
   updated_at: string;
   status?: "active" | "locked";
+  locked_until?: string | null;
+  lock_reason?: string | null;
 };
 
 export type Recipient = {
@@ -26,7 +32,7 @@ export type Recipient = {
 export type Transaction = {
   id: string;
   sender_user_id: string | null;
-  receiver_user_id: string;
+  receiver_user_id: string | null;
   amount: number;
   previous_hash: string;
   hash: string;
@@ -34,4 +40,5 @@ export type Transaction = {
   sender_label: string;
   receiver_label: string;
   type: string;
+  note?: string | null;
 };

@@ -4,9 +4,9 @@ import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
-type Props = { onVerified: (session: Session) => void; onLogout: () => Promise<void> };
+type Props = { onVerified: (session: Session) => void; onLogout: () => Promise<void>; onSkip?: () => void };
 
-export function MfaChallengePage({ onVerified, onLogout }: Props) {
+export function MfaChallengePage({ onVerified, onLogout, onSkip }: Props) {
   const [factorId, setFactorId] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -44,5 +44,5 @@ export function MfaChallengePage({ onVerified, onLogout }: Props) {
     onVerified(latestSession.session);
   }
 
-  return <main className="auth-page"><section className="mfa-challenge-card" aria-labelledby="mfa-title"><span className="coin-mark auth-logo" aria-hidden="true">G</span><span className="eyebrow">Zusätzlicher Schutz</span><h1 id="mfa-title">Zwei-Faktor-Code</h1><p>Dieses Konto ist geschützt. Öffne deine Authenticator-App und bestätige die Anmeldung mit dem aktuellen Code.</p><form onSubmit={verify}><div className="field"><label htmlFor="mfa-code">Sechsstelliger Sicherheitscode</label><input className="input mfa-code-input" id="mfa-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }} placeholder="000000" /></div><button className="primary auth-submit" type="submit" disabled={busy || !factorId || code.length !== 6}>{busy ? "Wird geprüft …" : "Sicher anmelden"}</button></form><p className="mfa-persistence-note">Nach dieser Bestätigung bleibt die sichere Sitzung in diesem Browser gespeichert, bis du dich abmeldest oder der Zugang aus Sicherheitsgründen beendet wird.</p>{error && <p className="message error" role="alert">{error}</p>}<button className="back-to-login" type="button" onClick={() => void onLogout()}>Anderes Konto verwenden</button></section></main>;
+  return <main className="auth-page"><section className="mfa-challenge-card" aria-labelledby="mfa-title"><span className="coin-mark auth-logo" aria-hidden="true">G</span><span className="eyebrow">Zusätzlicher Schutz</span><h1 id="mfa-title">Zwei-Faktor-Code</h1><p>Dieses Konto ist geschützt. Öffne deine Authenticator-App und bestätige die Anmeldung mit dem aktuellen Code.</p><form onSubmit={verify}><div className="field"><label htmlFor="mfa-code">Sechsstelliger Sicherheitscode</label><input className="input mfa-code-input" id="mfa-code" type="text" inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]{6}" maxLength={6} value={code} onChange={(event) => { setCode(event.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }} placeholder="000000" /></div><button className="primary auth-submit" type="submit" disabled={busy || !factorId || code.length !== 6}>{busy ? "Wird geprüft …" : "Sicher anmelden"}</button></form><p className="mfa-persistence-note">Nach dieser Bestätigung bleibt die sichere Sitzung in diesem Browser gespeichert, bis du dich abmeldest oder der Zugang aus Sicherheitsgründen beendet wird.</p>{error && <p className="message error" role="alert">{error}</p>}{onSkip && <button className="secondary mfa-skip" type="button" onClick={onSkip}>Ohne Zwei-Faktor-Code fortfahren</button>}<button className="back-to-login" type="button" onClick={() => void onLogout()}>Anderes Konto verwenden</button></section></main>;
 }

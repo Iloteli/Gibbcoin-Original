@@ -6,7 +6,7 @@ const responseHeaders = {
   "Content-Type": "application/json",
 };
 
-const passwordResetRedirect = "https://gibb-coin.kbb8vy5sjy.workers.dev/?password-reset=1";
+const passwordResetRedirect = "https://gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site/?password-reset=1";
 
 type AuthorizationResult = {
   ok?: boolean;
@@ -39,7 +39,7 @@ Deno.serve(async (request) => {
     if (authError || !authData.user) return jsonResponse({ error: "authentication_required" }, 401);
     const { data: assurance, error: assuranceError } = await admin.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
     if (assuranceError) return jsonResponse({ error: "authentication_required" }, 401);
-    if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
+    if (assurance.currentLevel !== "aal2") {
       return jsonResponse({ error: "mfa_required" }, 403);
     }
 

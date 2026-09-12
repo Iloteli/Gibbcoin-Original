@@ -1,0 +1,84 @@
+name: Migrate production Supabase
+
+# Nur manuell startbar. Es gibt bewusst keinen push-Trigger: eine Migration der
+# Produktivdatenbank soll nie als Nebenwirkung eines Commits passieren.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Zum Bestaetigen exakt MIGRATE eintippen'
+        required: true
+        default: ''
+      backup_done:
+        description: 'Backup der Produktivdatenbank wurde erstellt'
+        type: boolean
+        required: true
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: supabase-production-migration
+  cancel-in-progress: false
+
+jobs:
+  migrate-production:
+    name: Test and migrate production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+    steps:
+      - name: Require an explicit confirmation
+        shell: bash
+        run: |
+          if [ "${{ inputs.confirm }}" != "MIGRATE" ]; then
+            echo "::error::Bestaetigung fehlt. Gib MIGRATE ein, um die Produktivdatenbank zu migrieren."
+            exit 1
+          fi
+          if [ "${{ inputs.backup_done }}" != "true" ]; then
+            echo "::error::Ohne bestaetigtes Backup wird nicht migriert."
+            exit 1
+          fi
+
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install exact dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint and test
+        run: |
+          pnpm lint
+          pnpm test
+
+      - name: Require every production secret
+        shell: bash
+        run: |
+          if [ -z "$SUPABASE_PROJECT_ID" ] || [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD und SUPABASE_PROJECT_ID werden im Environment production benoetigt."
+            exit 1
+          fi
+
+      - name: Link production project
+        run: pnpm dlx supabase@latest link --project-ref "$SUPABASE_PROJECT_ID" --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Preview pending migrations
+        run: pnpm dlx supabase@latest db push --dry-run --password "$SUPABASE_DB_PASSWORD"
+
+      - name: Apply migrations to production
+        run: pnpm dlx supabase@latest db push --password "$SUPABASE_DB_PASSWORD"

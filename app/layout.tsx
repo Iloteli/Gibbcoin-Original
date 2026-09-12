@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
+import { DeviceClass } from "./components/DeviceClass";
 import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 import "./globals.css";
 
@@ -8,13 +9,19 @@ const description = "GIBB Coins sicher senden, empfangen, kaufen und mit persön
 
 export const viewport: Viewport = {
   themeColor: "#070b0a",
+  width: "device-width",
+  initialScale: 1,
+  // Ohne cover bleibt env(safe-area-inset-*) auf iPhones bei 0. Zusammen mit
+  // der durchscheinenden Statusleiste liefe der Inhalt sonst unter Notch und
+  // Home-Indikator.
+  viewportFit: "cover",
 };
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const forwardedHost = requestHeaders.get("x-forwarded-host")?.split(",")[0]?.trim();
-  const requestedHost = forwardedHost || requestHeaders.get("host") || "gibb-coin.kbb8vy5sjy.workers.dev";
-  const host = /^[a-z0-9.-]+(?::\d+)?$/i.test(requestedHost) ? requestedHost : "gibb-coin.kbb8vy5sjy.workers.dev";
+  const requestedHost = forwardedHost || requestHeaders.get("host") || "gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site";
+  const host = /^[a-z0-9.-]+(?::\d+)?$/i.test(requestedHost) ? requestedHost : "gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site";
   const forwardedProtocol = requestHeaders.get("x-forwarded-proto")?.split(",")[0]?.trim();
   const protocol = forwardedProtocol === "http" || forwardedProtocol === "https" ? forwardedProtocol : host.startsWith("localhost") ? "http" : "https";
   const origin = new URL(`${protocol}://${host}`);
@@ -59,7 +66,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <body><ServiceWorkerRegistration />{children}</body>
+      <body><DeviceClass /><ServiceWorkerRegistration />{children}</body>
     </html>
   );
 }
