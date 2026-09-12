@@ -160,6 +160,7 @@ export function Dashboard({ user }: Props) {
   const [statsMessage, setStatsMessage] = useState("");
   const [statsError, setStatsError] = useState("");
   const [statsServerBacked, setStatsServerBacked] = useState(true);
+  const [adminNotice, setAdminNotice] = useState<{ maintenance?: { enabled?: boolean; message?: string }; announcement?: { enabled?: boolean; title?: string; message?: string } } | null>(null);
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
@@ -261,6 +262,19 @@ export function Dashboard({ user }: Props) {
       window.removeEventListener("offline", refreshOnFocus);
     };
   }, [loadData]);
+
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    let cancelled = false;
+    const loadNotice = async () => {
+      const { data } = await supabase.rpc("get_public_admin_notice");
+      if (!cancelled && data) setAdminNotice(data as typeof adminNotice);
+    };
+    void loadNotice();
+    const timer = window.setInterval(() => void loadNotice(), 60_000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
 
   useEffect(() => {
     if (!COIN_PURCHASES_ENABLED) return;
@@ -486,6 +500,8 @@ export function Dashboard({ user }: Props) {
       </header>
 
       <main className="container main" id="top">
+        {adminNotice?.maintenance?.enabled && <div className="global-alert" role="alert"><strong>Wartungsmodus</strong><span>{adminNotice.maintenance.message || "Einige Funktionen sind vorübergehend pausiert."}</span></div>}
+        {adminNotice?.announcement?.enabled && <div className="global-alert" role="status"><strong>{adminNotice.announcement.title || "Wichtiger Hinweis"}</strong><span>{adminNotice.announcement.message}</span></div>}
         {offlineMode && <div className="offline-banner" role="status"><strong>Offline-Modus</strong><span>Du siehst den zuletzt gespeicherten Stand. Schreibende Aktionen sind pausiert.</span><button type="button" onClick={() => void loadData()}>Neu verbinden</button></div>}
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
