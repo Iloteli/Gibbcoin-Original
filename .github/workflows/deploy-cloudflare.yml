@@ -38,15 +38,6 @@ jobs:
       - name: Test production build
         run: pnpm test
 
-      - name: Apply Supabase migrations
-        if: ${{ secrets.SUPABASE_ACCESS_TOKEN != '' && secrets.SUPABASE_PROJECT_ID != '' }}
-        run: |
-          pnpm dlx supabase@latest link --project-ref "$SUPABASE_PROJECT_ID"
-          pnpm dlx supabase@latest db push
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
-
       - name: Publish Cloudflare Worker
         run: pnpm exec wrangler deploy --config dist/server/wrangler.json
         env:
