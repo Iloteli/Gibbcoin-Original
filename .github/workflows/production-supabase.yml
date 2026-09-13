@@ -5,14 +5,26 @@ name: Migrate production Supabase
 on:
   workflow_dispatch:
     inputs:
-      confirm:
-        description: 'Zum Bestaetigen exakt MIGRATE eintippen'
+      mode:
+        description: 'Zuerst PREVIEW ausfuehren, danach APPLY mit der angezeigten Anzahl'
+        type: choice
+        options:
+          - PREVIEW
+          - APPLY
         required: true
+        default: PREVIEW
+      confirm:
+        description: 'Nur fuer APPLY exakt MIGRATE eintippen'
+        required: false
+        default: ''
+      expected_pending_count:
+        description: 'Nur fuer APPLY: Pending migrations aus dem PREVIEW-Lauf'
+        required: false
         default: ''
       backup_done:
-        description: 'Backup der Produktivdatenbank wurde erstellt'
+        description: 'Nur fuer APPLY: Backup der Produktivdatenbank wurde erstellt'
         type: boolean
-        required: true
+        required: false
         default: false
 
 permissions:
@@ -36,13 +48,19 @@ jobs:
       - name: Require an explicit confirmation
         shell: bash
         run: |
-          if [ "${{ inputs.confirm }}" != "MIGRATE" ]; then
-            echo "::error::Bestaetigung fehlt. Gib MIGRATE ein, um die Produktivdatenbank zu migrieren."
-            exit 1
-          fi
-          if [ "${{ inputs.backup_done }}" != "true" ]; then
-            echo "::error::Ohne bestaetigtes Backup wird nicht migriert."
-            exit 1
+          if [ "${{ inputs.mode }}" = "APPLY" ]; then
+            if [ "${{ inputs.confirm }}" != "MIGRATE" ]; then
+              echo "::error::Bestaetigung fehlt. Gib MIGRATE ein, um die Produktivdatenbank zu migrieren."
+              exit 1
+            fi
+            if [ "${{ inputs.backup_done }}" != "true" ]; then
+              echo "::error::Ohne bestaetigtes Backup wird nicht migriert."
+              exit 1
+            fi
+            if ! [[ "${{ inputs.expected_pending_count }}" =~ ^[0-9]+$ ]]; then
+              echo "::error::Fuer APPLY muss die Anzahl aus dem PREVIEW-Lauf eingetragen werden."
+              exit 1
+            fi
           fi
 
       - name: Check out repository
@@ -73,13 +91,10 @@ jobs:
             exit 1
           fi
 
-      # Ohne dauerhaftes Datenbankpasswort erstellt die Supabase CLI ueber den
-      # projektgebundenen PAT eine kurzlebige Login-Rolle fuer diese Ausfuehrung.
-      - name: Link production project
-        run: pnpm dlx supabase@2.117.0 link --project-ref "$SUPABASE_PROJECT_ID"
-
       - name: Preview pending migrations
-        run: pnpm dlx supabase@2.117.0 db push --dry-run
+        id: migration-preview
+        run: node scripts/supabase-management-migrations.mjs --mode=preview
 
       - name: Apply migrations to production
-        run: pnpm dlx supabase@2.117.0 db push
+        if: ${{ inputs.mode == 'APPLY' }}
+        run: node scripts/supabase-management-migrations.mjs --mode=apply --expected-pending=${{ inputs.expected_pending_count }}

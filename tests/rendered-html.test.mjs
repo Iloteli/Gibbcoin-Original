@@ -707,10 +707,11 @@ test("can protect single accounts from bans and deletion at the database level",
 });
 
 test("guards the production Supabase migration workflow behind manual confirmation", async () => {
-  const [production, staging, readme] = await Promise.all([
+  const [production, staging, readme, migrationRunner] = await Promise.all([
     readFile(new URL("../.github/workflows/production-supabase.yml", import.meta.url), "utf8"),
     readFile(new URL("../.github/workflows/staging-supabase.yml", import.meta.url), "utf8"),
     readFile(new URL("../README.md", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/supabase-management-migrations.mjs", import.meta.url), "utf8"),
   ]);
 
   // Eine Produktionsmigration darf nie als Nebenwirkung eines Pushes laufen.
@@ -718,22 +719,30 @@ test("guards the production Supabase migration workflow behind manual confirmati
   assert.doesNotMatch(production, /^\s{2}push:/m);
   assert.match(production, /inputs\.confirm \}\}" != "MIGRATE"/);
   assert.match(production, /inputs\.backup_done \}\}" != "true"/);
+  assert.match(production, /inputs\.mode \}\}" = "APPLY"/);
+  assert.match(production, /inputs\.expected_pending_count/);
   assert.match(production, /environment:\s*\n\s*name: production/);
 
-  // Erst testen, dann trocken laufen lassen, dann anwenden.
+  // Erst testen, dann per Management API vorschauen, dann mit der bestaetigten
+  // Anzahl ausstehender Migrationen anwenden.
   assert.match(production, /pnpm install --frozen-lockfile/);
   assert.match(production, /pnpm lint/);
   assert.match(production, /pnpm test/);
-  assert.match(production, /db push --dry-run/);
+  assert.match(production, /--mode=preview/);
+  assert.match(production, /--mode=apply --expected-pending=/);
+  assert.match(migrationRunner, /\/database\/migrations/);
+  assert.match(migrationRunner, /\/database\/query/);
+  assert.match(migrationRunner, /Pending migration count changed/);
 
-  // Der projektgebundene PAT kommt ausschliesslich aus GitHub-Secrets. Ein
-  // dauerhaftes Datenbankpasswort wird fuer den temporaeren CLI-Login nicht gespeichert.
+  // Der projektgebundene PAT kommt ausschliesslich aus GitHub-Secrets. Weder ein
+  // Datenbankpasswort noch API-Schluessel werden fuer die Migration benoetigt.
   assert.match(production, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/);
   assert.match(production, /SUPABASE_PROJECT_ID: \$\{\{ secrets\.SUPABASE_PROJECT_ID \}\}/);
   assert.doesNotMatch(production, /SUPABASE_DB_PASSWORD/);
-  assert.match(production, /supabase@2\.117\.0 link --project-ref/);
+  assert.doesNotMatch(production, /supabase link|supabase@.* link --project-ref/);
   assert.doesNotMatch(production, /--password/);
   assert.doesNotMatch(production, /laduzigqgvvnrqcgfgab/);
+  assert.doesNotMatch(migrationRunner, /laduzigqgvvnrqcgfgab/);
 
   // Der Staging-Workflow bleibt unangetastet und verweigert weiterhin die Produktion.
   assert.match(staging, /Production project refused/);
