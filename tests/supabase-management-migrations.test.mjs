@@ -43,7 +43,7 @@ test("fails closed when remote history is not represented in Git", () => {
         [{ version: "20260101000000" }],
         [{ version: "20251231000000" }],
       ),
-    /missing from Git/,
+    /20251231000000:<unnamed>/,
   );
 });
 
@@ -73,4 +73,3 @@ test("rejects migrations with top-level transaction control", () => {
     /transaction control/,
   );
 });
-

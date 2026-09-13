@@ -41,12 +41,14 @@ export function planMigrations(localMigrations, remoteMigrations) {
     remoteVersions.add(version);
   }
 
-  const remoteOnly = [...remoteVersions].filter(
-    (version) => !localVersions.has(version),
+  const remoteOnly = remoteMigrations.filter(
+    (migration) => !localVersions.has(String(migration.version ?? "")),
   );
   if (remoteOnly.length > 0) {
     throw new Error(
-      `Remote migration history contains versions missing from Git: ${remoteOnly.join(", ")}`,
+      `Remote migration history contains entries missing from Git: ${remoteOnly
+        .map(({ version, name }) => `${String(version)}:${String(name ?? "<unnamed>")}`)
+        .join(", ")}`,
     );
   }
 
@@ -227,4 +229,3 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     process.exitCode = 1;
   });
 }
-
