@@ -726,10 +726,13 @@ test("guards the production Supabase migration workflow behind manual confirmati
   assert.match(production, /pnpm test/);
   assert.match(production, /db push --dry-run/);
 
-  // Zugangsdaten kommen ausschliesslich aus GitHub-Secrets.
+  // Der projektgebundene PAT kommt ausschliesslich aus GitHub-Secrets. Ein
+  // dauerhaftes Datenbankpasswort wird fuer den temporaeren CLI-Login nicht gespeichert.
   assert.match(production, /SUPABASE_ACCESS_TOKEN: \$\{\{ secrets\.SUPABASE_ACCESS_TOKEN \}\}/);
-  assert.match(production, /SUPABASE_DB_PASSWORD: \$\{\{ secrets\.SUPABASE_DB_PASSWORD \}\}/);
   assert.match(production, /SUPABASE_PROJECT_ID: \$\{\{ secrets\.SUPABASE_PROJECT_ID \}\}/);
+  assert.doesNotMatch(production, /SUPABASE_DB_PASSWORD/);
+  assert.match(production, /supabase@2\.117\.0 link --project-ref/);
+  assert.doesNotMatch(production, /--password/);
   assert.doesNotMatch(production, /laduzigqgvvnrqcgfgab/);
 
   // Der Staging-Workflow bleibt unangetastet und verweigert weiterhin die Produktion.
