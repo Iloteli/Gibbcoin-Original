@@ -23,36 +23,65 @@ export function parseMigrationFilename(fileName) {
   };
 }
 
-export function planMigrations(localMigrations, remoteMigrations) {
+export function planMigrations(
+  localMigrations,
+  remoteMigrations,
+  legacyHistory = { entries: [], aliases: {} },
+) {
   const localVersions = new Set();
+  const localNames = new Set();
   for (const migration of localMigrations) {
     if (localVersions.has(migration.version)) {
       throw new Error(`Duplicate local migration version: ${migration.version}`);
     }
+    if (localNames.has(migration.name)) {
+      throw new Error(`Duplicate local migration name: ${migration.name}`);
+    }
     localVersions.add(migration.version);
+    localNames.add(migration.name);
   }
 
   const remoteVersions = new Set();
+  const remoteNames = new Set();
   for (const migration of remoteMigrations) {
     const version = String(migration.version ?? "");
+    const name = String(migration.name ?? "");
     if (!version) {
       throw new Error("Supabase returned a migration without a version.");
     }
     remoteVersions.add(version);
+    if (name) remoteNames.add(name);
   }
 
-  const remoteOnly = [...remoteVersions].filter(
-    (version) => !localVersions.has(version),
+  const acceptedLegacyEntries = new Set(
+    (legacyHistory.entries ?? []).map(
+      ({ version, name }) => `${String(version)}:${String(name)}`,
+    ),
+  );
+  const remoteOnly = remoteMigrations.filter(
+    (migration) =>
+      !localVersions.has(String(migration.version ?? "")) &&
+      !acceptedLegacyEntries.has(
+        `${String(migration.version ?? "")}:${String(migration.name ?? "")}`,
+      ),
   );
   if (remoteOnly.length > 0) {
     throw new Error(
-      `Remote migration history contains versions missing from Git: ${remoteOnly.join(", ")}`,
+      `Remote migration history contains entries missing from Git: ${remoteOnly
+        .map(({ version, name }) => `${String(version)}:${String(name ?? "<unnamed>")}`)
+        .join(", ")}`,
     );
   }
 
-  return localMigrations.filter(
-    (migration) => !remoteVersions.has(migration.version),
-  );
+  const aliases = legacyHistory.aliases ?? {};
+  return localMigrations.filter((migration) => {
+    const alias = aliases[migration.name];
+    return (
+      !remoteVersions.has(migration.version) &&
+      !remoteNames.has(migration.name) &&
+      !(alias && remoteNames.has(alias))
+    );
+  });
 }
 
 function sqlLiteral(value) {
@@ -154,6 +183,12 @@ async function main() {
   }
 
   const migrationsDirectory = path.resolve("supabase", "migrations");
+  const legacyHistory = JSON.parse(
+    await readFile(
+      path.resolve("supabase", "legacy-migration-history.json"),
+      "utf8",
+    ),
+  );
   const localMigrations = await loadLocalMigrations(migrationsDirectory);
   const request = createApiClient({
     apiUrl: process.env.SUPABASE_MANAGEMENT_API_URL ?? DEFAULT_API_URL,
@@ -165,7 +200,11 @@ async function main() {
     throw new Error("Supabase returned an invalid migration history response.");
   }
 
-  const pendingMigrations = planMigrations(localMigrations, remoteMigrations);
+  const pendingMigrations = planMigrations(
+    localMigrations,
+    remoteMigrations,
+    legacyHistory,
+  );
   console.log(`Local migrations: ${localMigrations.length}`);
   console.log(`Remote migrations: ${remoteMigrations.length}`);
   console.log(`Pending migrations: ${pendingMigrations.length}`);
@@ -212,7 +251,11 @@ async function main() {
   }
 
   const finalHistory = await request("/database/migrations");
-  const stillPending = planMigrations(localMigrations, finalHistory);
+  const stillPending = planMigrations(
+    localMigrations,
+    finalHistory,
+    legacyHistory,
+  );
   if (stillPending.length > 0) {
     throw new Error(
       `Verification failed; migrations remain pending: ${stillPending.map(({ fileName }) => fileName).join(", ")}`,
@@ -227,4 +270,3 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
     process.exitCode = 1;
   });
 }
-

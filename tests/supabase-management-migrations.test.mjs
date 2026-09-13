@@ -27,8 +27,8 @@ test("rejects non-canonical migration filenames", () => {
 
 test("plans only migrations missing from remote history", () => {
   const local = [
-    { version: "20260101000000", fileName: "first.sql" },
-    { version: "20260102000000", fileName: "second.sql" },
+    { version: "20260101000000", name: "first", fileName: "first.sql" },
+    { version: "20260102000000", name: "second", fileName: "second.sql" },
   ];
   assert.deepEqual(
     planMigrations(local, [{ version: "20260101000000" }]),
@@ -40,10 +40,42 @@ test("fails closed when remote history is not represented in Git", () => {
   assert.throws(
     () =>
       planMigrations(
-        [{ version: "20260101000000" }],
+        [{ version: "20260101000000", name: "first" }],
         [{ version: "20251231000000" }],
       ),
-    /missing from Git/,
+    /20251231000000:<unnamed>/,
+  );
+});
+
+test("accepts only audited legacy history and maps explicit local aliases", () => {
+  const local = [
+    { version: "20260101000000", name: "core", fileName: "core.sql" },
+    { version: "20260102000000", name: "new_feature", fileName: "new.sql" },
+  ];
+  const remote = [
+    { version: "20251231000000", name: "create_core" },
+    { version: "20260101595959", name: "untracked_but_audited" },
+  ];
+  const legacyHistory = {
+    entries: remote,
+    aliases: { core: "create_core" },
+  };
+
+  assert.deepEqual(planMigrations(local, remote, legacyHistory), [local[1]]);
+});
+
+test("rejects a legacy version when its recorded name changes", () => {
+  assert.throws(
+    () =>
+      planMigrations(
+        [{ version: "20260101000000", name: "local" }],
+        [{ version: "20251231000000", name: "tampered" }],
+        {
+          entries: [{ version: "20251231000000", name: "expected" }],
+          aliases: {},
+        },
+      ),
+    /20251231000000:tampered/,
   );
 });
 
@@ -73,4 +105,3 @@ test("rejects migrations with top-level transaction control", () => {
     /transaction control/,
   );
 });
-
