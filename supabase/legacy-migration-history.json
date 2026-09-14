@@ -48,6 +48,24 @@
     { "version": "20260908181444", "name": "backup_before_community_rewards_safety_upgrade" },
     { "version": "20260908181647", "name": "community_rewards_safety_upgrade" }
   ],
+  "schema_baselines": [
+    {
+      "name": "live_august_games_verified_20260914",
+      "requires": ["20260827185736:add_casino_games_leaderboards", "20260908181647:community_rewards_safety_upgrade"],
+      "migrations": [
+        "20260824122242:complete_admin_controls_and_poker",
+        "20260824125717:add_dino_run_rewards",
+        "20260824125832:set_starting_balance_to_ten",
+        "20260825063808:charge_dino_run_entry",
+        "20260825065459:fix_new_account_username",
+        "20260825130944:remove_game_wager_limit",
+        "20260825135211:add_visible_coin_flip_loss_mode",
+        "20260825145050:expand_visual_pranks_and_dino_controls",
+        "20260826121128:add_plinko_game"
+      ],
+      "verification_query": "select to_regclass('public.poker_sessions') is not null and to_regclass('public.dino_run_sessions') is not null and to_regclass('private.coin_flip_prank_settings') is not null and to_regclass('private.game_prank_settings') is not null and to_regclass('private.dino_game_settings') is not null and to_regprocedure('public.admin_coin_stats()') is not null and to_regprocedure('public.admin_reset_coin_stats(text)') is not null and to_regprocedure('public.start_poker(bigint)') is not null and to_regprocedure('public.start_dino_run()') is not null and to_regprocedure('public.get_game_extras_admin_state()') is not null and position('values (new.id, 10)' in lower(pg_get_functiondef('private.handle_new_user()'::regprocedure))) > 0 and position('unique_violation' in pg_get_functiondef('private.handle_new_user()'::regprocedure)) > 0 and exists(select 1 from public.game_settings where game_key='plinko') and exists(select 1 from pg_constraint where conrelid='public.game_rounds'::regclass and conname='game_rounds_wager_check' and pg_get_constraintdef(oid)='CHECK ((wager >= 0))') and exists(select 1 from pg_constraint where conrelid='public.game_rounds'::regclass and conname='game_rounds_payout_check' and pg_get_constraintdef(oid)='CHECK ((payout >= 0))') and exists(select 1 from pg_constraint where conrelid='public.dino_run_sessions'::regclass and conname='dino_run_sessions_wager_check' and pg_get_constraintdef(oid) like '%150%') and exists(select 1 from pg_constraint where conrelid='public.game_settings'::regclass and conname='game_settings_game_key_check' and pg_get_constraintdef(oid) like '%crash%') as verified;"
+    }
+  ],
   "aliases": {
     "gibb_coin": "create_gibb_coin_core",
     "paid_coin_purchases": "add_paid_coin_purchases",

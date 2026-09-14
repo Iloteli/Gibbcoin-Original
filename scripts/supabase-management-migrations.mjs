@@ -27,6 +27,7 @@ export function planMigrations(
   localMigrations,
   remoteMigrations,
   legacyHistory = { entries: [], aliases: {} },
+  verifiedBaselines = new Set(),
 ) {
   const localVersions = new Set();
   const localNames = new Set();
@@ -80,8 +81,26 @@ export function planMigrations(
       !remoteVersions.has(migration.version) &&
       !remoteNames.has(migration.name) &&
       !(alias && remoteNames.has(alias))
+      && !verifiedBaselines.has(`${migration.version}:${migration.name}`)
     );
   });
+}
+
+export async function verifySchemaBaselines(legacyHistory, remoteMigrations, request) {
+  const remoteEntries = new Set(remoteMigrations.map(({ version, name }) => `${version}:${name}`));
+  const verified = new Set();
+  for (const baseline of legacyHistory.schema_baselines ?? []) {
+    if (!baseline.requires.every((entry) => remoteEntries.has(entry))) continue;
+    const result = await request("/database/query", {
+      method: "POST",
+      body: JSON.stringify({ query: baseline.verification_query, read_only: true }),
+    });
+    if (!Array.isArray(result) || result.length !== 1 || result[0].verified !== true) {
+      throw new Error(`Live schema baseline ${baseline.name} failed verification. Refusing to replay older migrations.`);
+    }
+    for (const entry of baseline.migrations) verified.add(entry);
+  }
+  return verified;
 }
 
 function sqlLiteral(value) {
@@ -200,13 +219,16 @@ async function main() {
     throw new Error("Supabase returned an invalid migration history response.");
   }
 
+  const verifiedBaselines = await verifySchemaBaselines(legacyHistory, remoteMigrations, request);
   const pendingMigrations = planMigrations(
     localMigrations,
     remoteMigrations,
     legacyHistory,
+    verifiedBaselines,
   );
   console.log(`Local migrations: ${localMigrations.length}`);
   console.log(`Remote migrations: ${remoteMigrations.length}`);
+  console.log(`Verified existing schema entries: ${verifiedBaselines.size}`);
   console.log(`Pending migrations: ${pendingMigrations.length}`);
   for (const migration of pendingMigrations) {
     console.log(`- ${migration.fileName}`);
@@ -255,6 +277,7 @@ async function main() {
     localMigrations,
     finalHistory,
     legacyHistory,
+    verifiedBaselines,
   );
   if (stillPending.length > 0) {
     throw new Error(
