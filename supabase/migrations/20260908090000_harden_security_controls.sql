@@ -1,15 +1,20 @@
 -- Close legacy transfer paths and raise the security baseline for group invites,
 -- account deletion, MFA and administrative PIN attempts.
 
-revoke all on function public.transfer_gibb(uuid, bigint)
-from public, anon, authenticated;
+-- The live database may already have removed this legacy RPC.
+do $$ begin
+  if to_regprocedure('public.transfer_gibb(uuid,bigint)') is not null then
+    revoke all on function public.transfer_gibb(uuid, bigint) from public, anon, authenticated;
+  end if;
+end $$;
 drop function if exists public.transfer_gibb(uuid, bigint);
 
 alter table public.group_wallets
   drop constraint if exists group_wallets_join_code_check;
 
 update public.group_wallets
-set join_code = upper(encode(extensions.gen_random_bytes(16), 'hex'));
+set join_code = upper(encode(extensions.gen_random_bytes(16), 'hex'))
+where join_code !~ '^[A-F0-9]{32}$';
 
 alter table public.group_wallets
   add constraint group_wallets_join_code_check

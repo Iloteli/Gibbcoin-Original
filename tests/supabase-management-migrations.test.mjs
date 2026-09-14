@@ -5,6 +5,7 @@ import {
   buildMigrationQuery,
   parseMigrationFilename,
   planMigrations,
+  verifySchemaBaselines,
 } from "../scripts/supabase-management-migrations.mjs";
 
 test("parses canonical Supabase migration filenames", () => {
@@ -104,4 +105,21 @@ test("rejects migrations with top-level transaction control", () => {
       }),
     /transaction control/,
   );
+});
+
+test("only skips an older live schema after both history and database verification", async () => {
+  const local = [{ version: "20260101000000", name: "old" }];
+  const remote = [{ version: "20260201000000", name: "newer" }];
+  const history = { entries: remote, schema_baselines: [{
+    name: "audited", requires: ["20260201000000:newer"],
+    migrations: ["20260101000000:old"], verification_query: "select true as verified",
+  }] };
+  assert.deepEqual(planMigrations(local, remote, history), local);
+  const verified = await verifySchemaBaselines(history, remote, async (_path, options) => {
+    assert.equal(JSON.parse(options.body).read_only, true);
+    return [{ verified: true }];
+  });
+  assert.deepEqual(planMigrations(local, remote, history, verified), []);
+  await assert.rejects(verifySchemaBaselines(history, remote, async () => [{ verified: false }]), /failed verification/);
+  assert.equal((await verifySchemaBaselines(history, [], async () => { throw Error("must not query"); })).size, 0);
 });
