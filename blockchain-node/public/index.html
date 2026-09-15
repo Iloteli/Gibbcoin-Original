@@ -56,6 +56,13 @@
   .log div.block b { color: var(--green); } .log div.error b, .log div.tamper b { color: var(--red); } .log div.tx b { color: var(--amber); }
   .check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin-top: 10px; }
   .check input { width: auto; accent-color: var(--green); }
+  .orderbook { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .orderbook .mid { text-align: center; padding: 8px; font-size: 18px; font-weight: 800; color: var(--green); background: rgba(117,245,154,.05); border-block: 1px solid var(--line); }
+  .depth { position: relative; display: grid; grid-template-columns: 1fr auto; gap: 8px; padding: 3px 10px; font-size: 12px; font-variant-numeric: tabular-nums; }
+  .depth > i { position: absolute; inset: 0 0 0 auto; height: 100%; opacity: .12; }
+  .depth.ask > i { background: var(--red); } .depth.bid > i { background: var(--green); }
+  .depth span, .depth b { position: relative; z-index: 1; }
+  .depth.ask b { color: #ff9b9b; } .depth.bid b { color: var(--green); }
   footer { color: var(--muted); font-size: 11px; text-align: center; border: 1px solid rgba(246,200,95,.15); border-radius: 12px; padding: 12px; }
 </style>
 </head>
@@ -123,6 +130,41 @@
       <div class="list" id="mempool"></div>
     </section>
 
+    <section class="card" style="grid-column:1/-1">
+      <h2>Markt <span id="marketState">Kurs entsteht aus echten Kauf-/Verkaufsaufträgen</span></h2>
+      <div class="stats" id="marketStats"></div>
+      <div class="grid" style="margin-top:14px">
+        <div>
+          <div class="meter" style="height:auto;background:none;overflow:visible"><svg id="priceChart" viewBox="0 0 600 120" preserveAspectRatio="none" style="width:100%;height:120px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.012)"></svg></div>
+          <h2 style="margin:16px 0 8px;font-size:14px">Auftrag aufgeben</h2>
+          <label>Wallet</label><select id="orderAddress"></select>
+          <div class="row">
+            <div><label>Aktion</label><select id="orderSide"><option value="buy">Kaufen (GIBB ← Rappen)</option><option value="sell">Verkaufen (GIBB → Rappen)</option></select></div>
+            <div><label>Menge (GIBB)</label><input id="orderAmount" type="number" min="1" value="10" /></div>
+          </div>
+          <div class="row">
+            <div><label>Preis (Rappen/GIBB)</label><input id="orderPrice" type="number" min="0" step="0.01" value="1" /></div>
+            <div><label>&nbsp;</label><button class="primary" id="placeOrder" style="width:100%">Auftrag einreichen</button></div>
+          </div>
+          <div class="muted" id="orderHint" style="font-size:11px"></div>
+          <div class="msg" id="orderMsg"></div>
+          <h2 style="margin:16px 0 8px;font-size:14px">Meine offenen Aufträge</h2>
+          <div class="list" id="myOrders"></div>
+        </div>
+        <div>
+          <h2 style="margin:0 0 8px;font-size:14px">Orderbuch</h2>
+          <div class="orderbook">
+            <div><div class="muted" style="font-size:10px;text-align:right;margin-bottom:4px">VERKAUF (Angebot)</div><div id="asks"></div></div>
+            <div id="midPrice" class="mid">–</div>
+            <div><div class="muted" style="font-size:10px;margin-bottom:4px">KAUF (Nachfrage)</div><div id="bids"></div></div>
+          </div>
+          <h2 style="margin:16px 0 8px;font-size:14px">Letzte Handel</h2>
+          <div class="list" id="trades" style="max-height:220px"></div>
+        </div>
+      </div>
+      <div class="disclaimer" style="margin-top:16px">Interner Markt: der Kurs entsteht ausschliesslich aus echten Aufträgen (kein simulierter Kurs). 1 GIBB startet bei 1 Rappen (0.01 CHF) als interne Recheneinheit – kein auszahlbares Geld. Jedes Wallet bekommt dasselbe Startguthaben; GIBB kommen aus dem Mining.</div>
+    </section>
+
     <section class="card">
       <h2>Prüfung &amp; Demo</h2>
       <p class="muted" style="margin:0 0 8px">Die Prüfung rechnet jeden Block nach: Vorgänger-Hash, Block-Hash, Proof of Work, Merkle-Root, Transaktions-Hashes und alle Kontostände.</p>
@@ -142,6 +184,14 @@
         <div><label>Max. Bit</label><input id="sMax" type="number" min="1" max="40" /></div>
       </div>
       <label class="check"><input type="checkbox" id="sAuto" /> Schwierigkeit automatisch anpassen</label>
+      <h2 style="margin-top:18px;font-size:14px">Markt</h2>
+      <div class="row">
+        <div><label>Startpreis (Rappen/GIBB)</label><input id="sStartPrice" type="number" min="0" step="0.01" /></div>
+        <div><label>Startguthaben (Rappen)</label><input id="sStartCash" type="number" min="0" /></div>
+        <div><label>Handelsgebühr (%)</label><input id="sFee" type="number" min="0" step="0.1" /></div>
+        <div><label>Min. Ordermenge (GIBB)</label><input id="sMinOrder" type="number" min="1" /></div>
+      </div>
+      <label class="check"><input type="checkbox" id="sMarket" /> Markt aktiv (Handel erlaubt)</label>
       <div class="actions"><button id="saveSettings">Speichern</button></div>
       <div class="msg" id="settingsMsg"></div>
     </section>
@@ -175,6 +225,7 @@ const errors = {
   unknown_miner: "Bitte zuerst ein Wallet anlegen und als Miner wählen.", miner_already_running: "Der PC-Miner läuft bereits.", unknown_block: "Block nicht gefunden.", block_has_no_transactions: "Der Block hat keine Transaktionen.",
   stale_block: "Jemand war schneller – neue Vorlage wird geladen.", unknown_template: "Vorlage abgelaufen – neue Vorlage wird geladen.", difficulty_too_low: "Schwierigkeit ist gestiegen – neue Vorlage.",
   insufficient_work: "Proof of Work reicht nicht – neue Vorlage.", hash_mismatch: "Hash stimmt nicht mit dem Server überein.",
+  market_disabled: "Der Markt ist zurzeit deaktiviert.", insufficient_cash: "Nicht genug Guthaben (Rappen) für diesen Kauf.", invalid_price: "Ungültiger Preis.", unknown_order: "Auftrag nicht gefunden.", not_your_order: "Das ist nicht dein Auftrag.", unknown_account: "Wallet unbekannt.",
 };
 const retryable = new Set(["stale_block", "unknown_template", "difficulty_too_low", "insufficient_work"]);
 const say = (id, text, err) => { const el = $(id); el.textContent = text; el.className = "msg" + (err ? " err" : ""); };
@@ -196,6 +247,7 @@ async function refresh() {
     const [s, acc, blocks, mempool] = await Promise.all([api("/api/stats"), api("/api/accounts"), api("/api/blocks?limit=40"), api("/api/mempool")]);
     stats = s; accounts = acc;
     renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
+    const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
     fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
     // Neuer Block von jemand anderem? Dann ist unsere Vorlage veraltet.
@@ -205,15 +257,16 @@ async function refresh() {
 
 function renderStats(s) {
   $("stats").innerHTML = [
-    ["Blockhöhe", s.height], ["Schwierigkeit", s.difficultyBits + " Bit"], ["Mempool", s.mempool], ["Transaktionen", fmt(s.transactions)],
-    ["Konten", s.accounts], ["Umlauf", fmt(s.supply) + " GIBB"], ["Ø Blockzeit", s.averageBlockSeconds == null ? "–" : s.averageBlockSeconds.toFixed(1) + " s"], ["Belohnung", s.settings.reward + " GIBB"],
+    ["Kurs", price(s.price) + " Rp"], ["Blockhöhe", s.height], ["Schwierigkeit", s.difficultyBits + " Bit"], ["Umlauf", fmt(s.supply) + " GIBB"],
+    ["Marktkapital", fmtChf(s.marketCapRappen)], ["24h Volumen", fmt(s.volume24h) + " GIBB"], ["Ø Blockzeit", s.averageBlockSeconds == null ? "–" : s.averageBlockSeconds.toFixed(1) + " s"], ["Belohnung", s.settings.reward + " GIBB"],
   ].map(([k, v]) => `<div><span>${k}</span><strong>${v}</strong></div>`).join("");
   $("blockCount").textContent = `${s.blocks} Blöcke · Spitze ${short(s.tipHash)}`;
   $("mempoolCount").textContent = `${s.mempool} wartend`;
   $("walletCount").textContent = `${s.accounts} Konten`;
 }
 function renderAccounts() {
-  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${a.name}</b><br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b><br><small>verfügbar ${fmt(a.available)}</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
+  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${a.name}</b><br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b> · <b>${fmt(a.cash)} Rp</b><br><small>frei ${fmt(a.available)} GIBB · ${fmt(a.availableCash)} Rp</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
+  fillSelect($("orderAddress"));
 }
 function renderMempool(list) {
   const name = (addr) => accounts.find((a) => a.address === addr)?.name ?? addr;
@@ -333,6 +386,47 @@ function renderLocal(m) {
   $("minerAddress").disabled = m.running; $("threads").disabled = m.running;
   if (m.lastError && m.running) say("localMsg", "Miner meldet: " + (errors[m.lastError] || m.lastError), true);
 }
+const price = (v) => v == null ? "–" : (Math.round(v * 100) / 100).toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fmtChf = (rappen) => rappen == null ? "–" : "CHF " + (rappen / 100).toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+let lastMarket = null;
+function renderMarket(m, s) {
+  lastMarket = m;
+  $("marketState").textContent = m.enabled ? "Kurs = Preis des letzten echten Handels" : "Markt deaktiviert";
+  const chg = m.change24h ?? 0;
+  $("marketStats").innerHTML = [
+    ["Kurs", price(m.price) + " Rp"], ["24h", (chg >= 0 ? "▲ +" : "▼ ") + price(Math.abs(chg)) + " Rp"], ["Beste Nachfrage", m.bestBid == null ? "–" : price(m.bestBid) + " Rp"], ["Bestes Angebot", m.bestAsk == null ? "–" : price(m.bestAsk) + " Rp"],
+    ["24h Hoch", m.high24h == null ? "–" : price(m.high24h)], ["24h Tief", m.low24h == null ? "–" : price(m.low24h)], ["24h Volumen", fmt(m.volume24h) + " GIBB"], ["Gebühr", m.fee + " %"],
+  ].map(([k, v]) => `<div><span>${k}</span><strong style="font-size:16px">${v}</strong></div>`).join("");
+  const maxAsk = Math.max(1, ...m.asks.map((o) => o.amount)), maxBid = Math.max(1, ...m.bids.map((o) => o.amount));
+  $("asks").innerHTML = m.asks.slice().reverse().map((o) => `<div class="depth ask"><i style="width:${o.amount / maxAsk * 100}%"></i><span>${price(o.price)}</span><b>${fmt(o.amount)}</b></div>`).join("") || `<div class="muted" style="padding:6px 10px;font-size:11px">kein Angebot</div>`;
+  $("bids").innerHTML = m.bids.map((o) => `<div class="depth bid"><i style="width:${o.amount / maxBid * 100}%"></i><span>${price(o.price)}</span><b>${fmt(o.amount)}</b></div>`).join("") || `<div class="muted" style="padding:6px 10px;font-size:11px">keine Nachfrage</div>`;
+  $("midPrice").textContent = price(m.price) + " Rp";
+  const name = (addr) => accounts.find((a) => a.address === addr)?.name ?? addr.slice(0, 8);
+  $("trades").innerHTML = m.trades.map((t) => `<div class="tx ${t.takerSide === "buy" ? "" : "coinbase"}"><div>${name(t.buyer)} ← ${name(t.seller)}<br><small class="muted">${new Date(t.at).toLocaleTimeString("de-CH")}</small></div><div style="text-align:right"><b>${price(t.price)} Rp</b><br><small class="muted">${fmt(t.amount)} GIBB</small></div></div>`).join("") || `<div class="muted">Noch kein Handel. Verkaufe gemintes GIBB oder stelle ein Kaufgebot.</div>`;
+  $("myOrders").innerHTML = (m.myOrders || []).map((o) => `<div class="tx"><div>${o.side === "buy" ? "Kauf" : "Verkauf"} ${fmt(o.remaining)} GIBB @ ${price(o.price)} Rp<br><small class="muted">von ${fmt(o.amount)} · ${fmt(o.filled)} erfüllt</small></div><button class="danger" style="padding:6px 10px" data-cancel="${o.id}">Storno</button></div>`).join("") || `<div class="muted">Keine offenen Aufträge.</div>`;
+  drawChart(m.history);
+  updateOrderHint();
+  if (!settingsDirty) { $("sStartPrice").value = s.settings.startPrice; $("sStartCash").value = s.settings.startingCash; $("sFee").value = s.settings.tradingFeePercent; $("sMinOrder").value = s.settings.minOrderAmount; $("sMarket").checked = s.settings.marketEnabled; }
+}
+function drawChart(history) {
+  const svg = $("priceChart");
+  if (!history || history.length < 2) { svg.innerHTML = `<text x="300" y="64" fill="#91a099" font-size="12" text-anchor="middle">Kurschart erscheint nach den ersten Handeln</text>`; return; }
+  const xs = history.map((h, i) => i / (history.length - 1) * 600);
+  const ps = history.map((h) => h.price);
+  const lo = Math.min(...ps), hi = Math.max(...ps), span = hi - lo || 1;
+  const y = (p) => 110 - (p - lo) / span * 100;
+  const line = history.map((h, i) => `${i ? "L" : "M"}${xs[i].toFixed(1)},${y(h.price).toFixed(1)}`).join(" ");
+  svg.innerHTML = `<path d="${line}" fill="none" stroke="#75f59a" stroke-width="2"/><path d="${line} L600,120 L0,120 Z" fill="#75f59a" opacity="0.08"/><text x="6" y="14" fill="#91a099" font-size="10">${price(hi)}</text><text x="6" y="116" fill="#91a099" font-size="10">${price(lo)}</text>`;
+}
+function updateOrderHint() {
+  const side = $("orderSide").value, amount = Number($("orderAmount").value), pr = Number($("orderPrice").value);
+  const acc = accounts.find((a) => a.address === $("orderAddress").value);
+  if (!acc || !amount || !pr) { $("orderHint").textContent = ""; return; }
+  const cost = Math.round(pr * amount);
+  $("orderHint").textContent = side === "buy"
+    ? `Kostet bis zu ${fmt(cost)} Rappen (${fmtChf(cost)}) · frei: ${fmt(acc.availableCash)} Rp`
+    : `Bringt bis zu ${fmt(cost)} Rappen (${fmtChf(cost)}) · frei: ${fmt(acc.available)} GIBB`;
+}
 function renderRecent(list) {
   $("recent").innerHTML = (list || []).map((b) => `<div class="tx"><div>#${b.height} von <b>${b.miner_label}</b><br><code>${short(b.hash, 16)}</code></div><small class="muted">${b.attempts ? fmt(b.attempts) + " Versuche" : ""}${b.hashrate ? " · " + (b.hashrate / 1000).toFixed(0) + " kH/s" : ""}<br>${new Date(b.at).toLocaleTimeString("de-CH")}</small></div>`).join("") || `<div class="muted">Noch kein Block gemint.</div>`;
 }
@@ -364,9 +458,18 @@ $("minerAddress").addEventListener("change", () => { if (miner.want) restartRoun
 window.addEventListener("beforeunload", () => stopWorker());
 $("verify").onclick = async () => { try { const r = await api("/api/verify"); say("verifyMsg", r.valid ? `✔ Kette gültig – ${r.blocks} Blöcke und alle Kontostände stimmen.` : `✖ Ungültig ab Block #${r.height}: ${r.reason}`, !r.valid); $("chainStatus").className = "status" + (r.valid ? "" : " bad"); $("chainStatus").querySelector("span").textContent = r.valid ? "Kette verifiziert" : "Kette beschädigt"; } catch (e) { fail("verifyMsg", e); } };
 $("tamper").onclick = async () => { const h = prompt("Welchen Block manipulieren? (Höhe)", String(Math.max(1, (stats?.height ?? 1) - 1))); if (h === null) return; try { const r = await api("/api/tamper", { height: Number(h) }); say("verifyMsg", `Block #${r.height} wurde verändert (Betrag +1000). Jetzt „Kette prüfen“ klicken.`, true); await refresh(); } catch (e) { fail("verifyMsg", e); } };
+["orderSide", "orderAmount", "orderPrice", "orderAddress"].forEach((id) => $(id).addEventListener("input", updateOrderHint));
+$("placeOrder").onclick = async () => {
+  try {
+    const r = await api("/api/order", { address: $("orderAddress").value, side: $("orderSide").value, price: Number($("orderPrice").value), amount: Number($("orderAmount").value) });
+    say("orderMsg", r.fills.length ? `${r.fills.length} Handel ausgeführt · Kurs jetzt ${price(r.price)} Rp.` : "Auftrag im Orderbuch – wartet auf eine Gegenseite.");
+  } catch (e) { fail("orderMsg", e); }
+  await refresh();
+};
+$("myOrders").addEventListener("click", async (e) => { const b = e.target.closest("[data-cancel]"); if (!b) return; try { await api("/api/order-cancel", { address: $("orderAddress").value, order_id: b.dataset.cancel }); say("orderMsg", "Auftrag storniert."); } catch (err) { fail("orderMsg", err); } await refresh(); });
 $("reset").onclick = async () => { if (!confirm("Wirklich alle Blöcke, Wallets und den Mempool löschen?")) return; stopMining(); await api("/api/reset", {}); openBlock = null; settingsDirty = false; say("verifyMsg", "Zurückgesetzt."); $("chainStatus").className = "status"; $("chainStatus").querySelector("span").textContent = "Neue Kette"; await refresh(); };
-["sReward", "sTarget", "sBits", "sMaxTx", "sMin", "sMax", "sAuto"].forEach((id) => $(id).addEventListener("input", () => { settingsDirty = true; }));
-$("saveSettings").onclick = async () => { try { await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked }); settingsDirty = false; say("settingsMsg", "Gespeichert."); await refresh(); } catch (e) { fail("settingsMsg", e); } };
+["sReward", "sTarget", "sBits", "sMaxTx", "sMin", "sMax", "sAuto", "sStartPrice", "sStartCash", "sFee", "sMinOrder", "sMarket"].forEach((id) => $(id).addEventListener("input", () => { settingsDirty = true; }));
+$("saveSettings").onclick = async () => { try { await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked }); settingsDirty = false; say("settingsMsg", "Gespeichert."); await refresh(); } catch (e) { fail("settingsMsg", e); } };
 
 refresh().then(async () => { try { const r = await api("/api/verify"); $("chainStatus").className = "status" + (r.valid ? "" : " bad"); $("chainStatus").querySelector("span").textContent = r.valid ? "Kette verifiziert" : "Kette beschädigt"; } catch {} });
 setInterval(refresh, 2000);

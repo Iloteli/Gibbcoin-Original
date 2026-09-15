@@ -71,6 +71,8 @@ pnpm chain
 
 Danach `http://localhost:8787` öffnen.
 
+**Markt & Kurs (echtes Orderbuch).** Jedes Wallet hat neben GIBB ein faires, gleiches Startguthaben in Rappen (interne Recheneinheit, 1 GIBB startet bei 1 Rappen = 0.01 CHF). Über die Blockchain-Website stellt man echte Kauf-/Verkaufsaufträge (Limit-Orders); passen zwei zusammen, wird gehandelt. Der Kurs ist der Preis des letzten echten Handels – er entsteht ausschliesslich aus Angebot und Nachfrage, nichts wird simuliert. GIBB kommen aus dem Mining, dadurch trifft echtes Angebot auf echte Nachfrage. Admin-Einstellungen (Startpreis, Startguthaben, Gebühr, Min-Order, Markt an/aus) sind auf der Website konfigurierbar; Standard ist gebührenfrei. Der Rahmen ist bewusst eine interne Einheit ohne Auszahlung; eine spätere Unterlegung mit echtem Geld (Stripe/TWINT) ist vorgesehen. API: `GET /api/market`, `POST /api/order`, `POST /api/order-cancel`.
+
 **Lokaler Miner auf dem eigenen PC** (nutzt alle Prozessorkerne, ~0,5 MH/s pro Kern):
 
 ```bash

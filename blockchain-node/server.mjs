@@ -86,7 +86,14 @@ const routes = {
     return block;
   },
   "GET /api/mempool": () => chain.mempool,
-  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, a]) => ({ address, ...a, available: chain.availableBalance(address) })).sort((x, y) => y.balance - x.balance),
+  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, a]) => ({ address, ...a, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
+  "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
+  "POST /api/order": (_, body) => {
+    const r = chain.placeOrder(body.address, body.side, body.price, body.amount);
+    note("market", `${chain.accounts[body.address]?.name ?? body.address}: ${body.side === "buy" ? "Kauf" : "Verkauf"} ${body.amount} GIBB zu ${body.price} Rp${r.fills.length ? ` – ${r.fills.length} Handel, Kurs ${r.price} Rp` : " (im Buch)"}`);
+    return r;
+  },
+  "POST /api/order-cancel": (_, body) => chain.cancelOrder(body.address, body.order_id),
   "GET /api/verify": () => chain.verify(),
   "POST /api/wallets": (_, body) => chain.createWallet(body.name),
   "POST /api/transactions": (_, body) => {

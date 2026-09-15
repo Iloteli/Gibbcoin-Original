@@ -21,6 +21,12 @@ const defaultSettings = {
   targetSeconds: 30,
   autoAdjust: true,
   maxTxPerBlock: 50,
+  // Markt (Orderbuch). Preis in Rappen pro GIBB; Start bei 1 Rappen = 0.01 CHF.
+  marketEnabled: true,
+  startPrice: 1,        // Referenzpreis, bis der erste echte Handel stattfindet
+  startingCash: 100,    // Rappen, die jedes neue Wallet fair als Startguthaben bekommt (= 1 CHF)
+  tradingFeePercent: 0, // fair: standardmässig keine Gebühr
+  minOrderAmount: 1,    // kleinste handelbare GIBB-Menge
 };
 
 export function transactionHash(tx) {
@@ -35,6 +41,9 @@ export class Blockchain {
     this.accounts = {}; // address -> { name, balance, createdAt }
     this.settings = { ...defaultSettings };
     this.templates = new Map(); // ausgegebene Vorlagen (id -> Vorlage), nicht persistiert
+    this.orders = [];  // offene Kauf-/Verkaufsaufträge (Orderbuch)
+    this.trades = [];  // ausgeführte Handel (Kurshistorie), neueste zuletzt
+    this.lastPrice = null;
     this.load();
   }
 
@@ -46,6 +55,15 @@ export class Blockchain {
       this.mempool = raw.mempool ?? [];
       this.accounts = raw.accounts ?? {};
       this.settings = { ...defaultSettings, ...(raw.settings ?? {}) };
+      this.orders = raw.orders ?? [];
+      this.trades = raw.trades ?? [];
+      this.lastPrice = raw.lastPrice ?? null;
+    }
+    // Bestehende Konten fair mit Startguthaben und Sperr-Feldern nachrüsten.
+    for (const a of Object.values(this.accounts)) {
+      if (typeof a.cash !== "number") a.cash = this.settings.startingCash;
+      if (typeof a.lockedGibb !== "number") a.lockedGibb = 0;
+      if (typeof a.lockedCash !== "number") a.lockedCash = 0;
     }
     if (this.blocks.length === 0) this.createGenesis();
   }
@@ -54,7 +72,7 @@ export class Blockchain {
     if (!this.file) return;
     mkdirSync(dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, settings: this.settings }, null, 2));
+    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice }, null, 2));
     renameSync(tmp, this.file);
   }
 
@@ -63,6 +81,9 @@ export class Blockchain {
     this.mempool = [];
     this.accounts = {};
     this.settings = { ...defaultSettings };
+    this.orders = [];
+    this.trades = [];
+    this.lastPrice = null;
     this.createGenesis();
     this.save();
   }
@@ -164,7 +185,7 @@ export class Blockchain {
     const clean = String(name ?? "").trim().slice(0, 40) || `Wallet ${Object.keys(this.accounts).length + 1}`;
     let address;
     do address = `G${randomBytes(6).toString("hex")}`; while (this.accounts[address]);
-    this.accounts[address] = { name: clean, balance: 0, createdAt: Date.now() };
+    this.accounts[address] = { name: clean, balance: 0, cash: this.settings.startingCash, lockedGibb: 0, lockedCash: 0, createdAt: Date.now() };
     this.save();
     return { address, ...this.accounts[address] };
   }
@@ -175,10 +196,17 @@ export class Blockchain {
     return tx;
   }
 
-  // Guthaben abzüglich bereits im Mempool wartender Ausgaben.
+  // Frei verfügbare GIBB: Guthaben minus Mempool-Sendungen minus in Verkaufsorders gesperrte GIBB.
   availableBalance(address) {
     const pending = this.mempool.filter((tx) => tx.from === address).reduce((sum, tx) => sum + tx.amount, 0);
-    return (this.accounts[address]?.balance ?? 0) - pending;
+    const a = this.accounts[address];
+    return (a?.balance ?? 0) - pending - (a?.lockedGibb ?? 0);
+  }
+
+  // Frei verfügbares Guthaben (Rappen) minus in Kauforders gesperrtes Geld.
+  availableCash(address) {
+    const a = this.accounts[address];
+    return (a?.cash ?? 0) - (a?.lockedCash ?? 0);
   }
 
   addTransaction(from, to, amount, note) {
@@ -233,22 +261,157 @@ export class Blockchain {
     return { height: block.height, transaction: tx.id };
   }
 
+  // ---------- Markt (Orderbuch) ----------
+  // Aktueller Kurs: Preis des letzten echten Handels, sonst der Referenz-Startpreis.
+  marketPrice() {
+    return this.lastPrice ?? this.settings.startPrice;
+  }
+
+  // Order platzieren. side: "buy" | "sell". price in Rappen/GIBB, amount in GIBB (ganzzahlig).
+  // Sofort passende Gegenorders ausführen (Taker), Rest als offene Order ins Buch (Maker).
+  placeOrder(address, side, price, amount) {
+    if (!this.settings.marketEnabled) throw new Error("market_disabled");
+    if (side !== "buy" && side !== "sell") throw new Error("invalid_side");
+    if (!this.accounts[address]) throw new Error("unknown_account");
+    price = Number(price);
+    amount = Number(amount);
+    if (!Number.isFinite(price) || price <= 0) throw new Error("invalid_price");
+    if (!Number.isInteger(amount) || amount < this.settings.minOrderAmount) throw new Error("invalid_amount");
+
+    // Deckung prüfen (Kauf: Geld zum Limitpreis; Verkauf: GIBB).
+    if (side === "buy") {
+      if (this.availableCash(address) < Math.round(price * amount)) throw new Error("insufficient_cash");
+    } else if (this.availableBalance(address) < amount) {
+      throw new Error("insufficient_funds");
+    }
+
+    const taker = this.accounts[address];
+    const fee = this.settings.tradingFeePercent / 100;
+    let remaining = amount;
+    const fills = [];
+
+    // Passende Gegenseite nach Preis-/Zeit-Priorität.
+    const opposite = () => this.orders
+      .filter((o) => o.side !== side && o.address !== address && (side === "buy" ? o.price <= price : o.price >= price))
+      .sort((a, b) => (side === "buy" ? a.price - b.price : b.price - a.price) || a.createdAt - b.createdAt);
+
+    for (const maker of opposite()) {
+      if (remaining <= 0) break;
+      const execAmount = Math.min(remaining, maker.remaining);
+      const execPrice = maker.price; // Ausführung immer zum Preis der ruhenden Order
+      const value = Math.round(execPrice * execAmount);
+      const makerAcc = this.accounts[maker.address];
+      const buyer = side === "buy" ? taker : makerAcc;
+      const seller = side === "buy" ? makerAcc : taker;
+
+      // GIBB vom Verkäufer zum Käufer.
+      seller.balance -= execAmount;
+      if (side === "buy") makerAcc.lockedGibb -= execAmount; // Maker war Verkäufer: Sperre lösen
+      buyer.balance += execAmount;
+
+      // Geld vom Käufer zum Verkäufer (abzüglich Gebühr beim Verkäufer).
+      buyer.cash -= value;
+      if (side === "sell") makerAcc.lockedCash -= value; // Maker war Käufer: Sperre lösen
+      seller.cash += value - Math.round(value * fee);
+
+      maker.remaining -= execAmount;
+      maker.filled += execAmount;
+      remaining -= execAmount;
+      this.lastPrice = execPrice;
+      const trade = { id: randomBytes(6).toString("hex"), price: execPrice, amount: execAmount, value, buyer: buyer === taker ? address : maker.address, seller: seller === taker ? address : maker.address, takerSide: side, at: Date.now() };
+      this.trades.push(trade);
+      fills.push(trade);
+    }
+    this.orders = this.orders.filter((o) => o.remaining > 0);
+    if (this.trades.length > 2000) this.trades = this.trades.slice(-2000);
+
+    // Rest als offene Order (Maker): Deckung sperren.
+    let resting = null;
+    if (remaining > 0) {
+      if (side === "buy") taker.lockedCash += Math.round(price * remaining);
+      else taker.lockedGibb += remaining;
+      resting = { id: randomBytes(6).toString("hex"), address, side, price, amount: remaining, remaining, filled: 0, createdAt: Date.now() };
+      this.orders.push(resting);
+    }
+    this.save();
+    return { fills, resting, price: this.marketPrice() };
+  }
+
+  cancelOrder(address, orderId) {
+    const order = this.orders.find((o) => o.id === orderId);
+    if (!order) throw new Error("unknown_order");
+    if (order.address !== address) throw new Error("not_your_order");
+    const acc = this.accounts[address];
+    if (order.side === "buy") acc.lockedCash -= Math.round(order.price * order.remaining);
+    else acc.lockedGibb -= order.remaining;
+    this.orders = this.orders.filter((o) => o.id !== orderId);
+    this.save();
+    return { cancelled: order.id };
+  }
+
+  // Aggregiertes Orderbuch (nach Preis zusammengefasst) + Kurskennzahlen.
+  market(address = null) {
+    const agg = (side, dir) => {
+      const map = new Map();
+      for (const o of this.orders.filter((x) => x.side === side)) map.set(o.price, (map.get(o.price) ?? 0) + o.remaining);
+      return [...map.entries()].map(([price, amount]) => ({ price, amount })).sort((a, b) => dir * (a.price - b.price));
+    };
+    const bids = agg("buy", -1);   // höchste Kaufpreise zuerst
+    const asks = agg("sell", 1);   // tiefste Verkaufspreise zuerst
+    const dayAgo = Date.now() - 86_400_000;
+    const recent = this.trades.filter((t) => t.at >= dayAgo);
+    const price = this.marketPrice();
+    const openFor = address ? this.orders.filter((o) => o.address === address).map((o) => ({ ...o })) : [];
+    return {
+      enabled: this.settings.marketEnabled,
+      price,
+      startPrice: this.settings.startPrice,
+      lastTradedPrice: this.lastPrice,
+      bestBid: bids[0]?.price ?? null,
+      bestAsk: asks[0]?.price ?? null,
+      spread: bids[0] && asks[0] ? asks[0].price - bids[0].price : null,
+      volume24h: recent.reduce((sum, t) => sum + t.amount, 0),
+      high24h: recent.length ? Math.max(...recent.map((t) => t.price)) : null,
+      low24h: recent.length ? Math.min(...recent.map((t) => t.price)) : null,
+      change24h: recent.length ? price - recent[0].price : 0,
+      fee: this.settings.tradingFeePercent,
+      minOrder: this.settings.minOrderAmount,
+      bids: bids.slice(0, 20),
+      asks: asks.slice(0, 20),
+      trades: this.trades.slice(-40).reverse(),
+      history: this.trades.slice(-120).map((t) => ({ at: t.at, price: t.price })),
+      myOrders: openFor,
+    };
+  }
+
   updateSettings(patch) {
     const next = { ...this.settings };
-    for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock"]) {
+    for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock", "startingCash", "minOrderAmount"]) {
       if (patch[key] !== undefined) {
         const value = Number(patch[key]);
         if (!Number.isFinite(value)) throw new Error(`invalid_${key}`);
         next[key] = Math.round(value);
       }
     }
+    for (const key of ["startPrice", "tradingFeePercent"]) {
+      if (patch[key] !== undefined) {
+        const value = Number(patch[key]);
+        if (!Number.isFinite(value) || value < 0) throw new Error(`invalid_${key}`);
+        next[key] = value;
+      }
+    }
     if (patch.autoAdjust !== undefined) next.autoAdjust = Boolean(patch.autoAdjust);
+    if (patch.marketEnabled !== undefined) next.marketEnabled = Boolean(patch.marketEnabled);
     next.reward = clamp(next.reward, 0, 10_000);
     next.minBits = clamp(next.minBits, 1, 40);
     next.maxBits = clamp(next.maxBits, next.minBits, 40);
     next.difficultyBits = clamp(next.difficultyBits, next.minBits, next.maxBits);
     next.targetSeconds = clamp(next.targetSeconds, 1, 3600);
     next.maxTxPerBlock = clamp(next.maxTxPerBlock, 1, 1000);
+    next.startPrice = clamp(next.startPrice, 0.0001, 1_000_000);
+    next.startingCash = clamp(next.startingCash, 0, 100_000_000);
+    next.tradingFeePercent = clamp(next.tradingFeePercent, 0, 20);
+    next.minOrderAmount = clamp(next.minOrderAmount, 1, 1_000_000);
     this.settings = next;
     this.save();
     return next;
@@ -259,7 +422,11 @@ export class Blockchain {
     const last = mined.slice(-10);
     const avg = last.length >= 2 ? (last[last.length - 1].timestamp - last[0].timestamp) / (last.length - 1) : null;
     const supply = Object.values(this.accounts).reduce((sum, a) => sum + a.balance, 0);
+    const price = this.marketPrice();
     return {
+      price,
+      marketCapRappen: Math.round(supply * price),
+      volume24h: this.trades.filter((t) => t.at >= Date.now() - 86_400_000).reduce((sum, t) => sum + t.amount, 0),
       height: this.tip().height,
       tipHash: this.tip().hash,
       blocks: this.blocks.length,
