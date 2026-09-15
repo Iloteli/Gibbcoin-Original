@@ -59,7 +59,7 @@ Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherhe
 - `verify_blockchain()` rechnet alle Blöcke serverseitig nach; `get_block_transactions()` zeigt pro Block nur Hashes und Zeitpunkte, keine Beträge oder Beteiligten.
 - Admins steuern Belohnung, Ziel-Blockzeit, Schwierigkeitsgrenzen und Pause im Blockchain-Tab (Admin-PIN nötig, Änderungen landen im Audit-Log). Mining lässt sich dort abschalten.
 
-Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-core.js` und in den SQL-Funktionen `private.block_header`, `private.merkle_root` und `private.leading_zero_bits` identisch umgesetzt; `tests/blockchain.test.mjs` prüft die JavaScript-Seite gegen Node-Crypto. `scripts/simple-blockchain.mjs` ist ein eigenständiges Mini-Beispiel zum Verstehen des Prinzips (`node scripts/simple-blockchain.mjs`).
+Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-core.js` und in den SQL-Funktionen `private.block_header`, `private.merkle_root` und `private.leading_zero_bits` identisch umgesetzt; `tests/blockchain.test.mjs` prüft die JavaScript-Seite gegen Node-Crypto. `scripts/simple-blockchain.py` ist ein eigenständiges Mini-Beispiel zum Verstehen des Prinzips (`python scripts/simple-blockchain.py`).
 
 ### Lokaler Blockchain-Node zum Testen
 
