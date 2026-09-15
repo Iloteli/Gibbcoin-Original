@@ -1,6 +1,6 @@
 # GIBB Coin
 
-Eine sichere Beta der internen GIBB-Schulwährung. GIBB Coins sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur innerhalb der App nutzbar. Die „Blockchain“ ist eine SHA-256-Hash-Kette und keine dezentrale öffentliche Blockchain.
+Eine sichere Beta der internen GIBB-Schulwährung. GIBB Coins sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur innerhalb der App nutzbar. Die „Blockchain“ besteht aus einer SHA-256-Hash-Kette pro Transaktion und darüber liegenden Proof-of-Work-Blöcken innerhalb der App – sie ist keine dezentrale öffentliche Blockchain.
 
 Produktive Website: `https://gibb-coin-schulwallet.pxfyvkgcs6.chatgpt.site/`. Diese ChatGPT Site ist die offizielle öffentliche Web-App; Änderungen werden zusätzlich auf GitHub versioniert.
 
@@ -48,6 +48,18 @@ Benötigt wird Node.js 22 oder neuer. Die GitHub-Prüfung verwendet ausdrücklic
 Die Workflow-Datei `.github/workflows/staging-supabase.yml` ist absichtlich nur manuell startbar und verweigert die produktive Projekt-ID. Im GitHub-Environment `staging` werden drei Secrets benötigt: `SUPABASE_ACCESS_TOKEN`, `SUPABASE_PROJECT_ID` für ein separates Testprojekt und `SUPABASE_DB_PASSWORD`. Erst nach erfolgreichem Test werden Änderungen separat für Produktion freigegeben.
 
 Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherheitsmigration rotiert bestehende Gruppencodes auf 32 Hex-Zeichen, verlangt für privilegierte Adminaktionen eine bestätigte MFA-Sitzung (`aal2`) und entzieht der alten RPC `transfer_gibb` alle Browserrechte.
+
+## Blockchain und Mining
+
+Über der Transaktions-Hash-Kette liegt seit Migration `20260915090000_add_gibb_blockchain.sql` eine echte Blockstruktur:
+
+- `public.blocks` versiegelt unbestätigte Transaktionen zu Blöcken mit Merkle-Root, Vorgänger-Hash, Zeitstempel, Schwierigkeit und Nonce. Der Genesis-Block wird von der Migration selbst erzeugt und enthält alle bis dahin vorhandenen Transaktionen.
+- Blöcke werden im Browser gefunden (Tab **Blockchain**): Ein Web Worker rechnet SHA-256 über den Block-Header, bis der Hash die geforderten führenden Nullbits erreicht. Der Server prüft in `submit_mined_block` Header, Merkle-Root, Zeitstempel und Proof of Work exakt nach und schreibt die Belohnung als `MINING_REWARD` über den bestehenden Ledger-Pfad. Der Browser kann weder Belohnung noch Schwierigkeit beeinflussen.
+- Die Schwierigkeit regelt sich automatisch auf die Ziel-Blockzeit ein (Standard 120 s) und sinkt schrittweise, wenn die Kette stillsteht. Pro Miner gilt nach einem Treffer eine Pause.
+- `verify_blockchain()` rechnet alle Blöcke serverseitig nach; `get_block_transactions()` zeigt pro Block nur Hashes und Zeitpunkte, keine Beträge oder Beteiligten.
+- Admins steuern Belohnung, Ziel-Blockzeit, Schwierigkeitsgrenzen und Pause im Blockchain-Tab (Admin-PIN nötig, Änderungen landen im Audit-Log). Mining lässt sich dort abschalten.
+
+Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-core.js` und in den SQL-Funktionen `private.block_header`, `private.merkle_root` und `private.leading_zero_bits` identisch umgesetzt; `tests/blockchain.test.mjs` prüft die JavaScript-Seite gegen Node-Crypto. `scripts/simple-blockchain.mjs` ist ein eigenständiges Mini-Beispiel zum Verstehen des Prinzips (`node scripts/simple-blockchain.mjs`).
 
 ## Sicherheitsmodell
 

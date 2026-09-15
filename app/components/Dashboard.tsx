@@ -8,6 +8,7 @@ import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
 import { AbuseReports } from "./AbuseReports";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
+import { BlockchainExplorer } from "./BlockchainExplorer";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
 import { NotificationCenter } from "./NotificationCenter";
@@ -21,7 +22,7 @@ import { UserProfileModal } from "./UserProfileModal";
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
-type DashboardView = "home" | "send" | "games" | "community" | "activity" | "account" | "admin";
+type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "account" | "admin";
 type OfflineSnapshot = { profile: Profile; wallet: Wallet; transactions: Transaction[]; savedAt: string; statsResetAt?: string | null };
 
 const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: string; icon: string }> = [
@@ -30,6 +31,7 @@ const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: strin
   { key: "games", label: "Spiele", icon: "◆" },
   { key: "community", label: "Community", icon: "◎" },
   { key: "activity", label: "Aktivität", icon: "≡" },
+  { key: "chain", label: "Blockchain", icon: "⛓" },
   { key: "account", label: "Konto", icon: "●" },
 ];
 
@@ -39,6 +41,7 @@ function viewFromHash(hash: string): DashboardView {
   if (hash === "#games") return "games";
   if (hash === "#community") return "community";
   if (hash === "#activity") return "activity";
+  if (["#chain", "#blockchain", "#mining"].includes(hash)) return "chain";
   if (hash === "#account") return "account";
   if (hash === "#admin") return "admin";
   if (["#send-coins", "#qr-code", "#requests", "#buy-coins"].includes(hash)) return "send";
@@ -89,6 +92,7 @@ function transactionTypeLabel(type: string) {
   if (type === "ADMIN_MINT") return "Admin-Gutschrift";
   if (type === "GAME_ENTRY") return "Spieleinsatz";
   if (type === "GAME_REWARD") return "Spielgewinn";
+  if (type === "MINING_REWARD") return "Mining-Belohnung";
   if (type === "WELCOME") return "Startguthaben";
   return type.replaceAll("_", " ").toLocaleLowerCase("de-CH");
 }
@@ -574,6 +578,11 @@ export function Dashboard({ user }: Props) {
         <div className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
         <div className="view-heading"><span>GEMEINSAM & SICHER</span><h1>Community</h1><p>Gruppen-Wallets verwalten und verdächtige Vorgänge melden.</p></div>
         {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /><GroupWallets onChanged={loadData} /><AbuseReports transactions={transactions} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} /></>}
+        </div>
+
+        <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
+        <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle.</p></div>
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Blockchain ist offline pausiert</strong><p>Blöcke werden nur mit Serververbindung geprüft und belohnt.</p></section> : activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={loadData} />}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">

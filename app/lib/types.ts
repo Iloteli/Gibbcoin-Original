@@ -42,3 +42,21 @@ export type Transaction = {
   type: string;
   note?: string | null;
 };
+
+export type Block = {
+  height: number;
+  previous_hash: string;
+  merkle_root: string;
+  first_chain_index: number | null;
+  last_chain_index: number | null;
+  tx_count: number;
+  mined_at: string;
+  difficulty_bits: number;
+  nonce: number;
+  hash: string;
+  miner_user_id: string | null;
+  miner_label: string;
+  reward: number;
+  reward_transaction_id: string | null;
+  created_at: string;
+};

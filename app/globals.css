@@ -515,7 +515,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .menu { top: 62px; background: rgba(13,20,16,.98); }
 .main { padding: 54px 0 70px; }
 .dashboard-view[hidden] { display: none !important; }
-.dashboard-tabs { position: sticky; top: 90px; z-index: 15; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin: -20px 0 42px; border: 1px solid rgba(255,255,255,.075); border-radius: 18px; padding: 7px; background: rgba(9,14,11,.9); box-shadow: 0 16px 42px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
+.dashboard-tabs { position: sticky; top: 90px; z-index: 15; display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: 6px; margin: -20px 0 42px; border: 1px solid rgba(255,255,255,.075); border-radius: 18px; padding: 7px; background: rgba(9,14,11,.9); box-shadow: 0 16px 42px rgba(0,0,0,.22); backdrop-filter: blur(18px); }
 .dashboard-tabs button { min-width: 0; min-height: 48px; display: flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 12px; color: #93a29a; background: transparent; font-size: 11px; font-weight: 800; }
 .dashboard-tabs button span { color: #65736b; font-size: 15px; }
 .dashboard-tabs button:hover { color: var(--text); background: rgba(255,255,255,.035); }
@@ -740,7 +740,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 @media (max-width: 1000px) {
   .desktop-nav { display: none; }
-  .dashboard-tabs { grid-template-columns: repeat(7, minmax(85px,1fr)); overflow-x: auto; justify-content: start; }
+  .dashboard-tabs { grid-template-columns: repeat(auto-fit, minmax(85px,1fr)); overflow-x: auto; justify-content: start; }
   .home-launchpad { grid-template-columns: 1fr; }
   .overview-grid { grid-template-columns: 1fr 1fr; }
   .premium-balance { grid-column: 1 / -1; }
@@ -767,7 +767,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .container { width: min(100% - 28px, 680px); }
   .header-inner { height: 70px; }
   .main { padding-top: 34px; }
-  .dashboard-tabs { top: 78px; margin: -14px -2px 32px; grid-template-columns: repeat(7, 91px); }
+  .dashboard-tabs { top: 78px; margin: -14px -2px 32px; grid-template-columns: repeat(8, 91px); }
   .dashboard-tabs button { min-height: 44px; }
   .home-shortcuts { grid-template-columns: 1fr 1fr; }
   .hero { grid-template-columns: 1fr; gap: 24px; }
@@ -2091,3 +2091,75 @@ body {
 
 @media (max-width: 900px) { .safety-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.task-grid, .achievement-grid, .shop-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }.transaction-range { grid-template-columns: repeat(2,minmax(0,1fr)); }.admin-section-head { display: grid; }.audit-actions { grid-template-columns: 1fr auto; }.audit-actions input { grid-column: 1/-1; } }
 @media (max-width: 680px) { .offline-banner { top: 64px; align-items: start; flex-wrap: wrap; }.offline-banner span { flex-basis: calc(100% - 110px); }.profile-editor-grid, .reward-feature-grid, .task-grid, .achievement-grid, .shop-grid, .safety-grid, .transaction-range { grid-template-columns: 1fr; }.profile-small-fields { grid-template-columns: 1fr; }.safety-summary span + span { margin-left: 0; }.audit-actions { grid-template-columns: 1fr; }.audit-actions input { grid-column: auto; }.audit-list article { grid-template-columns: 1fr; gap: 3px; } }
+
+/* Blockchain-Explorer und Miner */
+.blockchain { display: grid; gap: 18px; }
+.blockchain-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 26px; align-items: center; }
+.blockchain-hero-copy h2 { margin: 8px 0 10px; font-size: clamp(24px, 3vw, 34px); letter-spacing: -.04em; line-height: 1.05; }
+.blockchain-hero-copy p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.blockchain-stats { margin: 0; }
+.blockchain-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(260px, .8fr); gap: 18px; }
+.blockchain-mining-state { border: 1px solid var(--line); border-radius: 16px; padding: 16px; background: rgba(255,255,255,.014); }
+.blockchain-mining-state.mining { border-color: rgba(117,245,154,.25); background: rgba(117,245,154,.035); }
+.blockchain-mining-state.submitting { border-color: rgba(246,200,95,.3); }
+.blockchain-meter { height: 6px; margin-bottom: 14px; border-radius: 999px; overflow: hidden; background: #1d2622; }
+.blockchain-meter i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, rgba(117,245,154,.55), var(--green)); box-shadow: 0 0 14px rgba(117,245,154,.4); transition: width .4s ease; }
+.blockchain-mining-state.mining .blockchain-meter i { animation: blockchain-glow 1.2s ease-in-out infinite alternate; }
+@keyframes blockchain-glow { to { filter: brightness(1.35); } }
+.blockchain-mining-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.blockchain-mining-grid > div { display: grid; gap: 3px; }
+.blockchain-mining-grid span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 8px; font-weight: 800; }
+.blockchain-mining-grid strong { font-size: 15px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blockchain-template { display: block; margin-top: 12px; color: var(--muted); font-size: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; }
+.blockchain-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 16px; }
+.blockchain-toggle { display: inline-flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+.blockchain-toggle input { accent-color: var(--green); }
+.blockchain-found { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 6px; }
+.blockchain-found li { display: flex; align-items: center; gap: 10px; border: 1px solid rgba(117,245,154,.2); border-radius: 10px; padding: 8px 11px; background: rgba(117,245,154,.05); font-size: 12px; }
+.blockchain-found li span { flex: 1; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+.blockchain-found li b { color: var(--green); }
+.blockchain-miners { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.blockchain-miners li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; font-size: 12px; }
+.blockchain-miners li.you { border-color: rgba(117,245,154,.3); background: rgba(117,245,154,.045); }
+.blockchain-miners .rank { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,.05); color: var(--green); font-weight: 800; font-size: 11px; }
+.blockchain-miners strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blockchain-miners li > span:last-child { color: var(--muted); font-size: 11px; white-space: nowrap; }
+.blockchain-verify { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 18px; }
+.blockchain-blocks { display: grid; gap: 8px; }
+.blockchain-block { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: rgba(255,255,255,.012); }
+.blockchain-block.mine { border-color: rgba(117,245,154,.28); }
+.blockchain-block.open { border-color: rgba(117,245,154,.4); }
+.blockchain-block-head { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; border: 0; padding: 13px 15px; color: var(--text); background: transparent; text-align: left; }
+.blockchain-block-head:hover { background: rgba(255,255,255,.025); }
+.blockchain-block-height { color: var(--green); font-weight: 900; font-size: 15px; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.blockchain-block-main { display: grid; gap: 3px; min-width: 0; }
+.blockchain-block-main strong { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blockchain-block-main small, .blockchain-block-meta small { color: var(--muted); font-size: 10px; }
+.blockchain-block-meta { display: grid; gap: 3px; text-align: right; white-space: nowrap; }
+.blockchain-block-meta strong { color: var(--green); font-size: 12px; }
+.blockchain-block-body { border-top: 1px solid var(--line); padding: 14px 15px 16px; }
+.blockchain-block-body dl { display: grid; gap: 8px; margin: 0 0 14px; }
+.blockchain-block-body dl > div { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; font-size: 11px; }
+.blockchain-block-body dt { color: var(--muted); }
+.blockchain-block-body dd { margin: 0; min-width: 0; }
+.blockchain-block-body code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; word-break: break-all; color: #c5fbd4; }
+.blockchain-block-body h3 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.blockchain-txs { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; max-height: 320px; overflow: auto; }
+.blockchain-txs li { display: grid; grid-template-columns: 70px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 9px; padding: 7px 10px; font-size: 11px; }
+.blockchain-txs li > span { color: var(--muted); font-variant-numeric: tabular-nums; }
+.blockchain-txs li small { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.blockchain-admin-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.blockchain-admin-grid .field { margin: 0; }
+.blockchain-admin-grid .field > span { display: block; margin-bottom: 7px; color: #c8d2cc; font-size: 12px; font-weight: 700; }
+@media (max-width: 960px) {
+  .blockchain-hero, .blockchain-grid { grid-template-columns: minmax(0, 1fr); }
+  .blockchain-admin-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .blockchain-mining-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .blockchain-block-head { grid-template-columns: 48px minmax(0, 1fr); }
+  .blockchain-block-meta { grid-column: 2; text-align: left; }
+  .blockchain-block-body dl > div { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .blockchain-txs li { grid-template-columns: minmax(0, 1fr); gap: 3px; }
+  .blockchain-admin-grid { grid-template-columns: minmax(0, 1fr); }
+}
