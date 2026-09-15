@@ -62,6 +62,10 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
     const { data, error: rpcError } = await supabase.rpc(rpc, args);
     setBusy("");
     if (rpcError) { setError(rewardError(rpcError.message)); return; }
+    if (rpc === "equip_marketplace_item") {
+      const equipped = data as { kind?: string; value?: string } | null;
+      if (equipped?.kind === "title" && equipped.value) setEquippedTitle(equipped.value);
+    }
     const reward = Number(Array.isArray(data) ? (data[0] as { amount?: number })?.amount ?? 0 : (data as { reward?: number } | null)?.reward ?? 0);
     setMessage(reward > 0 ? `Belohnung abgeholt: +${reward} GIBB.` : "Erfolgreich gespeichert.");
     await Promise.all([load(), onChanged()]);
