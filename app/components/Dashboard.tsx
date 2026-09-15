@@ -76,6 +76,7 @@ function safeMessage(message?: string) {
 
 function checkoutMessage(code?: string) {
   if (code === "not_authenticated") return "Bitte melde dich erneut an und starte den Kauf danach nochmals.";
+  if (code === "purchases_disabled") return "Käufe sind momentan nicht verfügbar.";
   if (code === "payment_not_configured") return "Die Zahlungsverbindung ist noch nicht vollständig eingerichtet.";
   if (code === "stripe_authentication_error") return "Der Stripe-Zugang muss neu verbunden werden.";
   if (code === "stripe_invalid_request_error") return "Stripe muss zuerst vollständig aktiviert werden, bevor Zahlungen möglich sind.";
