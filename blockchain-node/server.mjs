@@ -108,6 +108,20 @@ const routes = {
     note("sync", `Konto von der Website angemeldet: ${acc.name} (${acc.address})`);
     return { address: acc.address, name: acc.name, balance: acc.balance, cash: acc.cash };
   },
+  // Von einem Admin der Website: alle Nutzer auf einmal übernehmen.
+  "POST /api/register-many": (_, body) => {
+    const list = Array.isArray(body.users) ? body.users : [];
+    let added = 0;
+    let updated = 0;
+    for (const u of list) {
+      if (!u || !u.supabaseId) continue;
+      const before = Boolean(chain.accounts[`sb_${u.supabaseId}`]);
+      chain.upsertWebsiteAccount(u.supabaseId, u.name, Number(u.balance));
+      if (before) updated += 1; else added += 1;
+    }
+    note("sync", `Alle Website-Nutzer übernommen: ${added} neu, ${updated} aktualisiert (${list.length} gesamt)`);
+    return { ok: true, added, updated, total: list.length };
+  },
   // Miner-Status bezogen auf eine bestimmte Adresse (für den Button auf der Website).
   "GET /api/miner-status": (url) => {
     const address = url.searchParams.get("address");

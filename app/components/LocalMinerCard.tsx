@@ -6,6 +6,7 @@
 // der Node läuft. Der Node muss dafür lokal laufen (pnpm chain).
 
 import { useEffect, useRef, useState } from "react";
+import { getSupabase } from "../lib/supabase";
 
 const DEFAULT_NODE = "http://localhost:8787";
 const NODE_KEY = "gibb-node-url";
@@ -33,8 +34,10 @@ function fmt(value: number) {
   return Math.round(value || 0).toLocaleString("de-CH");
 }
 
-export function LocalMinerCard({ userId, name, balance }: { userId: string; name: string; balance: number }) {
+export function LocalMinerCard({ userId, name, balance, isAdmin }: { userId: string; name: string; balance: number; isAdmin: boolean }) {
   const [node, setNode] = useState(initialNode);
+  const [syncMsg, setSyncMsg] = useState("");
+  const [syncing, setSyncing] = useState(false);
   const [online, setOnline] = useState<boolean | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [status, setStatus] = useState<MinerStatus | null>(null);
@@ -103,6 +106,26 @@ export function LocalMinerCard({ userId, name, balance }: { userId: string; name
     }
   };
 
+  // Admin: alle Website-Nutzer über admin_list_users holen und gesammelt an den Node übergeben.
+  const syncAllUsers = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setSyncing(true); setSyncMsg("");
+    try {
+      const { data, error: rpcError } = await supabase.rpc("admin_list_users", { p_query: "" });
+      if (rpcError) throw new Error(rpcError.message);
+      const users = ((data ?? []) as Array<{ user_id: string; username?: string | null; display_name?: string | null; balance?: number | null }>)
+        .map((u) => ({ supabaseId: u.user_id, name: u.username || u.display_name || "Konto", balance: Number(u.balance ?? 0) }));
+      const res = await call("/api/register-many", { users }) as { added: number; updated: number; total: number };
+      setSyncMsg(`✔ ${res.total} Nutzer auf der Blockchain-Website: ${res.added} neu, ${res.updated} aktualisiert.`);
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "";
+      setSyncMsg(code.includes("mfa") ? "Für diese Aktion ist eine bestätigte MFA-Sitzung nötig." : code.includes("http_") || code.includes("Failed to fetch") ? "Node nicht erreichbar. Läuft er? (pnpm chain)" : "Nutzerliste konnte nicht geladen werden (nur für Admins).");
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const runningForOther = Boolean(status?.running && !status?.forThisAccount);
 
   return (
@@ -138,6 +161,13 @@ export function LocalMinerCard({ userId, name, balance }: { userId: string; name
           {runningForOther && <p className="field-hint">Auf diesem PC mint gerade ein anderes Konto. Stoppe es zuerst auf der Blockchain-Website.</p>}
           {message && !error && <div className="message">{message}</div>}
           {error && <div className="message error">{error}</div>}
+          {isAdmin && (
+            <div className="local-miner-adminsync">
+              <div><strong>Admin: alle Nutzer übernehmen</strong><span>Überträgt alle Konten der Website auf die Blockchain-Website.</span></div>
+              <button className="secondary" type="button" disabled={syncing} onClick={() => void syncAllUsers()}>{syncing ? "Übertrage …" : "Alle Website-Nutzer übernehmen"}</button>
+              {syncMsg && <div className={`message ${syncMsg.startsWith("✔") ? "" : "error"}`}>{syncMsg}</div>}
+            </div>
+          )}
         </>
       )}
     </section>

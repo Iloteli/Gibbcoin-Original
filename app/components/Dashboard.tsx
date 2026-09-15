@@ -325,6 +325,23 @@ export function Dashboard({ user }: Props) {
     return () => window.removeEventListener("hashchange", syncViewWithHash);
   }, []);
 
+  // Meldet das angemeldete Konto beim lokalen Blockchain-Node an, damit jeder
+  // Nutzer der Website automatisch auch auf der Blockchain-Website erscheint.
+  // Bestmöglich und still: läuft der Node nicht, passiert einfach nichts.
+  useEffect(() => {
+    if (!profile) return;
+    let node = "http://localhost:8787";
+    try { node = localStorage.getItem("gibb-node-url") || node; } catch { /* ignore */ }
+    const controller = new AbortController();
+    fetch(`${node}/api/register`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ supabaseId: user.id, name: profile.username || profile.display_name || "Konto", balance: wallet?.balance ?? 0 }),
+      signal: controller.signal,
+    }).catch(() => { /* Node offline: ignorieren */ });
+    return () => controller.abort();
+  }, [profile, user.id, wallet?.balance]);
+
   const openView = useCallback((view: DashboardView, target?: string) => {
     setActiveView(view);
     setMenuOpen(false);
@@ -602,7 +619,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
         <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle.</p></div>
-        {activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />}
+        {activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} />}
         {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Blockchain ist offline pausiert</strong><p>Blöcke werden nur mit Serververbindung geprüft und belohnt.</p></section> : activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={loadData} />}
         </div>
 
