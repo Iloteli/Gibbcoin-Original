@@ -31,3 +31,25 @@ test("shows Dino milestone thresholds in points", async () => {
   const runner = await source("app/components/DinoRunner.tsx");
   assert.match(runner, /\(\(Math\.floor\(score \/ 1000\) \+ 1\) \* 1000\)/);
 });
+
+test("releases reservations for terminal blackjack deals", async () => {
+  const migration = await source(
+    "supabase/migrations/20260915100500_release_terminal_blackjack_reservation.sql",
+  );
+  assert.match(migration, /drop trigger if exists release_terminal_blackjack_loss_reservation/);
+  assert.match(migration, /after insert on public\.blackjack_sessions/);
+  assert.match(migration, /for each row when \(new\.status <> 'active'\)/);
+  assert.match(
+    migration,
+    /execute function private\.release_game_loss_reservation\(\);/,
+  );
+});
+
+test("routes casino games through their authoritative RPC and validates choices", async () => {
+  const gameCenter = await source("GameCenter.tsx");
+  assert.match(gameCenter, /casinoGameKeys: GameKey\[\] = \["slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"\]/);
+  assert.match(gameCenter, /play_casino_game/);
+  assert.match(gameCenter, /picks\.length !== 5/);
+  assert.match(gameCenter, /pick < 1 \|\| pick > 40/);
+  assert.match(gameCenter, /crashTarget < 1\.1 \|\| crashTarget > 10/);
+});
