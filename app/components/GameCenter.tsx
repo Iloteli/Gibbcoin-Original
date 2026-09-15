@@ -464,7 +464,21 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     setBlackjack(result.status === "active" ? result : null);
     if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance } : current);
     if (result.status !== "active") {
-      setLastResult({ ok: true, game_key: "blackjack", wager: result.wager, payout: result.payout, net: result.payout - result.wager, result: { status: result.status }, balance: result.balance });
+      setLastResult({
+        ok: true,
+        game_key: "blackjack",
+        wager: result.wager,
+        payout: result.payout,
+        net: result.payout - result.wager,
+        result: {
+          status: result.status,
+          player_cards: result.player_cards,
+          dealer_cards: result.dealer_cards,
+          player_score: result.player_score,
+          dealer_score: result.dealer_score,
+        },
+        balance: result.balance,
+      });
     }
     await Promise.all([loadState(), onChanged()]);
   }
