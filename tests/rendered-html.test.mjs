@@ -240,11 +240,12 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
 });
 
 test("reserves account bans and Owner deletion for Robyn and Ilja as primary Owners", async () => {
-  const [adminPanel, dashboard, migration, ownerMigration, statusFunction, deletionFunction] = await Promise.all([
+  const [adminPanel, dashboard, migration, ownerMigration, promoteMigration, statusFunction, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260901071439_restrict_account_management_to_primary_owner.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260915120000_add_ilja_as_primary_owner.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260915130000_promote_ilja_to_owner.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/admin-account-status/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/owner-delete-account/index.ts", import.meta.url), "utf8"),
   ]);
@@ -273,6 +274,11 @@ test("reserves account bans and Owner deletion for Robyn and Ilja as primary Own
   assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
   assert.match(adminPanel, /Haupt-Owner aktiv/);
   assert.match(dashboard, /currentUserEmail=\{user\.email\}/);
+  // Ilja wird per Migration selbst Owner (super_admin).
+  assert.match(promoteMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
+  assert.match(promoteMigration, /set role = 'super_admin'/);
+  assert.match(promoteMigration, /v_old_role = 'super_admin' then/);
+  assert.match(promoteMigration, /'ROLE_CHANGED'/);
   assert.match(adminPanel, /Jetzt bannen/);
   assert.match(adminPanel, /function openAccountStatusChange/);
   assert.match(adminPanel, /statusTarget && <div className="modal-backdrop"/);
