@@ -247,6 +247,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const [kenoPicks, setKenoPicks] = useState<number[]>([1, 7, 13, 25, 40]);
   const [crashTarget, setCrashTarget] = useState("2");
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
+  const [blackjackOutcome, setBlackjackOutcome] = useState<BlackjackState | null>(null);
   const [blackjack, setBlackjack] = useState<BlackjackState | null>(null);
   const [poker, setPoker] = useState<PokerState | null>(null);
   const [dino, setDino] = useState<DinoState | null>(null);
@@ -454,6 +455,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     activeRoundRef.current = true;
     setBusy(true); setError(""); setLastResult(null); setAnimationKey((key) => key + 1);
+    setBlackjackOutcome(null);
     const [{ data, error: rpcError }] = await Promise.all([
       supabase.rpc("start_blackjack", { p_wager: wager }),
       holdAnimation(850),
@@ -462,6 +464,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (rpcError) { setError(gameError(rpcError.message)); return; }
     const result = data as BlackjackState & { balance: number };
     setBlackjack(result.status === "active" ? result : null);
+    setBlackjackOutcome(result.status === "active" ? null : result);
     if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance } : current);
     if (result.status !== "active") {
       setLastResult({
@@ -498,9 +501,11 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     const result = data as BlackjackState & { balance?: number };
     if (result.status === "active") {
       setBlackjack(result);
+      setBlackjackOutcome(null);
       return;
     }
     setBlackjack(null);
+    setBlackjackOutcome(result);
     if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance! } : current);
     setLastResult({ ok: true, game_key: "blackjack", wager: result.wager, payout: result.payout, net: result.payout - result.wager, result: { status: result.status, player_score: result.player_score, dealer_score: result.dealer_score, player_cards: result.player_cards, dealer_cards: result.dealer_cards }, balance: result.balance ?? currentBalance });
     await Promise.all([loadState(), onChanged()]);
@@ -771,9 +776,13 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       return <div className="game-stage casino-stage crash-stage" key={`crash-${animationKey}`}><div className={`crash-meter ${busy ? "rising" : ""}`}><strong>{result ? `${Number(result.crash_at).toFixed(1)}×` : busy ? "…" : "1.0×"}</strong><span>CRASH</span></div><div className="game-outcome">{result ? <><strong>{result.cashed_out ? `Ausgezahlt bei ${Number(result.target).toFixed(1)}×` : "Zu spät · 0×"}</strong><span>Crash bei {Number(result.crash_at).toFixed(1)}×</span></> : <span>Ziel wählen und vor dem Crash auszahlen</span>}</div></div>;
     }
     const finished = lastResult?.game_key === "blackjack" ? lastResult.result : null;
-    const playerCards = blackjack?.player_cards ?? (finished?.player_cards as number[] | undefined) ?? [];
-    const dealerCards = blackjack?.dealer_cards ?? (finished?.dealer_cards as number[] | undefined) ?? [];
-    return <div className="game-stage blackjack-stage" key={`blackjack-${animationKey}`}><div><span>Bank {blackjack?.dealer_hidden ? "" : finished?.dealer_score ? `· ${finished.dealer_score}` : ""}</span><PlayingCards cards={dealerCards} hidden={Boolean(blackjack?.dealer_hidden)} /></div><div><span>Du · {blackjack?.player_score ?? finished?.player_score ?? 0}</span><PlayingCards cards={playerCards} /></div>{!blackjack && playerCards.length === 0 && <p>Neue Runde starten und zwei Karten erhalten.</p>}</div>;
+    const outcome = blackjackOutcome ?? finished;
+    const playerCards = blackjack?.player_cards ?? blackjackOutcome?.player_cards ?? (finished?.player_cards as number[] | undefined) ?? [];
+    const dealerCards = blackjack?.dealer_cards ?? blackjackOutcome?.dealer_cards ?? (finished?.dealer_cards as number[] | undefined) ?? [];
+    const dealerHidden = blackjack?.dealer_hidden ?? false;
+    const dealerScore = Number(blackjack?.dealer_score ?? blackjackOutcome?.dealer_score ?? finished?.dealer_score ?? 0);
+    const playerScore = Number(blackjack?.player_score ?? blackjackOutcome?.player_score ?? finished?.player_score ?? 0);
+    return <div className="game-stage blackjack-stage" key={`blackjack-${animationKey}`}><div><span>Bank {dealerHidden ? "" : dealerScore ? `· ${dealerScore}` : ""}</span><PlayingCards cards={dealerCards} hidden={dealerHidden} /></div><div><span>Du · {playerScore}</span><PlayingCards cards={playerCards} /></div>{!blackjack && playerCards.length === 0 && !Boolean(outcome) && <p>Neue Runde starten und zwei Karten erhalten.</p>}</div>;
   }
 
   const activeGame = games.find((game) => game.key === selectedGame)!;
