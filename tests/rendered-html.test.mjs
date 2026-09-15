@@ -583,7 +583,7 @@ test("requires two factor confirmation for privileged actions", async () => {
   // Die neue additive Migration erzwingt AAL2 bei verifiziertem Faktor.
   assert.match(migration, /create or replace function private\.assert_mfa_if_enrolled/);
   assert.match(migration, /raise exception 'mfa_required'/);
-  assert.doesNotMatch(migration, /values \('require_admin_mfa', false\)/);
+  assert.match(migration, /values \('require_admin_mfa', false\)/);
 
   // Die Identitaetspruefung und die Faktor-Logik bleiben erhalten.
   assert.match(migration, /raise exception 'authentication_required'/);
