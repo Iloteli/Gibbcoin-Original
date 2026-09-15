@@ -4,6 +4,7 @@
 //   node blockchain-node/miner.mjs --wallet Gxxxxxxxxxxxx [--server http://localhost:8787] [--threads 4] [--name Lea]
 //
 // Ohne --wallet wird ein neues Wallet auf dem Server angelegt (Name über --name).
+// Mit --json schreibt der Miner eine JSON-Zeile pro Ereignis (für die Website, die ihn startet).
 
 import { createHash } from "node:crypto";
 import { availableParallelism } from "node:os";
@@ -39,6 +40,9 @@ if (isMainThread) {
   const server = (args.server ?? "http://localhost:8787").replace(/\/$/, "");
   const threads = Math.max(1, Number(args.threads ?? availableParallelism()));
   let wallet = args.wallet;
+  const jsonMode = args.json === "true";
+  const emit = (event) => { if (jsonMode) console.log(JSON.stringify(event)); };
+  const out = (text) => { if (!jsonMode) process.stdout.write(text); };
 
   const api = async (path, body) => {
     const res = await fetch(server + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
@@ -47,17 +51,20 @@ if (isMainThread) {
     return data;
   };
 
-  console.log(`GIBB-Miner · Server ${server} · ${threads} Thread(s)`);
+  out(`GIBB-Miner · Server ${server} · ${threads} Thread(s)\n`);
+  emit({ event: "start", server, threads });
   try { await api("/api/stats"); } catch { console.error("Server nicht erreichbar. Läuft der Node? (pnpm chain)"); process.exit(1); }
 
   if (!wallet) {
     const created = await api("/api/wallets", { name: args.name ?? `Miner ${process.env.COMPUTERNAME ?? process.env.HOSTNAME ?? "PC"}` });
     wallet = created.address;
-    console.log(`Neues Wallet angelegt: ${created.name} → ${wallet}  (beim nächsten Start mit --wallet ${wallet} weiterverwenden)`);
+    out(`Neues Wallet angelegt: ${created.name} → ${wallet}  (beim nächsten Start mit --wallet ${wallet} weiterverwenden)\n`);
+    emit({ event: "wallet", address: wallet, name: created.name });
   }
 
   let stop = false;
-  process.on("SIGINT", () => { stop = true; console.log("\nStoppe …"); });
+  process.on("SIGINT", () => { stop = true; out("\nStoppe …\n"); });
+  process.on("SIGTERM", () => { stop = true; });
   let blocksFound = 0;
   let earned = 0;
 
@@ -74,9 +81,10 @@ if (isMainThread) {
       console.error("Server-Vorlage stimmt nicht mit der lokalen Berechnung überein – Abbruch."); process.exit(1);
     }
     const expected = 2 ** template.difficulty_bits;
-    process.stdout.write(`Block #${template.height} · ${template.difficulty_bits} Bit (~${expected.toLocaleString("de-CH")} Versuche) · ${template.tx_count} Tx · Belohnung ${template.reward} GIBB\n`);
+    out(`Block #${template.height} · ${template.difficulty_bits} Bit (~${expected.toLocaleString("de-CH")} Versuche) · ${template.tx_count} Tx · Belohnung ${template.reward} GIBB\n`);
+    emit({ event: "template", height: template.height, difficulty_bits: template.difficulty_bits, tx_count: template.tx_count, reward: template.reward });
 
-    const result = await mineTemplate(prefix, template.difficulty_bits, threads, () => stop, template, api);
+    const result = await mineTemplate(prefix, template.difficulty_bits, threads, () => stop, template, api, { out, emit });
     if (!result) continue; // gestoppt oder Vorlage veraltet
     const { nonce, hash, attempts, ms } = result;
     const hashrate = attempts / Math.max(1, ms) * 1000;
@@ -85,16 +93,19 @@ if (isMainThread) {
     try {
       const block = await api("/api/submit", { template_id: template.id, nonce, hash, attempts, ms, hashrate });
       blocksFound += 1; earned += block.reward;
-      console.log(`  ✔ Block #${block.height} gefunden: ${hash.slice(0, 20)}… · Nonce ${nonce.toLocaleString("de-CH")} · ${attempts.toLocaleString("de-CH")} Versuche in ${(ms / 1000).toFixed(1)} s (${(hashrate / 1000).toFixed(0)} kH/s) · +${block.reward} GIBB  [gesamt ${blocksFound} Blöcke, ${earned} GIBB]`);
+      out(`  ✔ Block #${block.height} gefunden: ${hash.slice(0, 20)}… · Nonce ${nonce.toLocaleString("de-CH")} · ${attempts.toLocaleString("de-CH")} Versuche in ${(ms / 1000).toFixed(1)} s (${(hashrate / 1000).toFixed(0)} kH/s) · +${block.reward} GIBB  [gesamt ${blocksFound} Blöcke, ${earned} GIBB]\n`);
+      emit({ event: "block", height: block.height, hash, attempts, ms, hashrate, reward: block.reward, total_blocks: blocksFound, total_reward: earned });
     } catch (error) {
-      console.log(`  ✖ Block abgelehnt: ${error.message}${error.message === "stale_block" ? " (jemand war schneller)" : ""}`);
+      out(`  ✖ Block abgelehnt: ${error.message}${error.message === "stale_block" ? " (jemand war schneller)" : ""}\n`);
+      emit({ event: "rejected", reason: error.message });
     }
   }
-  console.log(`Fertig: ${blocksFound} Blöcke, ${earned} GIBB verdient.`);
+  out(`Fertig: ${blocksFound} Blöcke, ${earned} GIBB verdient.\n`);
+  emit({ event: "stop", total_blocks: blocksFound, total_reward: earned });
 }
 
 // Startet die Worker, bricht ab, wenn ein neuer Block auftaucht oder die Vorlage alt wird.
-function mineTemplate(prefix, difficultyBits, threads, shouldStop, template, api) {
+function mineTemplate(prefix, difficultyBits, threads, shouldStop, template, api, { out, emit }) {
   return new Promise((resolve) => {
     const startedAt = Date.now();
     let attempts = 0;
@@ -121,11 +132,12 @@ function mineTemplate(prefix, difficultyBits, threads, shouldStop, template, api
       if (shouldStop()) return finish(null);
       const elapsed = (Date.now() - startedAt) / 1000;
       const rate = attempts / Math.max(0.5, elapsed);
-      process.stdout.write(`  ${attempts.toLocaleString("de-CH")} Versuche · ${(rate / 1000).toFixed(0)} kH/s · ${elapsed.toFixed(0)} s · ${Math.min(999, Math.round(attempts / 2 ** difficultyBits * 100))} % des Erwartungswerts\r`);
-      if (elapsed > 540) { process.stdout.write("\n  Vorlage zu alt, hole eine neue.\n"); return finish(null); }
+      out(`  ${attempts.toLocaleString("de-CH")} Versuche · ${(rate / 1000).toFixed(0)} kH/s · ${elapsed.toFixed(0)} s · ${Math.min(999, Math.round(attempts / 2 ** difficultyBits * 100))} % des Erwartungswerts\r`);
+      emit({ event: "progress", attempts, hashrate: rate, elapsed, expected: 2 ** difficultyBits });
+      if (elapsed > 540) { out("\n  Vorlage zu alt, hole eine neue.\n"); return finish(null); }
       try {
         const stats = await api("/api/stats");
-        if (stats.height + 1 !== template.height) { process.stdout.write(`\n  Block #${stats.height} wurde von jemand anderem gefunden – neue Vorlage.\n`); finish(null); }
+        if (stats.height + 1 !== template.height) { out(`\n  Block #${stats.height} wurde von jemand anderem gefunden – neue Vorlage.\n`); finish(null); }
       } catch { /* Server kurz nicht erreichbar: weiterrechnen */ }
     }, 2000);
   });

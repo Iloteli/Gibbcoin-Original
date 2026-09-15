@@ -1,8 +1,11 @@
 // HTTP-Server für den GIBB-Blockchain-Node: REST-API + Verwaltungs-Website.
 // Start:  node blockchain-node/server.mjs   (Port über PORT, Datei über CHAIN_FILE)
 
+import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { availableParallelism } from "node:os";
+import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Blockchain } from "./chain.mjs";
@@ -11,9 +14,55 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
 const chain = new Blockchain(process.env.CHAIN_FILE ?? join(here, "data", "chain.json"));
 
-// Der Server mined nicht: Browser holen Vorlagen und reichen gefundene Nonces ein.
+// Der Server mined nicht selbst: Browser oder der lokale Miner-Prozess holen Vorlagen
+// und reichen gefundene Nonces ein.
 const recentBlocks = [];
 const log = [];
+
+// Lokaler Miner (blockchain-node/miner.mjs) als Kindprozess auf diesem Rechner,
+// gestartet über die Website. Nutzt standardmässig alle Prozessorkerne.
+const localMiner = {
+  process: null, address: null, threads: 0, startedAt: null,
+  attempts: 0, hashrate: 0, expected: 0, elapsed: 0, height: null, difficulty_bits: null,
+  blocks: 0, reward: 0, lastEvent: null, lastError: null,
+};
+function localMinerState() {
+  const { process: child, ...rest } = localMiner;
+  return { ...rest, running: Boolean(child), pid: child?.pid ?? null, cores: availableParallelism() };
+}
+function startLocalMiner(address, threads) {
+  if (localMiner.process) throw new Error("miner_already_running");
+  if (!chain.accounts[address]) throw new Error("unknown_miner");
+  const count = Math.max(1, Math.min(availableParallelism(), Number(threads) || availableParallelism()));
+  const child = spawn(process.execPath, [join(here, "miner.mjs"), "--server", `http://127.0.0.1:${PORT}`, "--wallet", address, "--threads", String(count), "--json"], { stdio: ["ignore", "pipe", "pipe"] });
+  Object.assign(localMiner, { process: child, address, threads: count, startedAt: Date.now(), attempts: 0, hashrate: 0, expected: 0, elapsed: 0, height: null, difficulty_bits: null, blocks: 0, reward: 0, lastEvent: null, lastError: null });
+  createInterface({ input: child.stdout }).on("line", (line) => {
+    let event;
+    try { event = JSON.parse(line); } catch { return; }
+    localMiner.lastEvent = event.event;
+    if (event.event === "progress") Object.assign(localMiner, { attempts: event.attempts, hashrate: event.hashrate, expected: event.expected, elapsed: event.elapsed });
+    if (event.event === "template") Object.assign(localMiner, { height: event.height, difficulty_bits: event.difficulty_bits, attempts: 0, elapsed: 0 });
+    if (event.event === "block") { localMiner.blocks = event.total_blocks; localMiner.reward = event.total_reward; }
+    if (event.event === "rejected" && event.reason !== "stale_block") localMiner.lastError = event.reason;
+  });
+  createInterface({ input: child.stderr }).on("line", (line) => { localMiner.lastError = line; note("error", `Miner: ${line}`); });
+  child.on("exit", (code) => {
+    if (localMiner.process === child) localMiner.process = null;
+    note("miner", `Lokaler Miner beendet (Code ${code ?? "?"}) – ${localMiner.blocks} Blöcke, ${localMiner.reward} GIBB`);
+  });
+  note("miner", `Lokaler Miner gestartet für ${chain.accounts[address].name} mit ${count} Thread(s) (PID ${child.pid})`);
+  return localMinerState();
+}
+function stopLocalMiner() {
+  const child = localMiner.process;
+  if (!child) return localMinerState();
+  child.kill("SIGTERM");
+  setTimeout(() => { if (!child.killed || child.exitCode === null) child.kill("SIGKILL"); }, 4000).unref();
+  localMiner.process = null;
+  return localMinerState();
+}
+process.on("exit", () => { localMiner.process?.kill("SIGKILL"); });
+for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { localMiner.process?.kill("SIGKILL"); process.exit(0); });
 function note(kind, message) {
   log.unshift({ at: Date.now(), kind, message });
   log.length = Math.min(log.length, 60);
@@ -21,7 +70,9 @@ function note(kind, message) {
 
 // ---------- API ----------
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState() }),
+  // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
+  "POST /api/local-miner": (_, body) => (body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner()),
   "GET /api/blocks": (url) => {
     const limit = Math.min(200, Number(url.searchParams.get("limit") ?? 30));
     const before = url.searchParams.get("before");
@@ -63,7 +114,7 @@ const routes = {
   },
   "POST /api/settings": (_, body) => { const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
   "POST /api/tamper": (_, body) => { const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
-  "POST /api/reset": () => { chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
+  "POST /api/reset": () => { stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
 
 function summarize(block) {

@@ -69,19 +69,30 @@
 
   <div class="grid">
     <section class="card">
-      <h2>Miner <span id="minerState">bereit</span></h2>
-      <p class="muted" style="margin:0 0 6px">Das Mining läuft <b>auf deinem Rechner</b> (Web Worker, ein Prozessorkern). Der Server rechnet nichts – er prüft nur den eingereichten Block. Schliesst du diese Seite, stoppt dein Miner.</p>
+      <h2>Miner auf diesem PC <span id="localState">bereit</span></h2>
+      <p class="muted" style="margin:0 0 6px">„Mining starten" startet auf dem Rechner, auf dem dieser Node läuft, das Programm <code>miner.mjs</code> mit <b>allen Prozessorkernen</b> und mint so viele Blöcke wie möglich, bis du stoppst. Der Server prüft jeden Block nach.</p>
       <label>Miner-Wallet (bekommt die Belohnung)</label>
       <select id="minerAddress"></select>
-      <div class="meter" id="meter"><i></i></div>
-      <div class="stats" id="minerStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
-      <div class="muted" id="minerInfo" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all">–</div>
-      <div class="actions">
-        <button class="primary" id="mineToggle">Mining starten</button>
-        <label class="check" style="margin:0"><input type="checkbox" id="continuous" checked /> nach einem Treffer weiter minen</label>
+      <div class="row">
+        <div><label>Threads (Kerne)</label><input id="threads" type="number" min="1" /></div>
+        <div><label>&nbsp;</label><button class="primary" id="localToggle" style="width:100%">Mining starten</button></div>
       </div>
-      <div class="msg" id="mineMsg"></div>
-      <div class="list" id="found"></div>
+      <div class="meter" id="localMeter"><i></i></div>
+      <div class="stats" id="localStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
+      <div class="msg" id="localMsg"></div>
+
+      <details style="margin-top:14px">
+        <summary class="muted" style="cursor:pointer">Alternativ: im Browser minen (ein Kern, auch ohne Node.js) <span id="minerState"></span></summary>
+        <div class="meter" id="meter"><i></i></div>
+        <div class="stats" id="minerStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
+        <div class="muted" id="minerInfo" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all">–</div>
+        <div class="actions">
+          <button id="mineToggle">Browser-Mining starten</button>
+          <label class="check" style="margin:0"><input type="checkbox" id="continuous" checked /> nach einem Treffer weiter minen</label>
+        </div>
+        <div class="msg" id="mineMsg"></div>
+        <div class="list" id="found"></div>
+      </details>
       <h2 style="margin-top:18px">Zuletzt gefunden <span>alle Miner</span></h2>
       <div class="list" id="recent"></div>
     </section>
@@ -161,7 +172,7 @@ const api = async (path, body) => {
 const errors = {
   insufficient_funds: "Nicht genug Guthaben (Mempool-Ausgaben eingerechnet).", unknown_sender: "Absender unbekannt.", unknown_recipient: "Empfänger unbekannt.",
   same_account: "Absender und Empfänger sind gleich.", invalid_amount: "Betrag muss eine positive ganze Zahl sein.", miner_busy: "Es wird gerade gemint.",
-  unknown_miner: "Bitte zuerst ein Wallet anlegen und als Miner wählen.", unknown_block: "Block nicht gefunden.", block_has_no_transactions: "Der Block hat keine Transaktionen.",
+  unknown_miner: "Bitte zuerst ein Wallet anlegen und als Miner wählen.", miner_already_running: "Der PC-Miner läuft bereits.", unknown_block: "Block nicht gefunden.", block_has_no_transactions: "Der Block hat keine Transaktionen.",
   stale_block: "Jemand war schneller – neue Vorlage wird geladen.", unknown_template: "Vorlage abgelaufen – neue Vorlage wird geladen.", difficulty_too_low: "Schwierigkeit ist gestiegen – neue Vorlage.",
   insufficient_work: "Proof of Work reicht nicht – neue Vorlage.", hash_mismatch: "Hash stimmt nicht mit dem Server überein.",
 };
@@ -184,7 +195,7 @@ async function refresh() {
   try {
     const [s, acc, blocks, mempool] = await Promise.all([api("/api/stats"), api("/api/accounts"), api("/api/blocks?limit=40"), api("/api/mempool")]);
     stats = s; accounts = acc;
-    renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLog(s.log);
+    renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     if (!settingsDirty) renderSettings(s.settings);
     fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
     // Neuer Block von jemand anderem? Dann ist unsere Vorlage veraltet.
@@ -301,6 +312,27 @@ function renderMiner() {
   $("mineToggle").className = miner.want ? "" : "primary";
   $("found").innerHTML = miner.found.map((f) => `<div class="tx coinbase"><div>Block #${f.height}<br><code>${short(f.hash, 20)}</code></div><small class="muted">${fmt(f.attempts)} Versuche<br>${(f.ms / 1000).toFixed(1)} s</small></div>`).join("");
 }
+let threadsTouched = false;
+function renderLocal(m) {
+  if (!m) return;
+  if (!threadsTouched && !$("threads").value) $("threads").value = m.cores;
+  $("threads").max = m.cores;
+  $("localState").textContent = m.running ? `läuft · ${m.threads} Threads · PID ${m.pid}` : `bereit · ${m.cores} Kerne verfügbar`;
+  $("localMeter").className = "meter" + (m.running ? " active" : "");
+  $("localMeter").querySelector("i").style.width = (m.running && m.expected ? Math.min(100, Math.round(m.attempts / m.expected * 100)) : 0) + "%";
+  $("localStats").innerHTML = [
+    ["Hashrate", m.running && m.hashrate ? (m.hashrate / 1000).toFixed(0) + " kH/s" : "–"],
+    ["Versuche", m.running ? fmt(Math.round(m.attempts)) : "–"],
+    ["Erwartet", m.running && m.expected ? "~" + fmt(m.expected) : "–"],
+    ["Ø Dauer", m.running && m.hashrate ? (m.expected / m.hashrate).toFixed(0) + " s" : "–"],
+    ["Block", m.running && m.height ? "#" + m.height + " · " + m.difficulty_bits + " Bit" : "–"],
+    ["Gefunden", m.running || m.blocks ? `${m.blocks} (${m.reward} GIBB)` : "–"],
+  ].map(([k, v]) => `<div><span>${k}</span><strong style="font-size:14px">${v}</strong></div>`).join("");
+  $("localToggle").textContent = m.running ? "Mining stoppen" : "Mining starten";
+  $("localToggle").className = m.running ? "" : "primary";
+  $("minerAddress").disabled = m.running; $("threads").disabled = m.running;
+  if (m.lastError && m.running) say("localMsg", "Miner meldet: " + (errors[m.lastError] || m.lastError), true);
+}
 function renderRecent(list) {
   $("recent").innerHTML = (list || []).map((b) => `<div class="tx"><div>#${b.height} von <b>${b.miner_label}</b><br><code>${short(b.hash, 16)}</code></div><small class="muted">${b.attempts ? fmt(b.attempts) + " Versuche" : ""}${b.hashrate ? " · " + (b.hashrate / 1000).toFixed(0) + " kH/s" : ""}<br>${new Date(b.at).toLocaleTimeString("de-CH")}</small></div>`).join("") || `<div class="muted">Noch kein Block gemint.</div>`;
 }
@@ -315,6 +347,19 @@ $("blocks").addEventListener("click", (e) => { const item = e.target.closest(".i
 $("createWallet").onclick = async () => { try { const w = await api("/api/wallets", { name: $("walletName").value }); $("walletName").value = ""; say("walletMsg", `Wallet ${w.name} angelegt: ${w.address}`); await refresh(); } catch (e) { fail("walletMsg", e); } };
 $("sendTx").onclick = async () => { try { const tx = await api("/api/transactions", { from: $("txFrom").value, to: $("txTo").value, amount: Number($("txAmount").value), note: $("txNote").value }); say("txMsg", `Im Mempool: ${short(tx.hash, 16)} – wird mit dem nächsten Block bestätigt.`); $("txNote").value = ""; await refresh(); } catch (e) { fail("txMsg", e); } };
 $("mineToggle").onclick = () => { if (miner.want) stopMining("Mining gestoppt."); else startMining(); };
+$("threads").addEventListener("input", () => { threadsTouched = true; });
+$("localToggle").onclick = async () => {
+  try {
+    const running = stats?.localMiner?.running;
+    if (running) { await api("/api/local-miner", { enabled: false }); say("localMsg", "PC-Miner gestoppt."); }
+    else {
+      if (!$("minerAddress").value) { say("localMsg", errors.unknown_miner, true); return; }
+      const r = await api("/api/local-miner", { enabled: true, address: $("minerAddress").value, threads: Number($("threads").value) });
+      say("localMsg", `PC-Miner gestartet mit ${r.threads} Threads – er mint jetzt so viele Blöcke wie möglich.`);
+    }
+  } catch (e) { fail("localMsg", e); }
+  await refresh();
+};
 $("minerAddress").addEventListener("change", () => { if (miner.want) restartRound("Miner-Wallet gewechselt – neue Vorlage."); });
 window.addEventListener("beforeunload", () => stopWorker());
 $("verify").onclick = async () => { try { const r = await api("/api/verify"); say("verifyMsg", r.valid ? `✔ Kette gültig – ${r.blocks} Blöcke und alle Kontostände stimmen.` : `✖ Ungültig ab Block #${r.height}: ${r.reason}`, !r.valid); $("chainStatus").className = "status" + (r.valid ? "" : " bad"); $("chainStatus").querySelector("span").textContent = r.valid ? "Kette verifiziert" : "Kette beschädigt"; } catch (e) { fail("verifyMsg", e); } };
