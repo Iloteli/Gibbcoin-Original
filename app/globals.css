@@ -2165,3 +2165,16 @@ body {
   .blockchain-txs li { grid-template-columns: minmax(0, 1fr); gap: 3px; }
   .blockchain-admin-grid { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* Lokaler Miner (Karte auf der echten Website) */
+.local-miner-intro { margin: 0 0 14px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.local-miner-intro code, .local-miner-offline code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--green); font-size: 11px; }
+.local-miner-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.local-miner-stats > div { display: grid; gap: 3px; border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; background: rgba(255,255,255,.014); }
+.local-miner-stats span { color: var(--muted); text-transform: uppercase; letter-spacing: .07em; font-size: 8px; font-weight: 800; }
+.local-miner-stats strong { font-size: 15px; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.local-miner-actions { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.local-miner-threads { margin: 0; width: 110px; }
+.local-miner-actions button { min-width: 190px; }
+.local-miner-offline p { color: var(--muted); font-size: 12px; line-height: 1.6; margin: 0 0 12px; }
+@media (max-width: 640px) { .local-miner-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .local-miner-actions button { min-width: 0; flex: 1; } }

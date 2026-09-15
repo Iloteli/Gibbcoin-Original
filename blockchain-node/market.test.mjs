@@ -79,3 +79,16 @@ test("erhält die Gesamtmengen an GIBB und Guthaben über viele Trades", () => {
   assert.equal(c.accounts[a].balance + c.accounts[b].balance, g0);
   assert.equal(c.accounts[a].cash + c.accounts[b].cash, k0);
 });
+
+test("upsertWebsiteAccount legt Website-Konten an und aktualisiert Guthaben", () => {
+  const c = new Blockchain(null);
+  const a = c.upsertWebsiteAccount("abc-123", "Ilja", 250);
+  assert.equal(a.address, "sb_abc-123");
+  assert.equal(c.accounts["sb_abc-123"].balance, 250);
+  assert.equal(c.accounts["sb_abc-123"].cash, c.settings.startingCash);
+  assert.equal(c.accounts["sb_abc-123"].source, "supabase");
+  c.upsertWebsiteAccount("abc-123", "Ilja P.", 999);
+  assert.equal(c.accounts["sb_abc-123"].name, "Ilja P.");
+  assert.equal(c.accounts["sb_abc-123"].balance, 999);
+  assert.throws(() => c.upsertWebsiteAccount("", "X", 1), /invalid_supabase_id/);
+});

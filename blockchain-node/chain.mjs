@@ -190,6 +190,29 @@ export class Blockchain {
     return { address, ...this.accounts[address] };
   }
 
+  // Konto der echten Website (Supabase-Nutzer) anlegen oder aktualisieren.
+  // Adresse = sb_<supabaseId>, damit es mit der Massen-Synchronisierung zusammenpasst.
+  upsertWebsiteAccount(supabaseId, name, balance) {
+    if (!supabaseId || typeof supabaseId !== "string") throw new Error("invalid_supabase_id");
+    const address = `sb_${supabaseId}`;
+    const cleanName = String(name ?? "").trim().slice(0, 40) || "Nutzer";
+    const existing = this.accounts[address];
+    if (!existing) {
+      this.accounts[address] = {
+        name: cleanName, balance: Number.isFinite(balance) ? Math.max(0, Math.round(balance)) : 0,
+        cash: this.settings.startingCash, lockedGibb: 0, lockedCash: 0,
+        createdAt: Date.now(), source: "supabase", supabaseId,
+      };
+    } else {
+      existing.name = cleanName;
+      if (Number.isFinite(balance)) existing.balance = Math.max(0, Math.round(balance));
+      existing.source = "supabase";
+      existing.supabaseId = supabaseId;
+    }
+    this.save();
+    return { address, ...this.accounts[address] };
+  }
+
   buildTransaction(from, to, amount, note = "", timestamp = Math.floor(Date.now() / 1000)) {
     const tx = { id: randomBytes(8).toString("hex"), from, to, amount, note: String(note ?? "").slice(0, 120), timestamp };
     tx.hash = transactionHash(tx);

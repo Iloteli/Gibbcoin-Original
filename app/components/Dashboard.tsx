@@ -9,6 +9,7 @@ import { AbuseReports } from "./AbuseReports";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainExplorer } from "./BlockchainExplorer";
+import { LocalMinerCard } from "./LocalMinerCard";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
 import { NotificationCenter } from "./NotificationCenter";
@@ -601,6 +602,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
         <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle.</p></div>
+        {activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />}
         {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Blockchain ist offline pausiert</strong><p>Blöcke werden nur mit Serververbindung geprüft und belohnt.</p></section> : activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={loadData} />}
         </div>
 

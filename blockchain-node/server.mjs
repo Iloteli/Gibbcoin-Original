@@ -102,6 +102,19 @@ const routes = {
   },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
   "POST /api/local-miner": (_, body) => (body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner()),
+  // Von der echten Website: aktuelles Konto anmelden, damit es hier erscheint.
+  "POST /api/register": (_, body) => {
+    const acc = chain.upsertWebsiteAccount(body.supabaseId, body.name, Number(body.balance));
+    note("sync", `Konto von der Website angemeldet: ${acc.name} (${acc.address})`);
+    return { address: acc.address, name: acc.name, balance: acc.balance, cash: acc.cash };
+  },
+  // Miner-Status bezogen auf eine bestimmte Adresse (für den Button auf der Website).
+  "GET /api/miner-status": (url) => {
+    const address = url.searchParams.get("address");
+    const m = localMinerState();
+    const acc = address ? chain.accounts[address] : null;
+    return { ...m, forThisAccount: m.running && m.address === address, account: acc ? { address, name: acc.name, balance: acc.balance, cash: acc.cash } : null, cores: m.cores, price: chain.marketPrice() };
+  },
   "GET /api/blocks": (url) => {
     const limit = Math.min(200, Number(url.searchParams.get("limit") ?? 30));
     const before = url.searchParams.get("before");
@@ -162,6 +175,11 @@ const staticTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascri
 const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
   const key = `${req.method} ${url.pathname}`;
+  // Die echte Website (anderer Port) darf den lokalen Node aufrufen.
+  res.setHeader("access-control-allow-origin", "*");
+  res.setHeader("access-control-allow-headers", "content-type");
+  res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
   try {
     if (routes[key]) {
       let body = {};
