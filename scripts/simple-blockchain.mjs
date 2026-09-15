@@ -1,13 +1,8 @@
-// Ganz einfache Blockchain zum Ausprobieren.
-// Starten mit:  node scripts/simple-blockchain.mjs
-//
-// Das hier hat nichts mit der Datenbank zu tun, es ist nur zum Verstehen,
-// wie Blöcke, Hashes und Proof of Work grundsätzlich funktionieren.
+
 
 import { createHash } from "node:crypto";
 
-const SCHWIERIGKEIT = 3; // so viele Nullen muss der Hash am Anfang haben
-
+const SCHWIERIGKEIT = 3;
 function sha256(text) {
   return createHash("sha256").update(text).digest("hex");
 }
@@ -26,7 +21,7 @@ class Block {
     return sha256(this.index + this.zeit + JSON.stringify(this.daten) + this.vorherigerHash + this.nonce);
   }
 
-  // probiert einfach so lange nonces durch bis der hash passt
+  
   mine() {
     const ziel = "0".repeat(SCHWIERIGKEIT);
     while (!this.hash.startsWith(ziel)) {
@@ -76,7 +71,6 @@ class Blockchain {
   }
 }
 
-// --- kleiner Testlauf ---
 
 const gibb = new Blockchain();
 
