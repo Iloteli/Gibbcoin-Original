@@ -70,16 +70,20 @@
   <div class="grid">
     <section class="card">
       <h2>Miner <span id="minerState">bereit</span></h2>
-      <label>Miner-Wallet</label>
+      <p class="muted" style="margin:0 0 6px">Das Mining läuft <b>auf deinem Rechner</b> (Web Worker, ein Prozessorkern). Der Server rechnet nichts – er prüft nur den eingereichten Block. Schliesst du diese Seite, stoppt dein Miner.</p>
+      <label>Miner-Wallet (bekommt die Belohnung)</label>
       <select id="minerAddress"></select>
       <div class="meter" id="meter"><i></i></div>
-      <div class="muted" id="minerInfo">–</div>
+      <div class="stats" id="minerStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
+      <div class="muted" id="minerInfo" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all">–</div>
       <div class="actions">
-        <button class="primary" id="mineOnce">Einen Block minen</button>
-        <button id="autoToggle">Dauer-Mining starten</button>
+        <button class="primary" id="mineToggle">Mining starten</button>
+        <label class="check" style="margin:0"><input type="checkbox" id="continuous" checked /> nach einem Treffer weiter minen</label>
       </div>
       <div class="msg" id="mineMsg"></div>
       <div class="list" id="found"></div>
+      <h2 style="margin-top:18px">Zuletzt gefunden <span>alle Miner</span></h2>
+      <div class="list" id="recent"></div>
     </section>
 
     <section class="card">
@@ -145,7 +149,8 @@
   <footer>Lokale Testumgebung der GIBB-Blockchain. Keine echte Kryptowährung, kein öffentliches Netzwerk – Konten, Mempool und Blöcke liegen in <code>blockchain-node/data/chain.json</code>.</footer>
 </main>
 
-<script>
+<script type="module">
+import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "/blockchain-core.js";
 const $ = (id) => document.getElementById(id);
 const api = async (path, body) => {
   const res = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
@@ -157,7 +162,10 @@ const errors = {
   insufficient_funds: "Nicht genug Guthaben (Mempool-Ausgaben eingerechnet).", unknown_sender: "Absender unbekannt.", unknown_recipient: "Empfänger unbekannt.",
   same_account: "Absender und Empfänger sind gleich.", invalid_amount: "Betrag muss eine positive ganze Zahl sein.", miner_busy: "Es wird gerade gemint.",
   unknown_miner: "Bitte zuerst ein Wallet anlegen und als Miner wählen.", unknown_block: "Block nicht gefunden.", block_has_no_transactions: "Der Block hat keine Transaktionen.",
+  stale_block: "Jemand war schneller – neue Vorlage wird geladen.", unknown_template: "Vorlage abgelaufen – neue Vorlage wird geladen.", difficulty_too_low: "Schwierigkeit ist gestiegen – neue Vorlage.",
+  insufficient_work: "Proof of Work reicht nicht – neue Vorlage.", hash_mismatch: "Hash stimmt nicht mit dem Server überein.",
 };
+const retryable = new Set(["stale_block", "unknown_template", "difficulty_too_low", "insufficient_work"]);
 const say = (id, text, err) => { const el = $(id); el.textContent = text; el.className = "msg" + (err ? " err" : ""); };
 const fail = (id, e) => say(id, errors[e.message] || e.message, true);
 const short = (h, n = 12) => h ? h.slice(0, n) + "…" + h.slice(-4) : "–";
@@ -176,9 +184,11 @@ async function refresh() {
   try {
     const [s, acc, blocks, mempool] = await Promise.all([api("/api/stats"), api("/api/accounts"), api("/api/blocks?limit=40"), api("/api/mempool")]);
     stats = s; accounts = acc;
-    renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderMiner(s.miner); renderLog(s.log);
+    renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLog(s.log);
     if (!settingsDirty) renderSettings(s.settings);
-    fillSelect($("minerAddress"), s.miner.address || undefined); fillSelect($("txFrom")); fillSelect($("txTo"));
+    fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
+    // Neuer Block von jemand anderem? Dann ist unsere Vorlage veraltet.
+    if (miner.template && s.height + 1 !== miner.template.height) restartRound("Neuer Block in der Kette – Vorlage erneuert.");
   } catch (e) { $("chainStatus").className = "status bad"; $("chainStatus").querySelector("span").textContent = "Server nicht erreichbar"; }
 }
 
@@ -216,17 +226,83 @@ async function loadDetail(h) {
     <div><small class="muted">Header</small><br><code>${b.height}|${short(b.previous_hash)}|${short(b.merkle_root)}|${b.timestamp}|${b.difficulty_bits}|${b.miner_user_id ?? ""}|${b.nonce}</code></div>
     ${b.transactions.map((tx) => `<div class="tx ${tx.from === "COINBASE" ? "coinbase" : ""}"><div>${name(tx.from)} → ${name(tx.to)} <small class="muted">${tx.note || ""}</small><br><code>${tx.hash}</code></div><b>${fmt(tx.amount)} GIBB</b></div>`).join("") || `<div class="muted">Keine Transaktionen.</div>`}`;
 }
-function renderMiner(m) {
-  const active = m.running;
-  $("minerState").textContent = active ? "sucht Nonce …" : m.auto ? "Dauerbetrieb, wartet" : "bereit";
+// ---------- Browser-Miner ----------
+const miner = { worker: null, workerUrl: null, template: null, running: false, want: false, nonce: 0, hashes: 0, startedAt: 0, refreshTimer: null, found: [] };
+
+async function startMining() {
+  if (!$("minerAddress").value) { say("mineMsg", errors.unknown_miner, true); return; }
+  miner.want = true; miner.found = []; say("mineMsg", "");
+  await startRound();
+}
+function stopMining(text) {
+  miner.want = false; stopWorker(); miner.template = null; miner.running = false;
+  if (text) say("mineMsg", text); renderMiner();
+}
+function stopWorker() {
+  if (miner.worker) { miner.worker.postMessage({ type: "stop" }); miner.worker.terminate(); miner.worker = null; }
+  if (miner.workerUrl) { URL.revokeObjectURL(miner.workerUrl); miner.workerUrl = null; }
+  if (miner.refreshTimer) { clearTimeout(miner.refreshTimer); miner.refreshTimer = null; }
+}
+function restartRound(text) { if (!miner.want) return; if (text) say("mineMsg", text); startRound(); }
+
+async function startRound() {
+  if (!miner.want) return;
+  stopWorker();
+  let t;
+  try { t = await api("/api/template", { address: $("minerAddress").value }); }
+  catch (e) { stopMining(errors[e.message] || e.message); $("mineMsg").className = "msg err"; return; }
+  if (!miner.want) return;
+  // Lokale Gegenprüfung: Merkle-Root und Header müssen exakt gleich herauskommen wie auf dem Server.
+  const prefix = `${t.height}|${t.previous_hash}|${t.merkle_root}|${t.timestamp}|${t.difficulty_bits}|${t.miner_user_id}|`;
+  if (merkleRoot(t.tx_hashes) !== t.merkle_root || prefix !== t.header_prefix) { stopMining("Lokale Berechnung weicht vom Server ab."); $("mineMsg").className = "msg err"; return; }
+  miner.template = t; miner.nonce = 0; miner.hashes = 0; miner.startedAt = Date.now(); miner.running = true;
+  miner.workerUrl = URL.createObjectURL(new Blob([minerWorkerSource()], { type: "text/javascript" }));
+  const worker = new Worker(miner.workerUrl);
+  miner.worker = worker;
+  worker.onmessage = async (event) => {
+    const m = event.data;
+    if (miner.template !== t) return;
+    if (m.type === "progress") { miner.nonce = m.nonce; miner.hashes += m.hashes; renderMiner(); return; }
+    if (m.type === "found") {
+      stopWorker();
+      const header = { height: t.height, previous_hash: t.previous_hash, merkle_root: t.merkle_root, timestamp: t.timestamp, difficulty_bits: t.difficulty_bits, miner_user_id: t.miner_user_id, nonce: m.nonce };
+      if (blockHash(header) !== m.hash || !meetsDifficulty(m.hash, t.difficulty_bits)) { stopMining("Gefundener Block besteht die lokale Prüfung nicht."); return; }
+      const ms = Date.now() - miner.startedAt;
+      try {
+        const block = await api("/api/submit", { template_id: t.id, nonce: m.nonce, hash: m.hash, attempts: m.nonce + 1, ms, hashrate: (m.nonce + 1) / Math.max(1, ms) * 1000 });
+        miner.found.unshift({ height: block.height, hash: block.hash, attempts: m.nonce + 1, ms });
+        say("mineMsg", `✔ Block #${block.height} gefunden nach ${fmt(m.nonce + 1)} Versuchen (${(ms / 1000).toFixed(1)} s) – +${block.reward} GIBB.`);
+        await refresh();
+        if ($("continuous").checked) startRound(); else stopMining();
+      } catch (e) {
+        if (retryable.has(e.message)) { say("mineMsg", errors[e.message]); setTimeout(startRound, 600); }
+        else { stopMining(errors[e.message] || e.message); $("mineMsg").className = "msg err"; }
+      }
+    }
+  };
+  worker.onerror = () => stopMining("Der Mining-Worker ist abgestürzt.");
+  worker.postMessage({ type: "start", prefix, difficultyBits: t.difficulty_bits, startNonce: 0 });
+  // Vorlage alle 45 s erneuern (frischer Zeitstempel, neue Mempool-Transaktionen).
+  miner.refreshTimer = setTimeout(() => { if (miner.template === t) restartRound(); }, 45000);
+  renderMiner();
+}
+
+function renderMiner() {
+  const t = miner.template, active = miner.running;
+  $("minerState").textContent = active ? "sucht Nonce auf deinem PC …" : "bereit";
   $("meter").className = "meter" + (active ? " active" : "");
-  const expected = stats ? 2 ** stats.difficultyBits : 0;
-  const pct = active && m.progress ? Math.min(100, Math.round((m.progress.nonce / expected) * 100)) : 0;
-  $("meter").querySelector("i").style.width = pct + "%";
-  $("minerInfo").textContent = active && m.progress ? `${fmt(m.progress.nonce)} Versuche · ${(m.progress.nonce / Math.max(1, m.progress.elapsed) * 1000 / 1000).toFixed(0)} kH/s · erwartet ~${fmt(expected)}` : m.lastError ? "Letzter Fehler: " + (errors[m.lastError] || m.lastError) : `Erwartet ~${fmt(expected)} Versuche bei ${stats?.difficultyBits ?? "–"} Bit`;
-  $("autoToggle").textContent = m.auto ? "Dauer-Mining stoppen" : "Dauer-Mining starten";
-  $("mineOnce").disabled = active || m.auto;
-  $("found").innerHTML = m.found.map((f) => `<div class="tx coinbase"><div>Block #${f.height}<br><code>${short(f.hash, 20)}</code></div><small class="muted">${fmt(f.attempts)} Versuche<br>${f.ms} ms</small></div>`).join("");
+  const expected = t ? 2 ** t.difficulty_bits : stats ? 2 ** stats.difficultyBits : 0;
+  const elapsed = (Date.now() - miner.startedAt) / 1000;
+  const rate = active && elapsed > 0.5 ? miner.hashes / elapsed : 0;
+  $("meter").querySelector("i").style.width = (expected ? Math.min(100, Math.round(miner.hashes / expected * 100)) : 0) + "%";
+  $("minerStats").innerHTML = [["Hashrate", rate ? (rate / 1000).toFixed(0) + " kH/s" : "–"], ["Versuche", fmt(miner.hashes)], ["Erwartet", expected ? "~" + fmt(expected) : "–"], ["Ø Dauer", rate ? (expected / rate).toFixed(0) + " s" : "–"], ["Block", t ? "#" + t.height + " · " + t.tx_count + " Tx" : "–"], ["Schwierigkeit", (t ? t.difficulty_bits : stats?.difficultyBits ?? "–") + " Bit"]].map(([k, v]) => `<div><span>${k}</span><strong style="font-size:14px">${v}</strong></div>`).join("");
+  $("minerInfo").textContent = t ? `Vorgänger ${short(t.previous_hash)} · Merkle ${short(t.merkle_root)} · Belohnung ${t.reward} GIBB` : "Starte das Mining, um eine Blockvorlage zu holen.";
+  $("mineToggle").textContent = miner.want ? "Mining stoppen" : "Mining starten";
+  $("mineToggle").className = miner.want ? "" : "primary";
+  $("found").innerHTML = miner.found.map((f) => `<div class="tx coinbase"><div>Block #${f.height}<br><code>${short(f.hash, 20)}</code></div><small class="muted">${fmt(f.attempts)} Versuche<br>${(f.ms / 1000).toFixed(1)} s</small></div>`).join("");
+}
+function renderRecent(list) {
+  $("recent").innerHTML = (list || []).map((b) => `<div class="tx"><div>#${b.height} von <b>${b.miner_label}</b><br><code>${short(b.hash, 16)}</code></div><small class="muted">${b.attempts ? fmt(b.attempts) + " Versuche" : ""}${b.hashrate ? " · " + (b.hashrate / 1000).toFixed(0) + " kH/s" : ""}<br>${new Date(b.at).toLocaleTimeString("de-CH")}</small></div>`).join("") || `<div class="muted">Noch kein Block gemint.</div>`;
 }
 function renderLog(log) {
   $("log").innerHTML = log.map((l) => `<div class="${l.kind}"><span>${new Date(l.at).toLocaleTimeString("de-CH")}</span><b>${l.message}</b></div>`).join("") || `<div class="muted">Noch nichts passiert.</div>`;
@@ -238,11 +314,12 @@ function renderSettings(s) {
 $("blocks").addEventListener("click", (e) => { const item = e.target.closest(".item"); if (!item) return; const h = Number(item.dataset.h); openBlock = openBlock === h ? null : h; refresh(); });
 $("createWallet").onclick = async () => { try { const w = await api("/api/wallets", { name: $("walletName").value }); $("walletName").value = ""; say("walletMsg", `Wallet ${w.name} angelegt: ${w.address}`); await refresh(); } catch (e) { fail("walletMsg", e); } };
 $("sendTx").onclick = async () => { try { const tx = await api("/api/transactions", { from: $("txFrom").value, to: $("txTo").value, amount: Number($("txAmount").value), note: $("txNote").value }); say("txMsg", `Im Mempool: ${short(tx.hash, 16)} – wird mit dem nächsten Block bestätigt.`); $("txNote").value = ""; await refresh(); } catch (e) { fail("txMsg", e); } };
-$("mineOnce").onclick = async () => { say("mineMsg", "Mining läuft …"); try { const b = await api("/api/mine", { address: $("minerAddress").value }); say("mineMsg", `Block #${b.height} gefunden nach ${fmt(b.attempts)} Versuchen (${b.mining_ms} ms).`); } catch (e) { fail("mineMsg", e); } await refresh(); };
-$("autoToggle").onclick = async () => { try { const r = await api("/api/auto-mine", { enabled: !stats.miner.auto, address: $("minerAddress").value }); say("mineMsg", r.auto ? "Dauer-Mining aktiv." : "Dauer-Mining gestoppt."); } catch (e) { fail("mineMsg", e); } await refresh(); };
+$("mineToggle").onclick = () => { if (miner.want) stopMining("Mining gestoppt."); else startMining(); };
+$("minerAddress").addEventListener("change", () => { if (miner.want) restartRound("Miner-Wallet gewechselt – neue Vorlage."); });
+window.addEventListener("beforeunload", () => stopWorker());
 $("verify").onclick = async () => { try { const r = await api("/api/verify"); say("verifyMsg", r.valid ? `✔ Kette gültig – ${r.blocks} Blöcke und alle Kontostände stimmen.` : `✖ Ungültig ab Block #${r.height}: ${r.reason}`, !r.valid); $("chainStatus").className = "status" + (r.valid ? "" : " bad"); $("chainStatus").querySelector("span").textContent = r.valid ? "Kette verifiziert" : "Kette beschädigt"; } catch (e) { fail("verifyMsg", e); } };
 $("tamper").onclick = async () => { const h = prompt("Welchen Block manipulieren? (Höhe)", String(Math.max(1, (stats?.height ?? 1) - 1))); if (h === null) return; try { const r = await api("/api/tamper", { height: Number(h) }); say("verifyMsg", `Block #${r.height} wurde verändert (Betrag +1000). Jetzt „Kette prüfen“ klicken.`, true); await refresh(); } catch (e) { fail("verifyMsg", e); } };
-$("reset").onclick = async () => { if (!confirm("Wirklich alle Blöcke, Wallets und den Mempool löschen?")) return; await api("/api/reset", {}); openBlock = null; settingsDirty = false; say("verifyMsg", "Zurückgesetzt."); $("chainStatus").className = "status"; $("chainStatus").querySelector("span").textContent = "Neue Kette"; await refresh(); };
+$("reset").onclick = async () => { if (!confirm("Wirklich alle Blöcke, Wallets und den Mempool löschen?")) return; stopMining(); await api("/api/reset", {}); openBlock = null; settingsDirty = false; say("verifyMsg", "Zurückgesetzt."); $("chainStatus").className = "status"; $("chainStatus").querySelector("span").textContent = "Neue Kette"; await refresh(); };
 ["sReward", "sTarget", "sBits", "sMaxTx", "sMin", "sMax", "sAuto"].forEach((id) => $(id).addEventListener("input", () => { settingsDirty = true; }));
 $("saveSettings").onclick = async () => { try { await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked }); settingsDirty = false; say("settingsMsg", "Gespeichert."); await refresh(); } catch (e) { fail("settingsMsg", e); } };
 

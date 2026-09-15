@@ -1,6 +1,8 @@
 // Eigenständiger GIBB-Blockchain-Node (Testumgebung).
 // Nutzt dieselben Formeln wie die App (Header, Merkle-Root, Nullbits),
 // hält aber Konten, Mempool und Blöcke lokal in einer JSON-Datei.
+// Der Server mined NICHT selbst: Er gibt Blockvorlagen heraus und prüft
+// Blöcke, deren Nonce im Browser der Miner gefunden wurde.
 
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
@@ -13,10 +15,10 @@ export const COINBASE = "COINBASE";
 
 const defaultSettings = {
   reward: 10,
-  difficultyBits: 18,
+  difficultyBits: 16,
   minBits: 8,
-  maxBits: 32,
-  targetSeconds: 15,
+  maxBits: 26,
+  targetSeconds: 30,
   autoAdjust: true,
   maxTxPerBlock: 50,
 };
@@ -32,6 +34,7 @@ export class Blockchain {
     this.mempool = [];
     this.accounts = {}; // address -> { name, balance, createdAt }
     this.settings = { ...defaultSettings };
+    this.templates = new Map(); // ausgegebene Vorlagen (id -> Vorlage), nicht persistiert
     this.load();
   }
 
@@ -90,14 +93,16 @@ export class Blockchain {
     return clamp(bits, s.minBits, s.maxBits);
   }
 
-  // Blockvorlage: Belohnung (Coinbase) zuerst, dann Mempool in Eingangsreihenfolge.
-  template(minerAddress) {
+  // Blockvorlage für einen Miner: Belohnung (Coinbase) zuerst, dann Mempool in Eingangsreihenfolge.
+  // Die Vorlage bleibt 10 Minuten gültig; der Browser sucht dazu die Nonce.
+  issueTemplate(minerAddress) {
     if (!this.accounts[minerAddress]) throw new Error("unknown_miner");
     const tipBlock = this.tip();
     const timestamp = Math.max(Math.floor(Date.now() / 1000), tipBlock.timestamp);
     const coinbase = this.buildTransaction(COINBASE, minerAddress, this.settings.reward, `Block #${tipBlock.height + 1} Belohnung`, timestamp);
     const transactions = [coinbase, ...this.mempool.slice(0, this.settings.maxTxPerBlock)];
-    return {
+    const template = {
+      id: randomBytes(8).toString("hex"),
       height: tipBlock.height + 1,
       previous_hash: tipBlock.hash,
       merkle_root: merkleRoot(transactions.map((tx) => tx.hash)),
@@ -105,27 +110,24 @@ export class Blockchain {
       difficulty_bits: this.currentDifficulty(),
       miner_user_id: minerAddress,
       transactions,
+      issuedAt: Date.now(),
     };
+    template.header_prefix = blockHeaderString({ ...template, nonce: 0 }).slice(0, -1);
+    for (const [id, t] of this.templates) if (Date.now() - t.issuedAt > 600_000) this.templates.delete(id);
+    this.templates.set(template.id, template);
+    return template;
   }
 
-  // Synchrone Nonce-Suche in Häppchen, damit der Server dazwischen antworten kann.
-  async mine(minerAddress, { batch = 25_000, onProgress } = {}) {
-    const tpl = this.template(minerAddress);
-    const prefix = blockHeaderString({ ...tpl, nonce: 0 }).slice(0, -1);
-    let nonce = 0;
-    let hash = "";
-    const startedAt = Date.now();
-    for (;;) {
-      for (let i = 0; i < batch; i += 1) {
-        hash = sha256(prefix + nonce);
-        if (leadingZeroBits(hash) >= tpl.difficulty_bits) {
-          return this.acceptBlock({ ...tpl, nonce, hash }, { attempts: nonce + 1, ms: Date.now() - startedAt });
-        }
-        nonce += 1;
-      }
-      onProgress?.({ nonce, elapsed: Date.now() - startedAt });
-      await new Promise((resolve) => setImmediate(resolve));
-    }
+  // Ein Browser meldet eine gefundene Nonce zu einer ausgegebenen Vorlage.
+  submit(templateId, nonce, hash, meta = {}) {
+    const template = this.templates.get(templateId);
+    if (!template) throw new Error("unknown_template");
+    nonce = Number(nonce);
+    if (!Number.isInteger(nonce) || nonce < 0) throw new Error("invalid_nonce");
+    if (typeof hash !== "string" || !/^[0-9a-f]{64}$/.test(hash)) throw new Error("invalid_hash");
+    const block = this.acceptBlock({ ...template, nonce, hash }, meta);
+    this.templates.delete(templateId);
+    return block;
   }
 
   // Ein gefundener Block wird wie beim Server-Pfad der App vollständig nachgeprüft.
@@ -151,7 +153,7 @@ export class Blockchain {
     }
     const ids = new Set(txs.map((tx) => tx.id));
     this.mempool = this.mempool.filter((tx) => !ids.has(tx.id));
-    const block = { ...header, hash: candidate.hash, transactions: txs, miner: candidate.miner_user_id, miner_label: this.accounts[candidate.miner_user_id]?.name ?? candidate.miner_user_id, reward: this.settings.reward, attempts: meta.attempts ?? null, mining_ms: meta.ms ?? null };
+    const block = { ...header, hash: candidate.hash, transactions: txs, miner: candidate.miner_user_id, miner_label: this.accounts[candidate.miner_user_id]?.name ?? candidate.miner_user_id, reward: this.settings.reward, attempts: Number.isFinite(meta.attempts) ? Math.round(meta.attempts) : null, mining_ms: Number.isFinite(meta.ms) ? Math.round(meta.ms) : null, hashrate: Number.isFinite(meta.hashrate) ? Math.round(meta.hashrate) : null };
     this.blocks.push(block);
     this.save();
     return block;

@@ -63,7 +63,7 @@ Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-co
 
 ### Lokaler Blockchain-Node zum Testen
 
-`blockchain-node/` ist ein eigenständiger Node ohne Abhängigkeiten (kein Supabase nötig) mit Verwaltungs-Website: Wallets anlegen, Coins senden (Mempool), Blöcke minen (einzeln oder Dauerbetrieb), Kette prüfen, Block manipulieren (Demo), Belohnung/Schwierigkeit einstellen. Header, Merkle-Root und Nullbits sind dieselben Formeln wie in der App.
+`blockchain-node/` ist ein eigenständiger Node ohne Abhängigkeiten (kein Supabase nötig) mit Verwaltungs-Website: Wallets anlegen, Coins senden (Mempool), Kette prüfen, Block manipulieren (Demo), Belohnung/Schwierigkeit einstellen. **Gemint wird im Browser der Nutzer** (Web Worker auf dem eigenen Prozessor): Der Server gibt nur Blockvorlagen heraus (`POST /api/template`) und prüft eingereichte Nonces vollständig nach (`POST /api/submit`) – er rechnet selbst keinen einzigen Hash. Header, Merkle-Root und Nullbits sind dieselben Formeln wie in der App.
 
 ```bash
 pnpm chain

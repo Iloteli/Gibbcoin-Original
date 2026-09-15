@@ -11,46 +11,17 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
 const chain = new Blockchain(process.env.CHAIN_FILE ?? join(here, "data", "chain.json"));
 
-// Mining-Zustand des Servers (ein Miner gleichzeitig, optional Dauerbetrieb).
-const miner = { running: false, auto: false, address: null, progress: null, lastError: null, found: [] };
+// Der Server mined nicht: Browser holen Vorlagen und reichen gefundene Nonces ein.
+const recentBlocks = [];
 const log = [];
 function note(kind, message) {
   log.unshift({ at: Date.now(), kind, message });
   log.length = Math.min(log.length, 60);
 }
 
-async function mineOnce(address) {
-  if (miner.running) throw new Error("miner_busy");
-  miner.running = true;
-  miner.address = address;
-  miner.lastError = null;
-  try {
-    const block = await chain.mine(address, { onProgress: (p) => { miner.progress = p; } });
-    miner.found.unshift({ height: block.height, hash: block.hash, attempts: block.attempts, ms: block.mining_ms });
-    miner.found.length = Math.min(miner.found.length, 12);
-    note("block", `Block #${block.height} von ${block.miner_label} gefunden (${block.attempts} Versuche, ${block.mining_ms} ms, ${block.difficulty_bits} Bit)`);
-    return block;
-  } catch (error) {
-    miner.lastError = error.message;
-    note("error", `Mining fehlgeschlagen: ${error.message}`);
-    throw error;
-  } finally {
-    miner.running = false;
-    miner.progress = null;
-  }
-}
-
-async function autoLoop() {
-  while (miner.auto) {
-    try { await mineOnce(miner.address); } catch { await sleep(1500); }
-    await sleep(300);
-  }
-}
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
 // ---------- API ----------
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), miner: { running: miner.running, auto: miner.auto, address: miner.address, progress: miner.progress, lastError: miner.lastError, found: miner.found }, log }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log }),
   "GET /api/blocks": (url) => {
     const limit = Math.min(200, Number(url.searchParams.get("limit") ?? 30));
     const before = url.searchParams.get("before");
@@ -72,20 +43,27 @@ const routes = {
     note("tx", `${chain.accounts[tx.from].name} → ${chain.accounts[tx.to].name}: ${tx.amount} GIBB im Mempool`);
     return tx;
   },
-  "POST /api/mine": async (_, body) => {
-    const block = await mineOnce(body.address);
-    return summarize(block);
+  // Vorlage für den Browser-Miner (Transaktionen nur als Hashes, der Header-Präfix ist fertig zusammengesetzt).
+  "POST /api/template": (_, body) => {
+    const t = chain.issueTemplate(body.address);
+    return { id: t.id, height: t.height, previous_hash: t.previous_hash, merkle_root: t.merkle_root, timestamp: t.timestamp, difficulty_bits: t.difficulty_bits, miner_user_id: t.miner_user_id, tx_count: t.transactions.length, tx_hashes: t.transactions.map((tx) => tx.hash), reward: chain.settings.reward, header_prefix: t.header_prefix };
   },
-  "POST /api/auto-mine": (_, body) => {
-    if (body.enabled) {
-      if (!chain.accounts[body.address]) throw new Error("unknown_miner");
-      if (!miner.auto) { miner.auto = true; miner.address = body.address; note("miner", `Dauer-Mining gestartet für ${chain.accounts[body.address].name}`); void autoLoop(); }
-    } else if (miner.auto) { miner.auto = false; note("miner", "Dauer-Mining gestoppt"); }
-    return { auto: miner.auto, address: miner.address };
+  // Gefundene Nonce einreichen – der Server prüft Hash, Merkle-Root, Schwierigkeit und Proof of Work komplett nach.
+  "POST /api/submit": (_, body) => {
+    try {
+      const block = chain.submit(body.template_id, body.nonce, body.hash, { attempts: Number(body.attempts), ms: Number(body.ms), hashrate: Number(body.hashrate) });
+      recentBlocks.unshift({ height: block.height, hash: block.hash, miner_label: block.miner_label, attempts: block.attempts, ms: block.mining_ms, hashrate: block.hashrate, at: Date.now() });
+      recentBlocks.length = Math.min(recentBlocks.length, 12);
+      note("block", `Block #${block.height} von ${block.miner_label} gefunden (${block.attempts ?? "?"} Versuche, ${block.mining_ms ?? "?"} ms, ${block.difficulty_bits} Bit)`);
+      return summarize(block);
+    } catch (error) {
+      if (error.message !== "stale_block") note("error", `Block abgelehnt: ${error.message}`);
+      throw error;
+    }
   },
   "POST /api/settings": (_, body) => { const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
   "POST /api/tamper": (_, body) => { const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
-  "POST /api/reset": () => { miner.auto = false; chain.reset(); miner.found = []; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
+  "POST /api/reset": () => { chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
 
 function summarize(block) {
@@ -110,6 +88,10 @@ const server = createServer(async (req, res) => {
       return json(res, 200, data);
     }
     if (url.pathname.startsWith("/api/")) return json(res, 404, { error: "not_found" });
+    if (url.pathname === "/blockchain-core.js") {
+      res.writeHead(200, { "content-type": "text/javascript; charset=utf-8" });
+      return res.end(await readFile(join(here, "..", "app", "lib", "blockchain-core.js")));
+    }
     const file = url.pathname === "/" ? "index.html" : url.pathname.replace(/^\/+/, "").replace(/\.\./g, "");
     const content = await readFile(join(here, "public", file));
     const ext = file.slice(file.lastIndexOf("."));
