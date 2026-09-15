@@ -46,7 +46,10 @@
     { "version": "20260827191643", "name": "fix_crash_target_regex" },
     { "version": "20260901072106", "name": "restrict_account_management_to_primary_owner" },
     { "version": "20260908181444", "name": "backup_before_community_rewards_safety_upgrade" },
-    { "version": "20260908181647", "name": "community_rewards_safety_upgrade" }
+    { "version": "20260908181647", "name": "community_rewards_safety_upgrade" },
+    { "version": "20260915083925", "name": "lock_profile_roles_to_supabase_only" },
+    { "version": "20260915084053", "name": "owner_only_admin_role_management" },
+    { "version": "20260915084149", "name": "owner_only_admin_role_management_hardening" }
   ],
   "schema_baselines": [
     {
