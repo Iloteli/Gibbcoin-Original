@@ -64,7 +64,15 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
     if (rpcError) { setError(rewardError(rpcError.message)); return; }
     const result = (Array.isArray(data) ? data[0] : data) as { kind?: string; value?: string } | null;
     const equippedValue = rpc === "equip_marketplace_item" && result?.kind === "title" ? result.value ?? null : null;
-    if (equippedValue) setEquippedTitle(equippedValue);
+    if (rpc === "equip_marketplace_item" && result?.kind === "title" && !equippedValue) {
+      setError("Der Titel wurde nicht bestätigt. Bitte versuche es nochmals.");
+      return;
+    }
+    if (equippedValue) {
+      setEquippedTitle(equippedValue);
+      const { data: profileData, error: profileError } = await supabase.from("profiles").select("equipped_title").eq("id", userId).single();
+      if (!profileError && profileData?.equipped_title === equippedValue) setEquippedTitle(profileData.equipped_title);
+    }
     if (rpc === "buy_marketplace_item" && typeof args?.p_item_id === "string") {
       setOwned((current) => new Set(current).add(args.p_item_id as string));
     }

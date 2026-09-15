@@ -76,7 +76,7 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
     <form onSubmit={save} className="profile-editor-grid">
       <div className="profile-preview" style={{ borderColor: color }}>
         {avatarUrl ? <Image src={avatarUrl} alt="Profilbild Vorschau" width={92} height={92} unoptimized /> : <span style={{ background: color }}>{displayName[0]?.toUpperCase() || "G"}</span>}
-        <strong>{displayName || "Dein Name"}</strong><small>{username ? `@${username}` : profile.equipped_title || "GIBB Mitglied"}</small><p>{bio || "Deine kurze Profilbeschreibung erscheint hier."}</p>
+        <strong>{displayName || "Dein Name"}</strong><small>{profile.equipped_title ? `Titel: ${profile.equipped_title}` : username ? `@${username}` : "GIBB Mitglied"}</small><p>{bio || "Deine kurze Profilbeschreibung erscheint hier."}</p>
       </div>
       <div className="profile-fields">
         <div className="field"><label htmlFor="profile-name">Anzeigename</label><input id="profile-name" className="input" minLength={2} maxLength={60} required value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></div>
