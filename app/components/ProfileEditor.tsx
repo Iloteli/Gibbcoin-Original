@@ -47,31 +47,26 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
     if (!supabase) return;
     setBusy(true); setError(""); setMessage("");
 
-    // Der Benutzername wird nur angefasst, wenn er wirklich geändert wurde.
     const nextUsername = username.trim().toLowerCase();
-    if (nextUsername !== (profile.username ?? "")) {
-      const { data, error: nameError } = await supabase.rpc("set_my_username", { p_username: nextUsername });
-      const nameResult = data as { ok?: boolean; error?: string } | null;
-      if (nameError?.code === "PGRST202") {
-        setBusy(false);
-        setError("Benutzernamen lassen sich auf diesem Server noch nicht ändern. Die übrigen Angaben wurden nicht gespeichert.");
-        return;
-      }
-      if (nameError || !nameResult?.ok) {
-        setBusy(false);
-        setError(nameResult?.error === "username_taken"
-          ? "Dieser Benutzername ist bereits vergeben. Wähle einen anderen."
-          : "Benutzername ungültig: 3 bis 24 Zeichen, nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich und Unterstrich, Beginn mit Buchstabe oder Ziffer.");
-        return;
-      }
-    }
-
-    const { error: rpcError } = await supabase.rpc("update_my_profile", {
+    const { data, error: rpcError } = await supabase.rpc("update_my_profile_atomic", {
+      p_username: nextUsername,
       p_display_name: displayName.trim(), p_bio: bio.trim() || null,
       p_profile_color: color, p_avatar_url: avatarUrl || null,
     });
     setBusy(false);
-    if (rpcError) { setError("Das Profil konnte nicht gespeichert werden. Prüfe Name und Beschreibung."); return; }
+    const result = data as { ok?: boolean; error?: string } | null;
+    if (rpcError?.code === "PGRST202") {
+      setError("Die Profiländerung ist auf diesem Server noch nicht verfügbar. Es wurde nichts gespeichert.");
+      return;
+    }
+    if (rpcError || !result?.ok) {
+      setError(result?.error === "username_taken"
+        ? "Dieser Benutzername ist bereits vergeben. Wähle einen anderen."
+        : result?.error === "invalid_username"
+          ? "Benutzername ungültig: 3 bis 24 Zeichen, nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich und Unterstrich."
+          : "Das Profil konnte nicht gespeichert werden. Prüfe Name und Beschreibung.");
+      return;
+    }
     setMessage("Profil gespeichert.");
     await onChanged();
   }
