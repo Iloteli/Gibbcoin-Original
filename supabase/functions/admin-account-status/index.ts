@@ -9,6 +9,12 @@ const responseHeaders = {
 type AccountStatus = "active" | "locked";
 
 const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea";
+// Ilja hat dieselben Haupt-Owner-Rechte wie Robyn und wird über die Login-E-Mail erkannt.
+const PRIMARY_OWNER_EMAIL = "ilja.podorieszach@icloud.com";
+
+function isPrimaryOwnerUser(user: { id: string; email?: string | null }, role: string) {
+  return role === "super_admin" && (user.id === PRIMARY_OWNER_USER_ID || (user.email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL);
+}
 
 function jsonResponse(body: Record<string, unknown>, status: number) {
   return new Response(JSON.stringify(body), { status, headers: responseHeaders });
@@ -86,7 +92,7 @@ Deno.serve(async (request) => {
     }
     if (targetError || !target) return jsonResponse({ error: "user_not_found" }, 404);
     if (targetWalletError || !targetWallet) return jsonResponse({ error: "wallet_not_found" }, 404);
-    const callerIsPrimaryOwner = caller.role === "super_admin" && authData.user.id === PRIMARY_OWNER_USER_ID;
+    const callerIsPrimaryOwner = isPrimaryOwnerUser(authData.user, caller.role);
     if (caller.role === "super_admin" && !callerIsPrimaryOwner) {
       return jsonResponse({ error: "primary_owner_required" }, 403);
     }
