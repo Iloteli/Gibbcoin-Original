@@ -51,6 +51,10 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /Roulette/);
   assert.match(gameCenter, /Münzwurf/);
   assert.match(gameCenter, /Blackjack/);
+  assert.match(gameCenter, /blackjackOutcome/);
+  assert.match(gameCenter, /player_cards: result\.player_cards/);
+  assert.match(gameCenter, /DIREKTER GEWINN/);
+  assert.match(gameCenter, /DIREKTER VERLUST/);
   assert.match(gameCenter, /Würfelduell/);
   assert.match(gameCenter, /High Card/);
   assert.match(gameCenter, /5-Karten-Poker/);
