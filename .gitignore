@@ -40,3 +40,4 @@ yarn-error.log*
 /outputs/
 /work/
 /supabase/.temp/
+blockchain-node/supabase.local.json

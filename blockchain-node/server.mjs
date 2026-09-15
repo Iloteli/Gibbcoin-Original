@@ -9,6 +9,7 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Blockchain } from "./chain.mjs";
+import { loadSupabaseConfig, syncSupabaseAccounts } from "./supabase-sync.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -21,6 +22,30 @@ const log = [];
 
 // Lokaler Miner (blockchain-node/miner.mjs) als Kindprozess auf diesem Rechner,
 // gestartet über die Website. Nutzt standardmässig alle Prozessorkerne.
+// Automatische Spiegelung der Supabase-Konten.
+const supabaseSync = { configured: loadSupabaseConfig().configured, lastRun: null, lastResult: null, lastError: null, running: false };
+async function runSupabaseSync() {
+  if (supabaseSync.running) return supabaseSync.lastResult;
+  supabaseSync.running = true;
+  try {
+    const result = await syncSupabaseAccounts(chain);
+    supabaseSync.lastResult = result; supabaseSync.lastRun = Date.now(); supabaseSync.lastError = null;
+    if (result.added || result.updated) note("sync", `Supabase-Konten synchronisiert: ${result.added} neu, ${result.updated} aktualisiert (${result.total} gesamt)`);
+    return result;
+  } catch (error) {
+    supabaseSync.lastError = error.message;
+    if (error.message !== "supabase_not_configured") note("error", `Supabase-Sync: ${error.message}`);
+    throw error;
+  } finally {
+    supabaseSync.running = false;
+  }
+}
+// Beim Start und danach alle 60 s automatisch spiegeln, sofern konfiguriert.
+if (supabaseSync.configured) {
+  runSupabaseSync().catch(() => {});
+  setInterval(() => { if (loadSupabaseConfig().configured) runSupabaseSync().catch(() => {}); }, 60_000).unref();
+}
+
 const localMiner = {
   process: null, address: null, threads: 0, startedAt: null,
   attempts: 0, hashrate: 0, expected: 0, elapsed: 0, height: null, difficulty_bits: null,
@@ -70,7 +95,11 @@ function note(kind, message) {
 
 // ---------- API ----------
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState() }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), supabaseSync: { ...supabaseSync, configured: loadSupabaseConfig().configured } }),
+  "POST /api/sync-supabase": async () => {
+    try { return { ok: true, ...(await runSupabaseSync()) }; }
+    catch (error) { return { ok: false, error: error.message }; }
+  },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
   "POST /api/local-miner": (_, body) => (body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner()),
   "GET /api/blocks": (url) => {

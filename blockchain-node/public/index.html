@@ -111,6 +111,10 @@
         <div><label>&nbsp;</label><button class="primary" id="createWallet" style="width:100%">Wallet anlegen</button></div>
       </div>
       <div class="msg" id="walletMsg"></div>
+      <div id="syncBar" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px;padding:9px 11px;border:1px solid var(--line);border-radius:11px;font-size:12px">
+        <span id="syncStatus" class="muted">Website-Konten (Supabase): –</span>
+        <button id="syncNow" style="padding:6px 11px">Jetzt synchronisieren</button>
+      </div>
       <div class="list accounts" id="accounts"></div>
     </section>
 
@@ -246,7 +250,7 @@ async function refresh() {
   try {
     const [s, acc, blocks, mempool] = await Promise.all([api("/api/stats"), api("/api/accounts"), api("/api/blocks?limit=40"), api("/api/mempool")]);
     stats = s; accounts = acc;
-    renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
+    renderStats(s); renderSync(s.supabaseSync); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
     fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
@@ -265,7 +269,7 @@ function renderStats(s) {
   $("walletCount").textContent = `${s.accounts} Konten`;
 }
 function renderAccounts() {
-  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${a.name}</b><br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b> · <b>${fmt(a.cash)} Rp</b><br><small>frei ${fmt(a.available)} GIBB · ${fmt(a.availableCash)} Rp</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
+  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${a.name}</b>${a.source === "supabase" ? ` <span style="font-size:9px;color:var(--green);border:1px solid rgba(117,245,154,.3);border-radius:6px;padding:1px 5px">WEBSITE</span>` : ""}<br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b> · <b>${fmt(a.cash)} Rp</b><br><small>frei ${fmt(a.available)} GIBB · ${fmt(a.availableCash)} Rp</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
   fillSelect($("orderAddress"));
 }
 function renderMempool(list) {
@@ -427,6 +431,17 @@ function updateOrderHint() {
     ? `Kostet bis zu ${fmt(cost)} Rappen (${fmtChf(cost)}) · frei: ${fmt(acc.availableCash)} Rp`
     : `Bringt bis zu ${fmt(cost)} Rappen (${fmtChf(cost)}) · frei: ${fmt(acc.available)} GIBB`;
 }
+function renderSync(sync) {
+  const el = $("syncStatus");
+  if (!sync) return;
+  if (!sync.configured) { el.innerHTML = `Website-Konten (Supabase): <b style="color:var(--amber)">nicht eingerichtet</b> – Service-Role-Key in blockchain-node/supabase.local.json ablegen`; $("syncNow").disabled = true; return; }
+  $("syncNow").disabled = false;
+  const count = accounts.filter((a) => a.source === "supabase").length;
+  const when = sync.lastRun ? new Date(sync.lastRun).toLocaleTimeString("de-CH") : "–";
+  el.innerHTML = sync.lastError && sync.lastError !== "supabase_not_configured"
+    ? `Website-Konten: <b style="color:var(--red)">Fehler: ${sync.lastError}</b>`
+    : `Website-Konten (Supabase): <b>${count}</b> gespiegelt · zuletzt ${when} · automatisch alle 60 s`;
+}
 function renderRecent(list) {
   $("recent").innerHTML = (list || []).map((b) => `<div class="tx"><div>#${b.height} von <b>${b.miner_label}</b><br><code>${short(b.hash, 16)}</code></div><small class="muted">${b.attempts ? fmt(b.attempts) + " Versuche" : ""}${b.hashrate ? " · " + (b.hashrate / 1000).toFixed(0) + " kH/s" : ""}<br>${new Date(b.at).toLocaleTimeString("de-CH")}</small></div>`).join("") || `<div class="muted">Noch kein Block gemint.</div>`;
 }
@@ -438,6 +453,7 @@ function renderSettings(s) {
 }
 
 $("blocks").addEventListener("click", (e) => { const item = e.target.closest(".item"); if (!item) return; const h = Number(item.dataset.h); openBlock = openBlock === h ? null : h; refresh(); });
+$("syncNow").onclick = async () => { try { const r = await api("/api/sync-supabase", {}); say("walletMsg", r.ok ? `Synchronisiert: ${r.added} neu, ${r.updated} aktualisiert (${r.total} Konten).` : (r.error === "supabase_not_configured" ? "Bitte zuerst den Supabase-Key hinterlegen." : "Sync-Fehler: " + r.error), !r.ok); } catch (e) { fail("walletMsg", e); } await refresh(); };
 $("createWallet").onclick = async () => { try { const w = await api("/api/wallets", { name: $("walletName").value }); $("walletName").value = ""; say("walletMsg", `Wallet ${w.name} angelegt: ${w.address}`); await refresh(); } catch (e) { fail("walletMsg", e); } };
 $("sendTx").onclick = async () => { try { const tx = await api("/api/transactions", { from: $("txFrom").value, to: $("txTo").value, amount: Number($("txAmount").value), note: $("txNote").value }); say("txMsg", `Im Mempool: ${short(tx.hash, 16)} – wird mit dem nächsten Block bestätigt.`); $("txNote").value = ""; await refresh(); } catch (e) { fail("txMsg", e); } };
 $("mineToggle").onclick = () => { if (miner.want) stopMining("Mining gestoppt."); else startMining(); };
