@@ -26,6 +26,7 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
   const [progress, setProgress] = useState<Map<string, Progress>>(new Map());
   const [items, setItems] = useState<Item[]>([]);
   const [owned, setOwned] = useState<Set<string>>(new Set());
+  const [equippedTitle, setEquippedTitle] = useState<string | null>(null);
   const [season, setSeason] = useState<SeasonState | null>(null);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
@@ -33,15 +34,16 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
 
   const load = useCallback(async () => {
     const supabase = getSupabase(); if (!supabase) return;
-    const [taskResult, challengeResult, progressResult, itemResult, purchaseResult, seasonResult] = await Promise.all([
+    const [taskResult, challengeResult, progressResult, itemResult, purchaseResult, seasonResult, profileResult] = await Promise.all([
       supabase.rpc("get_daily_tasks"),
       supabase.from("challenges").select("id,slug,name,description,target_count,reward").eq("active", true).order("created_at"),
       supabase.rpc("get_challenge_progress"),
       supabase.from("marketplace_items").select("id,name,description,price,icon,kind,cosmetic_value,stock").eq("active", true).order("price"),
       supabase.from("purchases").select("item_id").eq("user_id", userId),
       supabase.rpc("get_season_state"),
+      supabase.from("profiles").select("equipped_title").eq("id", userId).single(),
     ]);
-    const firstError = [taskResult, challengeResult, progressResult, itemResult, purchaseResult, seasonResult].find((result) => result.error)?.error;
+    const firstError = [taskResult, challengeResult, progressResult, itemResult, purchaseResult, seasonResult, profileResult].find((result) => result.error)?.error;
     if (firstError) { setError("Aufgaben, Shop oder Saison konnten nicht vollständig geladen werden."); return; }
     setTasks(((taskResult.data as { tasks?: DailyTask[] } | null)?.tasks ?? []));
     setChallenges((challengeResult.data ?? []) as Challenge[]);
@@ -49,6 +51,7 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
     setItems((itemResult.data ?? []) as Item[]);
     setOwned(new Set(((purchaseResult.data ?? []) as Array<{ item_id: string }>).map((item) => item.item_id)));
     setSeason(seasonResult.data as SeasonState);
+    setEquippedTitle((profileResult.data as { equipped_title?: string | null } | null)?.equipped_title ?? null);
   }, [userId]);
 
   useEffect(() => { const timer = window.setTimeout(() => void load(), 0); return () => window.clearTimeout(timer); }, [load]);
@@ -59,6 +62,10 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
     const { data, error: rpcError } = await supabase.rpc(rpc, args);
     setBusy("");
     if (rpcError) { setError(rewardError(rpcError.message)); return; }
+    if (rpc === "equip_marketplace_item") {
+      const equipped = data as { kind?: string; value?: string } | null;
+      if (equipped?.kind === "title" && equipped.value) setEquippedTitle(equipped.value);
+    }
     const reward = Number(Array.isArray(data) ? (data[0] as { amount?: number })?.amount ?? 0 : (data as { reward?: number } | null)?.reward ?? 0);
     setMessage(reward > 0 ? `Belohnung abgeholt: +${reward} GIBB.` : "Erfolgreich gespeichert.");
     await Promise.all([load(), onChanged()]);
@@ -75,7 +82,7 @@ export function RewardsHub({ userId, walletBalance, onChanged }: Props) {
 
     <div className="card card-pad"><h3>Erfolge</h3><div className="achievement-grid">{challenges.map((challenge) => { const current = progress.get(challenge.id); const ready = (current?.progress ?? 0) >= challenge.target_count; return <article key={challenge.id}><span>◆</span><div><strong>{challenge.name}</strong><p>{challenge.description}</p><small>{current?.progress ?? 0}/{challenge.target_count} · +{challenge.reward} GIBB</small></div><button className="secondary compact" type="button" disabled={!ready || current?.claimed || busy !== ""} onClick={() => void act(`challenge-${challenge.id}`, "claim_challenge", { p_challenge_id: challenge.id })}>{current?.claimed ? "Erreicht" : ready ? "Abholen" : "Offen"}</button></article>; })}</div></div>
 
-    <div className="card card-pad"><div className="shop-head"><div><h3>Campus-Shop</h3><p>Nur kosmetische Profil-Titel und Farben – keine Spielvorteile.</p></div><span>{owned.size} gekauft</span></div><div className="shop-grid">{items.map((item) => { const purchased = owned.has(item.id); return <article key={item.id} style={item.kind === "color" ? { borderColor: item.cosmetic_value } : undefined}><span className="shop-icon" style={item.kind === "color" ? { color: item.cosmetic_value } : undefined}>{item.icon}</span><strong>{item.name}</strong><p>{item.description}</p><small>{item.price} GIBB</small><button className={purchased ? "secondary compact" : "primary compact"} type="button" disabled={busy !== "" || (!purchased && walletBalance < item.price)} onClick={() => void act(`shop-${item.id}`, purchased ? "equip_marketplace_item" : "buy_marketplace_item", { p_item_id: item.id })}>{purchased ? "Ausrüsten" : "Kaufen"}</button></article>; })}</div></div>
+    <div className="card card-pad"><div className="shop-head"><div><h3>Campus-Shop</h3><p>Nur kosmetische Profil-Titel und Farben – keine Spielvorteile.</p></div><span>{owned.size} gekauft</span></div><div className="shop-grid">{items.map((item) => { const purchased = owned.has(item.id); const equipped = item.kind === "title" && equippedTitle === item.cosmetic_value; return <article key={item.id} style={item.kind === "color" ? { borderColor: item.cosmetic_value } : undefined}><span className="shop-icon" style={item.kind === "color" ? { color: item.cosmetic_value } : undefined}>{item.icon}</span><strong>{item.name}</strong><p>{item.description}</p><small>{item.price} GIBB</small><button className={purchased ? "secondary compact" : "primary compact"} type="button" disabled={busy !== "" || equipped || (!purchased && walletBalance < item.price)} onClick={() => void act(`shop-${item.id}`, purchased ? "equip_marketplace_item" : "buy_marketplace_item", { p_item_id: item.id })}>{equipped ? "Ausgerüstet" : purchased ? "Ausrüsten" : "Kaufen"}</button></article>; })}</div></div>
     {message && <p className="message success-message" role="status">{message}</p>}{error && <p className="message error" role="alert">{error}</p>}
   </section>;
 }

@@ -103,7 +103,7 @@ type Props = {
   onChanged: () => void | Promise<void>;
 };
 
-const games: Array<{ key: GameKey; title: string; icon: string; description: string }> = [
+const games: Array<{ key: GameKey; title: string; icon: string; description: string; minimumProgress?: string }> = [
   { key: "roulette", title: "Roulette", icon: "◎", description: "Setze auf Rot, Schwarz oder eine Zahl." },
   { key: "coin_flip", title: "Münzwurf", icon: "◐", description: "Kopf oder Zahl – ein schneller 50/50-Wurf." },
   { key: "blackjack", title: "Blackjack", icon: "♠", description: "Komme näher an 21 als die Bank." },
@@ -111,7 +111,7 @@ const games: Array<{ key: GameKey; title: string; icon: string; description: str
   { key: "high_card", title: "High Card", icon: "♦", description: "Ziehe die höhere Karte als das Haus." },
   { key: "poker", title: "5-Karten-Poker", icon: "♣", description: "Halte starke Karten und ziehe den Rest neu." },
   { key: "plinko", title: "Plinko", icon: "●", description: "Lass die Kugel durch das Peg-Feld in ein Gewinnfach fallen." },
-  { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien." },
+  { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien.", minimumProgress: "2.500 Punkte" },
   { key: "slots", title: "Slot Machine", icon: "▦", description: "Drei Walzen und eine sichtbare Gewinn-Tabelle." },
   { key: "baccarat", title: "Baccarat", icon: "♢", description: "Spieler, Bank oder Unentschieden – du entscheidest." },
   { key: "keno", title: "Keno", icon: "⑨", description: "Wähle fünf Zahlen und treffe die Ziehung." },
@@ -773,11 +773,11 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
       <div className="game-marquee" aria-hidden="true"><div><span>SERVER FAIR PLAY</span><i>◆</i><span>EIN WALLET</span><i>◆</i><span>SOFORT VERBUCHT</span><i>◆</i><span>NUR GIBB COINS</span><i>◆</i><span>SERVER FAIR PLAY</span><i>◆</i><span>EIN WALLET</span><i>◆</i></div></div>
 
-      {visibleGames.length > 0 && <div className="game-tabs" role="tablist" aria-label="Spiele auswählen">{visibleGames.map((game, index) => { const liveEnabled = centerEnabled && (settings.get(game.key)?.enabled ?? false); return <button role="tab" aria-selected={selectedGame === game.key} className={selectedGame === game.key ? "active" : ""} type="button" key={game.key} onClick={() => chooseGame(game.key)}><u aria-hidden="true">0{index + 1}</u><span aria-hidden="true">{game.icon}</span><b>{game.title}<small>{game.description}</small></b><i className={liveEnabled ? "enabled" : ""}>{liveEnabled ? "AN" : "RUNDE"}</i></button>; })}</div>}
+      {visibleGames.length > 0 && <div className="game-tabs" role="tablist" aria-label="Spiele auswählen">{visibleGames.map((game, index) => { const liveEnabled = centerEnabled && (settings.get(game.key)?.enabled ?? false); return <button role="tab" aria-selected={selectedGame === game.key} className={selectedGame === game.key ? "active" : ""} type="button" key={game.key} onClick={() => chooseGame(game.key)}><u aria-hidden="true">0{index + 1}</u><span aria-hidden="true">{game.icon}</span><b>{game.title}{game.minimumProgress && <small className="game-requirement">Ab {game.minimumProgress}</small>}<small>{game.description}</small></b><i className={liveEnabled ? "enabled" : ""}>{liveEnabled ? "AN" : "RUNDE"}</i></button>; })}</div>}
 
       <div className="game-layout">
         {selectedVisible ? <article className="game-machine">
-          <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
+          <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}{activeGame.minimumProgress && <small className="game-requirement">Ab {activeGame.minimumProgress}</small>}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
           <div className="stage-shell" key={`stage-${selectedGame}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-energy" aria-hidden="true"><i /><i /><i /><i /></div><div className="stage-particles" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div></div>
           {won && <div className="win-confetti" aria-hidden="true">{Array.from({ length: 22 }, (_, index) => <i key={index} />)}</div>}
 
