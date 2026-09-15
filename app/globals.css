@@ -1162,6 +1162,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .game-tabs button:hover > span, .game-tabs button.active > span { transform: rotate(-5deg) scale(1.08); box-shadow: 0 0 25px rgba(var(--game-accent-rgb),.12); }
 .game-tabs button > b { display: block; color: #e8efeb; white-space: normal; }
 .game-tabs button > b small { display: block; overflow: hidden; margin-top: 4px; color: #66756d; font-size: 7px; font-weight: 550; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+.game-tabs button > b small.game-requirement, .game-requirement { color: var(--green); font-weight: 750; }
+.game-machine > header h3 .game-requirement { display: block; margin-top: 5px; font-size: 10px; }
 .game-tabs button > i.enabled { color: var(--game-accent); }
 .game-machine { background: radial-gradient(circle at 50% 43%, rgba(var(--game-accent-rgb),.045), transparent 48%); }
 .game-machine > header > div > span { background: var(--game-accent); box-shadow: 0 10px 35px rgba(var(--game-accent-rgb),.22); transition: background .4s ease; }

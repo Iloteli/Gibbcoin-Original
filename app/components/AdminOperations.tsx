@@ -23,11 +23,14 @@ const categoryLabel: Record<string, string> = {
 
 export function AdminOperations({ pin, active }: { pin: string; active: boolean }) {
   const [operations, setOperations] = useState<Operation[]>([]);
-  const [center, setCenter] = useState<{ settings?: Record<string, Record<string, unknown>>; classes?: Array<Record<string, string>>; tickets?: Array<Record<string, string>>; exports?: Array<Record<string, string>>; privacy?: Array<Record<string, string>>; shop?: Array<Record<string, string | boolean>>; tasks?: Array<Record<string, string | boolean>>; seasons?: Array<Record<string, string | boolean>> }>({});
+  const [center, setCenter] = useState<{ settings?: Record<string, Record<string, unknown>>; classes?: Array<Record<string, string | string[]>>; tickets?: Array<Record<string, string>>; exports?: Array<Record<string, string>>; privacy?: Array<Record<string, string>>; shop?: Array<Record<string, string | boolean>>; tasks?: Array<Record<string, string | boolean>>; seasons?: Array<Record<string, string | boolean>> }>({});
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
   const [announcement, setAnnouncement] = useState({ title: "", message: "" });
   const [className, setClassName] = useState("");
   const [classYear, setClassYear] = useState("");
+  const [memberIds, setMemberIds] = useState<Record<string, string>>({});
+  const [centerPage, setCenterPage] = useState(1);
+  const [centerHasMore, setCenterHasMore] = useState(false);
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -39,7 +42,7 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
     const { data, error: rpcError } = await supabase.rpc("admin_list_operations");
     if (rpcError) { setError("Die Operationsübersicht ist noch nicht verfügbar."); return; }
     setOperations((data ?? []) as Operation[]);
-    const { data: control } = await supabase.rpc("admin_list_control_center");
+    const { data: control } = await supabase.rpc("admin_list_control_center_page", { p_page: centerPage, p_page_size: 12 });
     if (control) {
       const next = control as typeof center;
       setCenter(next);
@@ -47,8 +50,9 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
       const notice = next.settings?.announcement ?? {};
       setMaintenanceMessage(String(maintenance.message ?? ""));
       setAnnouncement({ title: String(notice.title ?? ""), message: String(notice.message ?? "") });
+      setCenterHasMore((next.classes?.length ?? 0) === 12 || (next.tickets?.length ?? 0) === 12 || (next.shop?.length ?? 0) === 12);
     }
-  }, [active]);
+  }, [active, centerPage]);
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
@@ -114,6 +118,19 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
     await load();
   }
 
+  async function updateClassMember(classId: string, userId: string, remove = false) {
+    const supabase = getSupabase();
+    if (!supabase || !userId.trim()) return;
+    setBusy(`member:${classId}:${userId}`);
+    const { data, error: rpcError } = await supabase.rpc(remove ? "admin_remove_class_member" : "admin_add_class_member", {
+      p_class_id: classId, p_user_id: userId.trim(), p_pin: pin,
+    });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) { setError("Die Klassenmitgliedschaft konnte nicht gespeichert werden."); return; }
+    setMemberIds((current) => ({ ...current, [classId]: "" }));
+    await load();
+  }
+
   async function runHealthCheck() {
     const supabase = getSupabase();
     if (!supabase) return;
@@ -150,7 +167,7 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
             <button className="primary compact" type="button" disabled={busy !== ""} onClick={() => void saveControl("announcement", { enabled: true, ...announcement, until: null })}>Ankündigung veröffentlichen</button>
             <button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void saveControl("announcement", { enabled: false, ...announcement, until: null })}>Ausblenden</button>
           </article>
-          <article className="admin-operation"><h3>Klassenverwaltung</h3><form onSubmit={createClass}><input className="input" value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Klassenname" /><input className="input" value={classYear} onChange={(event) => setClassYear(event.target.value)} placeholder="Schuljahr (optional)" /><button className="primary compact" disabled={busy !== ""}>Klasse anlegen</button></form>{(center.classes ?? []).slice(0, 8).map((item) => <p key={item.id}><strong>{item.name}</strong> · {item.school_year || "ohne Schuljahr"}</p>)}</article>
+          <article className="admin-operation"><h3>Klassenverwaltung</h3><form onSubmit={createClass}><input className="input" value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Klassenname" /><input className="input" value={classYear} onChange={(event) => setClassYear(event.target.value)} placeholder="Schuljahr (optional)" /><button className="primary compact" disabled={busy !== ""}>Klasse anlegen</button></form>{(center.classes ?? []).map((item) => <div key={String(item.id)}><p><strong>{String(item.name)}</strong> · {item.school_year || "ohne Schuljahr"}</p><input className="input compact" value={memberIds[String(item.id)] ?? ""} onChange={(event) => setMemberIds((current) => ({ ...current, [String(item.id)]: event.target.value }))} placeholder="Benutzer-ID hinzufügen" /><button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void updateClassMember(String(item.id), memberIds[String(item.id)] ?? "")}>Mitglied hinzufügen</button><div>{(Array.isArray(item.members) ? item.members : []).map((member) => <button className="secondary compact" type="button" key={String(member)} disabled={busy !== ""} onClick={() => void updateClassMember(String(item.id), String(member), true)}>Mitglied {String(member).slice(0, 8)} entfernen</button>)}</div></div>)}<div className="admin-operation-foot"><button className="secondary compact" type="button" disabled={centerPage <= 1 || busy !== ""} onClick={() => setCenterPage((page) => page - 1)}>Neuere</button><button className="secondary compact" type="button" disabled={!centerHasMore || busy !== ""} onClick={() => setCenterPage((page) => page + 1)}>Ältere</button></div></article>
           <article className="admin-operation"><h3>Support-Fälle</h3>{(center.tickets ?? []).slice(0, 8).map((item) => <div key={item.id} className="admin-operation-foot"><span>{item.subject} · {item.priority}</span><select className="input compact" value={item.status} disabled={busy === item.id} onChange={(event) => void updateCase(item, event.target.value)}><option value="open">Offen</option><option value="in_progress">In Arbeit</option><option value="waiting">Wartet</option><option value="closed">Geschlossen</option></select></div>)}{!(center.tickets ?? []).length && <p>Keine Support-Fälle.</p>}</article>
           <article className="admin-operation"><h3>Datenschutz & Exporte</h3><p>{(center.exports ?? []).length} Exportanfragen · {(center.privacy ?? []).length} Datenschutzanfragen</p><p>Neue Anfragen werden sicher erfasst und hier zur Bearbeitung angezeigt.</p></article>
           <article className="admin-operation"><h3>Shop, Aufgaben & Saison</h3>

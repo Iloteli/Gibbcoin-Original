@@ -103,7 +103,7 @@ type Props = {
   onChanged: () => void | Promise<void>;
 };
 
-const games: Array<{ key: GameKey; title: string; icon: string; description: string }> = [
+const games: Array<{ key: GameKey; title: string; icon: string; description: string; minimumProgress?: string }> = [
   { key: "roulette", title: "Roulette", icon: "◎", description: "Setze auf Rot, Schwarz oder eine Zahl." },
   { key: "coin_flip", title: "Münzwurf", icon: "◐", description: "Kopf oder Zahl – ein schneller 50/50-Wurf." },
   { key: "blackjack", title: "Blackjack", icon: "♠", description: "Komme näher an 21 als die Bank." },
@@ -111,7 +111,7 @@ const games: Array<{ key: GameKey; title: string; icon: string; description: str
   { key: "high_card", title: "High Card", icon: "♦", description: "Ziehe die höhere Karte als das Haus." },
   { key: "poker", title: "5-Karten-Poker", icon: "♣", description: "Halte starke Karten und ziehe den Rest neu." },
   { key: "plinko", title: "Plinko", icon: "●", description: "Lass die Kugel durch das Peg-Feld in ein Gewinnfach fallen." },
-  { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien." },
+  { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien.", minimumProgress: "2.500 Punkte" },
   { key: "slots", title: "Slot Machine", icon: "▦", description: "Drei Walzen und eine sichtbare Gewinn-Tabelle." },
   { key: "baccarat", title: "Baccarat", icon: "♢", description: "Spieler, Bank oder Unentschieden – du entscheidest." },
   { key: "keno", title: "Keno", icon: "⑨", description: "Wähle fünf Zahlen und treffe die Ziehung." },
@@ -254,6 +254,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const [leaderboard, setLeaderboard] = useState<GameLeaderboardState | null>(null);
   const [leaderboardPeriod, setLeaderboardPeriod] = useState<LeaderboardPeriod>("week");
   const [dinoRewardNotice, setDinoRewardNotice] = useState("");
+  const [dinoPendingScore, setDinoPendingScore] = useState<number | null>(null);
   const [heldPokerCards, setHeldPokerCards] = useState<Set<number>>(() => new Set());
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -264,6 +265,8 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const dinoRef = useRef<DinoState | null>(null);
   const dinoSyncChainRef = useRef<Promise<void>>(Promise.resolve());
   const dinoFinalQueuedRef = useRef(false);
+  const leaderboardRequestRef = useRef(0);
+  const dinoLeaderboardRequestRef = useRef(0);
 
   const loadState = useCallback(async () => {
     const supabase = getSupabase();
@@ -273,46 +276,65 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       return;
     }
     setLoading(true);
-    const { data, error: rpcError } = await supabase.rpc("get_game_center_state");
-    if (rpcError) {
-      setError(gameError(rpcError.message));
+    try {
+      const { data, error: rpcError } = await supabase.rpc("get_game_center_state");
+      if (rpcError) {
+        setError(gameError(rpcError.message));
+        setLoading(false);
+        return;
+      }
+      const next = data as CenterState;
+      const nextSettings = new Map(next.settings.map((setting) => [setting.game_key, setting]));
+      const nextCenterEnabled = nextSettings.get("game_center")?.enabled ?? false;
+      const nextVisibleGames = games.filter((game) => (
+        nextCenterEnabled && (nextSettings.get(game.key)?.enabled ?? false)
+      ) || (game.key === "blackjack" && Boolean(next.blackjack)) || (game.key === "poker" && Boolean(next.poker)));
+      setSelectedGame((current) => next.blackjack ? "blackjack" : next.poker ? "poker" : nextVisibleGames.some((game) => game.key === current) ? current : nextVisibleGames[0]?.key ?? current);
+      setState(next);
+      setBlackjack(next.blackjack);
+      setPoker(next.poker);
+      setError("");
       setLoading(false);
-      return;
+    } catch {
+      setError("Die Wallet-Verbindung konnte nicht aktualisiert werden.");
+      setLoading(false);
     }
-    const next = data as CenterState;
-    const nextSettings = new Map(next.settings.map((setting) => [setting.game_key, setting]));
-    const nextCenterEnabled = nextSettings.get("game_center")?.enabled ?? false;
-    const nextVisibleGames = games.filter((game) => (
-      nextCenterEnabled && (nextSettings.get(game.key)?.enabled ?? false)
-    ) || (game.key === "blackjack" && Boolean(next.blackjack)) || (game.key === "poker" && Boolean(next.poker)));
-    setSelectedGame((current) => next.blackjack ? "blackjack" : next.poker ? "poker" : nextVisibleGames.some((game) => game.key === current) ? current : nextVisibleGames[0]?.key ?? current);
-    setState(next);
-    setBlackjack(next.blackjack);
-    setPoker(next.poker);
-    setError("");
-    setLoading(false);
   }, []);
 
   const loadDinoLeaderboard = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
-    const { data, error: rpcError } = await supabase.rpc("get_dino_leaderboard", { p_period: leaderboardPeriod });
-    if (rpcError) return;
-    const next = data as DinoLeaderboardState | null;
-    if (!next?.ok || !Array.isArray(next.entries)) return;
-    setDinoLeaderboard({ ok: true, entries: next.entries, my_entry: next.my_entry ?? null });
+    const requestId = ++dinoLeaderboardRequestRef.current;
+    try {
+      const { data, error: rpcError } = await supabase.rpc("get_dino_leaderboard", { p_period: leaderboardPeriod });
+      if (rpcError || requestId !== dinoLeaderboardRequestRef.current) return;
+      const next = data as DinoLeaderboardState | null;
+      if (!next?.ok || !Array.isArray(next.entries)) return;
+      setDinoLeaderboard({ ok: true, period: leaderboardPeriod, entries: next.entries, my_entry: next.my_entry ?? null });
+    } catch {
+      if (requestId === dinoLeaderboardRequestRef.current) setDinoLeaderboard(null);
+    }
   }, [leaderboardPeriod]);
 
   const loadLeaderboard = useCallback(async (gameKey: GameKey = selectedGame) => {
     if (gameKey === "dino_run") return;
     const supabase = getSupabase();
     if (!supabase) return;
-    const { data, error: rpcError } = await supabase.rpc("get_game_leaderboard", { p_game_key: gameKey, p_period: leaderboardPeriod });
-    if (rpcError) return;
-    const next = data as GameLeaderboardState | null;
-    if (!next?.ok || !Array.isArray(next.entries)) return;
-    setLeaderboard({ ...next, game_key: gameKey, my_entry: next.my_entry ?? null });
+    const requestId = ++leaderboardRequestRef.current;
+    try {
+      const { data, error: rpcError } = await supabase.rpc("get_game_leaderboard", { p_game_key: gameKey, p_period: leaderboardPeriod });
+      if (rpcError || requestId !== leaderboardRequestRef.current) return;
+      const next = data as GameLeaderboardState | null;
+      if (!next?.ok || !Array.isArray(next.entries)) return;
+      setLeaderboard({ ...next, period: leaderboardPeriod, game_key: gameKey, my_entry: next.my_entry ?? null });
+    } catch {
+      if (requestId === leaderboardRequestRef.current) setLeaderboard(null);
+    }
   }, [leaderboardPeriod, selectedGame]);
+
+  const refreshLeaderboards = useCallback(async () => {
+    await Promise.all([loadDinoLeaderboard(), selectedGame === "dino_run" ? Promise.resolve() : loadLeaderboard(selectedGame)]);
+  }, [loadDinoLeaderboard, loadLeaderboard, selectedGame]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => void loadState(), 0);
@@ -328,6 +350,28 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     const timer = window.setTimeout(() => void loadLeaderboard(selectedGame), 0);
     return () => window.clearTimeout(timer);
   }, [loadLeaderboard, selectedGame]);
+
+  useEffect(() => {
+    const resetTimer = window.setTimeout(() => {
+      setLeaderboard(null);
+      setDinoLeaderboard(null);
+    }, 0);
+    const refresh = () => void refreshLeaderboards();
+    const timer = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    window.addEventListener("online", refresh);
+    return () => {
+      window.clearTimeout(resetTimer);
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+    };
+  }, [refreshLeaderboards]);
+
+  useEffect(() => {
+    if (!state || activeRoundRef.current) return;
+    setState((current) => current && current.balance !== walletBalance ? { ...current, balance: walletBalance } : current);
+  }, [state, walletBalance]);
 
   useEffect(() => {
     activeRoundRef.current = busy || Boolean(blackjack) || Boolean(poker) || Boolean(dino);
@@ -543,6 +587,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     const result = data as DinoState;
     dinoSyncChainRef.current = Promise.resolve();
     dinoFinalQueuedRef.current = false;
+    setDinoPendingScore(null);
     dinoRef.current = result;
     setDino(result);
     setState((current) => current ? { ...current, balance: result.balance } : current);
@@ -559,19 +604,29 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       if (!currentSession || currentSession.id !== sessionId) return;
       const supabase = getSupabase();
       if (!supabase) return;
-      const { data, error: rpcError } = await supabase.rpc("sync_dino_run", {
-        p_session_id: sessionId,
-        p_score: score,
-        p_finished: finished,
-      });
-      if (rpcError) {
-        setError(gameError(rpcError.message));
-        if (finished) {
-          dinoRef.current = null;
-          setDino(null);
+      let data: unknown = null;
+      let rpcError: { message?: string } | null = null;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          const response = await supabase.rpc("sync_dino_run", {
+            p_session_id: sessionId,
+            p_score: score,
+            p_finished: finished,
+          });
+          data = response.data;
+          rpcError = response.error;
+        } catch (caught) {
+          rpcError = { message: caught instanceof Error ? caught.message : "network_error" };
         }
+        if (!rpcError) break;
+        if (attempt < 2) await new Promise<void>((resolve) => window.setTimeout(resolve, 350 * (attempt + 1)));
+      }
+      if (rpcError) {
+        setDinoPendingScore(score);
+        setError(`${gameError(rpcError.message)} Die Dino-Runde bleibt offen und wird beim nächsten Versuch erneut synchronisiert.`);
         return;
       }
+      setDinoPendingScore(null);
 
       const result = data as DinoState;
       dinoRef.current = result.status === "active" ? { ...currentSession, ...result } : null;
@@ -718,11 +773,11 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
       <div className="game-marquee" aria-hidden="true"><div><span>SERVER FAIR PLAY</span><i>◆</i><span>EIN WALLET</span><i>◆</i><span>SOFORT VERBUCHT</span><i>◆</i><span>NUR GIBB COINS</span><i>◆</i><span>SERVER FAIR PLAY</span><i>◆</i><span>EIN WALLET</span><i>◆</i></div></div>
 
-      {visibleGames.length > 0 && <div className="game-tabs" role="tablist" aria-label="Spiele auswählen">{visibleGames.map((game, index) => { const liveEnabled = centerEnabled && (settings.get(game.key)?.enabled ?? false); return <button role="tab" aria-selected={selectedGame === game.key} className={selectedGame === game.key ? "active" : ""} type="button" key={game.key} onClick={() => chooseGame(game.key)}><u aria-hidden="true">0{index + 1}</u><span aria-hidden="true">{game.icon}</span><b>{game.title}<small>{game.description}</small></b><i className={liveEnabled ? "enabled" : ""}>{liveEnabled ? "AN" : "RUNDE"}</i></button>; })}</div>}
+      {visibleGames.length > 0 && <div className="game-tabs" role="tablist" aria-label="Spiele auswählen">{visibleGames.map((game, index) => { const liveEnabled = centerEnabled && (settings.get(game.key)?.enabled ?? false); return <button role="tab" aria-selected={selectedGame === game.key} className={selectedGame === game.key ? "active" : ""} type="button" key={game.key} onClick={() => chooseGame(game.key)}><u aria-hidden="true">0{index + 1}</u><span aria-hidden="true">{game.icon}</span><b>{game.title}{game.minimumProgress && <small className="game-requirement">Ab {game.minimumProgress}</small>}<small>{game.description}</small></b><i className={liveEnabled ? "enabled" : ""}>{liveEnabled ? "AN" : "RUNDE"}</i></button>; })}</div>}
 
       <div className="game-layout">
         {selectedVisible ? <article className="game-machine">
-          <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
+          <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}{activeGame.minimumProgress && <small className="game-requirement">Ab {activeGame.minimumProgress}</small>}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
           <div className="stage-shell" key={`stage-${selectedGame}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-energy" aria-hidden="true"><i /><i /><i /><i /></div><div className="stage-particles" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div></div>
           {won && <div className="win-confetti" aria-hidden="true">{Array.from({ length: 22 }, (_, index) => <i key={index} />)}</div>}
 
@@ -741,6 +796,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
           <details className="fair-rules"><summary>Regeln, Chancen &amp; Fairness</summary><p>{fairRules[selectedGame]}</p><small>Ergebnisse entstehen serverseitig mit festen Regeln. Es gibt keine versteckten personenbezogenen Gewinnchancen. Jede abgeschlossene Runde erhält einen SHA-256-Prüfcode.</small></details>
 
           {dinoRewardNotice && selectedGame === "dino_run" && <p className="message success-message dino-reward-notice" role="status">✓ {dinoRewardNotice}</p>}
+          {dinoPendingScore !== null && selectedGame === "dino_run" && <button type="button" className="secondary compact" onClick={() => { dinoFinalQueuedRef.current = false; syncDinoScore(dinoPendingScore, true); }}>Dino-Ergebnis erneut synchronisieren</button>}
           {lastResult && (lastResult.game_key === "dino_run" ? <div className={`game-result ${lastResult.net > 0 ? "win" : lastResult.net === 0 ? "push" : "loss"}`} role="status"><i className="result-flare" aria-hidden="true" /><div><span>DINO RUN BEENDET</span><strong>{Number(lastResult.result.score ?? 0).toLocaleString("de-CH")} Punkte</strong></div><p>Eintritt {lastResult.wager.toLocaleString("de-CH")} · Prämie {lastResult.payout.toLocaleString("de-CH")} GIBB · Netto {lastResult.net > 0 ? "+" : ""}{lastResult.net}</p></div> : <div className={`game-result ${lastResult.net > 0 ? "win" : lastResult.net === 0 ? "push" : "loss"}`} role="status"><i className="result-flare" aria-hidden="true" /><div><span>{lastResult.net > 0 ? "JACKPOT · GEWONNEN" : lastResult.net === 0 ? "GLEICHSTAND" : "RUNDE BEENDET"}</span><strong>{lastResult.net > 0 ? "+" : ""}{lastResult.net} GIBB</strong></div><p>Einsatz {lastResult.wager} · Auszahlung {lastResult.payout} GIBB</p></div>)}
           {error && <p className="message error game-error" role="alert">{error}</p>}
         </article> : <div className="game-empty-state"><span>{loading ? "↻" : "⊘"}</span><strong>{loading ? "Spiele werden geladen …" : error ? "Spiele konnten nicht geladen werden" : "Aktuell sind keine Spiele aktiv"}</strong><p>{loading ? "Die sicheren Spielschalter werden synchronisiert." : error || "Ein Admin kann Spiele im geschützten Bereich wieder einschalten."}</p>{!loading && error && <button type="button" className="secondary compact" onClick={() => void loadState()}>Erneut laden</button>}</div>}

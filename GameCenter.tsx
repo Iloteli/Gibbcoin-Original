@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { getSupabase } from "../lib/supabase";
 import { DinoRunner } from "./DinoRunner";
 
-type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "plinko" | "dino_run";
+type GameKey = "roulette" | "coin_flip" | "blackjack" | "dice_duel" | "high_card" | "poker" | "plinko" | "dino_run" | "slots" | "baccarat" | "keno" | "wheel" | "mines" | "bingo" | "crash";
 type PrankGameKey = Exclude<GameKey, "dino_run">;
 type SettingKey = "game_center" | GameKey;
 type GameSetting = { game_key: SettingKey; label: string; enabled: boolean; updated_at: string };
@@ -96,10 +96,18 @@ const games: Array<{ key: GameKey; title: string; icon: string; description: str
   { key: "poker", title: "5-Karten-Poker", icon: "♣", description: "Halte starke Karten und ziehe den Rest neu." },
   { key: "plinko", title: "Plinko", icon: "●", description: "Lass die Kugel durch das Peg-Feld in ein Gewinnfach fallen." },
   { key: "dino_run", title: "Dino Run", icon: "▰", description: "Steigendes Tempo, enge Hindernisse und sichere Prämien." },
+  { key: "slots", title: "Slots", icon: "▦", description: "Drei Symbole, ein serverseitig fairer Zufall." },
+  { key: "baccarat", title: "Baccarat", icon: "♛", description: "Wähle Spieler, Bank oder Unentschieden." },
+  { key: "keno", title: "Keno", icon: "⑨", description: "Wähle fünf Zahlen zwischen 1 und 40." },
+  { key: "wheel", title: "Wheel", icon: "◉", description: "Drehe das Rad mit acht serverseitigen Feldern." },
+  { key: "mines", title: "Mines", icon: "✦", description: "Ein serverseitiger Feld-Reveal entscheidet über Gewinn oder Verlust." },
+  { key: "bingo", title: "Bingo", icon: "▤", description: "Eine serverseitige Gewinnchance entscheidet die Runde." },
+  { key: "crash", title: "Crash", icon: "↗", description: "Wähle ein Ziel und vergleiche es mit dem serverseitigen Multiplikator." },
 ];
 const wagers = [1, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 const plinkoMultipliers = [3, 1, 0, 0, 0, 0, 0, 1, 3];
 const DINO_ENTRY_COST = 150;
+const casinoGameKeys: GameKey[] = ["slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"];
 
 function gameError(message?: string) {
   if (message?.includes("insufficient_balance")) return "Dein Wallet hat nicht genügend GIBB für diesen Einsatz.";
@@ -187,6 +195,9 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   const [wager, setWager] = useState(1);
   const [rouletteChoice, setRouletteChoice] = useState("rot");
   const [coinChoice, setCoinChoice] = useState("kopf");
+  const [baccaratChoice, setBaccaratChoice] = useState("spieler");
+  const [kenoPicks, setKenoPicks] = useState([1, 2, 3, 4, 5]);
+  const [crashTarget, setCrashTarget] = useState(2);
   const [lastResult, setLastResult] = useState<GameResult | null>(null);
   const [blackjack, setBlackjack] = useState<BlackjackState | null>(null);
   const [poker, setPoker] = useState<PokerState | null>(null);
@@ -235,9 +246,9 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
   const loadDinoLeaderboard = useCallback(async () => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) { setError("Die Bestenliste ist momentan nicht erreichbar."); return; }
     const { data, error: rpcError } = await supabase.rpc("get_dino_leaderboard");
-    if (rpcError) return;
+    if (rpcError) { setError("Die Bestenliste konnte nicht geladen werden. Versuche es nochmals."); return; }
     const next = data as DinoLeaderboardState | null;
     if (!next?.ok || !Array.isArray(next.entries)) return;
     setDinoLeaderboard({ ok: true, entries: next.entries, my_entry: next.my_entry ?? null });
@@ -255,9 +266,9 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
   const loadEffectivePranks = useCallback(async () => {
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     const { data, error: rpcError } = await supabase.rpc("get_effective_visual_pranks");
-    if (rpcError) return;
+    if (rpcError) { setError("Die Spielansicht konnte nicht aktualisiert werden."); return; }
     const next = data as { ok?: boolean; games?: PrankGameKey[] } | null;
     if (!next?.ok || !Array.isArray(next.games)) return;
     setEffectivePrankGames(new Set(next.games));
@@ -320,29 +331,54 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     setError("");
   }
 
+  function selectedChoice() {
+    if (selectedGame === "roulette") return rouletteChoice;
+    if (selectedGame === "coin_flip") return coinChoice;
+    if (selectedGame === "baccarat") return baccaratChoice;
+    if (selectedGame === "keno") {
+      const picks = [...new Set(kenoPicks)];
+      if (picks.length !== 5 || picks.some((pick) => !Number.isInteger(pick) || pick < 1 || pick > 40)) {
+        setError("Keno braucht genau fünf verschiedene Zahlen zwischen 1 und 40.");
+        return null;
+      }
+      return picks.sort((a, b) => a - b).join(",");
+    }
+    if (selectedGame === "crash") {
+      if (!Number.isFinite(crashTarget) || crashTarget < 1.1 || crashTarget > 10) {
+        setError("Das Crash-Ziel muss zwischen 1,1 und 10,0 liegen.");
+        return null;
+      }
+      return crashTarget.toFixed(1);
+    }
+    return "spielen";
+  }
+
   async function playInstant() {
     if (busy || loading || !currentEnabled) return;
     if (!wagerValid) { setError("Gib einen positiven ganzen Einsatz ein."); return; }
     if (currentBalance < wager) { setError("Dein Wallet hat nicht genügend GIBB für diesen Einsatz."); return; }
     const supabase = getSupabase();
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
-    const choice = selectedGame === "roulette" ? rouletteChoice : selectedGame === "coin_flip" ? coinChoice : "spielen";
+    const choice = selectedChoice();
+    if (!choice) return;
     activeRoundRef.current = true;
     setBusy(true); setError(""); setLastResult(null); setAnimationKey((key) => key + 1);
-    const [{ data, error: rpcError }] = await Promise.all([
-      supabase.rpc("play_instant_game", {
-        p_game_key: selectedGame,
-        p_choice: choice,
-        p_wager: wager,
-      }),
-      holdAnimation(1150),
-    ]);
-    setBusy(false);
-    if (rpcError) { setError(gameError(rpcError.message)); return; }
-    const result = data as GameResult;
-    setLastResult(result);
-    setState((current) => current ? { ...current, balance: result.balance } : current);
-    await Promise.all([loadState(), onChanged()]);
+    try {
+      const [{ data, error: rpcError }] = await Promise.all([
+        supabase.rpc(casinoGameKeys.includes(selectedGame) ? "play_casino_game" : "play_instant_game", {
+          p_game_key: selectedGame,
+          p_choice: choice,
+          p_wager: wager,
+        }),
+        holdAnimation(1150),
+      ]);
+      if (rpcError) { setError(gameError(rpcError.message)); return; }
+      const result = data as GameResult;
+      setLastResult(result);
+      setState((current) => current ? { ...current, balance: result.balance } : current);
+      try { await Promise.all([loadState(), onChanged()]); } catch { setError("Runde verbucht. Wallet-Ansicht konnte nicht aktualisiert werden."); }
+    } catch { setError("Die Runde konnte wegen eines Verbindungsfehlers nicht verbucht werden. Versuche es nochmals."); }
+    finally { setBusy(false); }
   }
 
   async function startBlackjack() {
@@ -353,42 +389,43 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     activeRoundRef.current = true;
     setBusy(true); setError(""); setLastResult(null); setAnimationKey((key) => key + 1);
-    const [{ data, error: rpcError }] = await Promise.all([
-      supabase.rpc("start_blackjack", { p_wager: wager }),
-      holdAnimation(850),
-    ]);
-    setBusy(false);
-    if (rpcError) { setError(gameError(rpcError.message)); return; }
-    const result = data as BlackjackState & { balance: number };
-    setBlackjack(result.status === "active" ? result : null);
-    if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance } : current);
-    if (result.status !== "active") {
-      setLastResult({ ok: true, game_key: "blackjack", wager: result.wager, payout: result.payout, net: result.payout - result.wager, result: { status: result.status }, balance: result.balance });
-    }
-    await Promise.all([loadState(), onChanged()]);
+    try {
+      const [{ data, error: rpcError }] = await Promise.all([
+        supabase.rpc("start_blackjack", { p_wager: wager }),
+        holdAnimation(850),
+      ]);
+      if (rpcError) { setError(gameError(rpcError.message)); return; }
+      const result = data as BlackjackState & { balance: number };
+      setBlackjack(result.status === "active" ? result : null);
+      if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance } : current);
+      if (result.status !== "active") {
+        setLastResult({ ok: true, game_key: "blackjack", wager: result.wager, payout: result.payout, net: result.payout - result.wager, result: { status: result.status }, balance: result.balance });
+      }
+      try { await Promise.all([loadState(), onChanged()]); } catch { setError("Runde verbucht. Wallet-Ansicht konnte nicht aktualisiert werden."); }
+    } catch { setError("Die Runde konnte wegen eines Verbindungsfehlers nicht gestartet werden. Versuche es nochmals."); }
+    finally { setBusy(false); }
   }
 
   async function actBlackjack(action: "hit" | "stand") {
     if (!blackjack || busy) return;
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     activeRoundRef.current = true;
     setBusy(true); setError(""); setAnimationKey((key) => key + 1);
-    const [{ data, error: rpcError }] = await Promise.all([
-      supabase.rpc("blackjack_action", { p_session_id: blackjack.id, p_action: action }),
-      holdAnimation(600),
-    ]);
-    setBusy(false);
-    if (rpcError) { setError(gameError(rpcError.message)); return; }
-    const result = data as BlackjackState & { balance?: number };
-    if (result.status === "active") {
-      setBlackjack(result);
-      return;
-    }
-    setBlackjack(null);
-    if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance! } : current);
-    setLastResult({ ok: true, game_key: "blackjack", wager: result.wager, payout: result.payout, net: result.payout - result.wager, result: { status: result.status, player_score: result.player_score, dealer_score: result.dealer_score, player_cards: result.player_cards, dealer_cards: result.dealer_cards }, balance: result.balance ?? currentBalance });
-    await Promise.all([loadState(), onChanged()]);
+    try {
+      const [{ data, error: rpcError }] = await Promise.all([
+        supabase.rpc("blackjack_action", { p_session_id: blackjack.id, p_action: action }),
+        holdAnimation(600),
+      ]);
+      if (rpcError) { setError(gameError(rpcError.message)); return; }
+      const result = data as BlackjackState & { balance?: number };
+      if (result.status === "active") { setBlackjack(result); return; }
+      setBlackjack(null);
+      if (typeof result.balance === "number") setState((current) => current ? { ...current, balance: result.balance! } : current);
+      setLastResult({ ok: true, game_key: "blackjack", wager: result.wager, payout: result.payout, net: result.payout - result.wager, result: { status: result.status, player_score: result.player_score, dealer_score: result.dealer_score, player_cards: result.player_cards, dealer_cards: result.dealer_cards }, balance: result.balance ?? currentBalance });
+      try { await Promise.all([loadState(), onChanged()]); } catch { setError("Runde verbucht. Wallet-Ansicht konnte nicht aktualisiert werden."); }
+    } catch { setError("Die Blackjack-Aktion konnte wegen eines Verbindungsfehlers nicht ausgeführt werden. Versuche es nochmals."); }
+    finally { setBusy(false); }
   }
 
   async function startPoker() {
@@ -399,16 +436,18 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     activeRoundRef.current = true;
     setBusy(true); setError(""); setLastResult(null); setHeldPokerCards(new Set()); setAnimationKey((key) => key + 1);
-    const [{ data, error: rpcError }] = await Promise.all([
-      supabase.rpc("start_poker", { p_wager: wager }),
-      holdAnimation(850),
-    ]);
-    setBusy(false);
-    if (rpcError) { setError(gameError(rpcError.message)); return; }
-    const result = data as PokerState & { balance: number };
-    setPoker(result);
-    setState((current) => current ? { ...current, balance: result.balance } : current);
-    await Promise.all([loadState(), onChanged()]);
+    try {
+      const [{ data, error: rpcError }] = await Promise.all([
+        supabase.rpc("start_poker", { p_wager: wager }),
+        holdAnimation(850),
+      ]);
+      if (rpcError) { setError(gameError(rpcError.message)); return; }
+      const result = data as PokerState & { balance: number };
+      setPoker(result);
+      setState((current) => current ? { ...current, balance: result.balance } : current);
+      try { await Promise.all([loadState(), onChanged()]); } catch { setError("Runde verbucht. Wallet-Ansicht konnte nicht aktualisiert werden."); }
+    } catch { setError("Die Poker-Runde konnte wegen eines Verbindungsfehlers nicht gestartet werden. Versuche es nochmals."); }
+    finally { setBusy(false); }
   }
 
   async function playVisualPrank() {
@@ -417,7 +456,8 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (currentBalance < wager) { setError("Dein Wallet hat nicht genügend GIBB für diesen Einsatz."); return; }
     const supabase = getSupabase();
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
-    const choice = selectedGame === "roulette" ? rouletteChoice : selectedGame === "coin_flip" ? coinChoice : "spielen";
+    const choice = selectedChoice();
+    if (!choice) return;
     activeRoundRef.current = true;
     setBusy(true); setError(""); setLastResult(null); setAnimationKey((key) => key + 1);
     const [{ data, error: rpcError }] = await Promise.all([
@@ -466,20 +506,22 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   async function drawPoker() {
     if (!poker || busy) return;
     const supabase = getSupabase();
-    if (!supabase) return;
+    if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     activeRoundRef.current = true;
     setBusy(true); setError(""); setAnimationKey((key) => key + 1);
     const holds = Array.from(heldPokerCards).sort((a, b) => a - b);
-    const [{ data, error: rpcError }] = await Promise.all([
-      supabase.rpc("poker_draw", { p_session_id: poker.id, p_hold_positions: holds }),
-      holdAnimation(750),
-    ]);
-    setBusy(false);
-    if (rpcError) { setError(gameError(rpcError.message)); return; }
-    const result = data as GameResult & PokerState;
-    setPoker(null); setHeldPokerCards(new Set()); setLastResult(result);
-    setState((current) => current ? { ...current, balance: result.balance } : current);
-    await Promise.all([loadState(), onChanged()]);
+    try {
+      const [{ data, error: rpcError }] = await Promise.all([
+        supabase.rpc("poker_draw", { p_session_id: poker.id, p_hold_positions: holds }),
+        holdAnimation(750),
+      ]);
+      if (rpcError) { setError(gameError(rpcError.message)); return; }
+      const result = data as GameResult & PokerState;
+      setPoker(null); setHeldPokerCards(new Set()); setLastResult(result);
+      setState((current) => current ? { ...current, balance: result.balance } : current);
+      try { await Promise.all([loadState(), onChanged()]); } catch { setError("Runde verbucht. Wallet-Ansicht konnte nicht aktualisiert werden."); }
+    } catch { setError("Die Poker-Aktion konnte wegen eines Verbindungsfehlers nicht ausgeführt werden. Versuche es nochmals."); }
+    finally { setBusy(false); }
   }
 
   async function startDinoRun() {
@@ -489,15 +531,17 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (!supabase) { setError("Die Wallet-Verbindung ist noch nicht bereit. Versuche es nochmals."); return; }
     activeRoundRef.current = true;
     setBusy(true); setError(""); setLastResult(null); setDinoRewardNotice("");
-    const { data, error: rpcError } = await supabase.rpc("start_dino_run");
-    setBusy(false);
-    if (rpcError) { setError(gameError(rpcError.message)); return; }
-    const result = data as DinoState;
-    dinoSyncChainRef.current = Promise.resolve();
-    dinoFinalQueuedRef.current = false;
-    dinoRef.current = result;
-    setDino(result);
-    setState((current) => current ? { ...current, balance: result.balance } : current);
+    try {
+      const { data, error: rpcError } = await supabase.rpc("start_dino_run");
+      if (rpcError) { setError(gameError(rpcError.message)); return; }
+      const result = data as DinoState;
+      dinoSyncChainRef.current = Promise.resolve();
+      dinoFinalQueuedRef.current = false;
+      dinoRef.current = result;
+      setDino(result);
+      setState((current) => current ? { ...current, balance: result.balance } : current);
+    } catch { setError("Der Dino-Run konnte wegen eines Verbindungsfehlers nicht gestartet werden. Versuche es nochmals."); }
+    finally { setBusy(false); }
   }
 
   function syncDinoScore(score: number, finished: boolean) {
@@ -604,6 +648,10 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       const multiplier = lastResult?.game_key === "plinko" ? Number(lastResult.result.multiplier ?? 0) : null;
       return <div className="game-stage plinko-stage" key={`plinko-${animationKey}`}><PlinkoBoard slot={slot} dropping={busy} animationKey={animationKey} /><div className="game-outcome">{multiplier === null ? <span>Kugel starten · 3× an den Außenfächern</span> : <><strong>{multiplier}×</strong><span>Fach {Number(slot) + 1}</span></>}</div></div>;
     }
+    if (casinoGameKeys.includes(selectedGame)) {
+      const result = lastResult?.game_key === selectedGame ? lastResult.result : null;
+      return <div className="game-stage casino-stage"><strong>{result ? String(result.outcome ?? result.result ?? "Runde beendet") : gameName(selectedGame)}</strong><p>{busy ? "Server entscheidet die Runde …" : "Die Runde wird fair und serverseitig ausgelost."}</p></div>;
+    }
     const finished = lastResult?.game_key === "blackjack" ? lastResult.result : null;
     const playerCards = blackjack?.player_cards ?? (finished?.player_cards as number[] | undefined) ?? [];
     const dealerCards = blackjack?.dealer_cards ?? (finished?.dealer_cards as number[] | undefined) ?? [];
@@ -632,6 +680,9 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
           <div className="game-controls">
             {selectedGame === "roulette" && <div className="game-choice"><label htmlFor="roulette-choice">Dein Tipp</label><select id="roulette-choice" className="input" value={rouletteChoice} onChange={(event) => setRouletteChoice(event.target.value)} disabled={busy}><option value="rot">Rot · 2×</option><option value="schwarz">Schwarz · 2×</option>{Array.from({ length: 37 }, (_, number) => <option value={number} key={number}>{number} · 36×</option>)}</select></div>}
             {selectedGame === "coin_flip" && <div className="game-choice coin-choice" role="group" aria-label="Münzseite">{["kopf", "zahl"].map((choice) => <button type="button" className={coinChoice === choice ? "active" : ""} key={choice} onClick={() => setCoinChoice(choice)}>{choice === "kopf" ? "Kopf" : "Zahl"} · 2×</button>)}</div>}
+            {selectedGame === "baccarat" && <select className="input" aria-label="Baccarat-Tipp" value={baccaratChoice} onChange={(event) => setBaccaratChoice(event.target.value)} disabled={busy}><option value="spieler">Spieler · 2×</option><option value="bank">Bank · 1,95×</option><option value="unentschieden">Unentschieden · 9×</option></select>}
+            {selectedGame === "keno" && <input className="input" value={kenoPicks.join(",")} aria-label="Fünf Keno-Zahlen 1 bis 40" onChange={(event) => setKenoPicks(event.target.value.split(",").map(Number))} disabled={busy} />}
+            {selectedGame === "crash" && <input className="input" type="number" min="1.1" max="10" step="0.1" value={crashTarget} aria-label="Crash-Ziel" onChange={(event) => setCrashTarget(Number(event.target.value))} disabled={busy} />}
             {selectedGame === "dino_run" ? <div className="dino-reward-rule"><span>EINTRITT · GARANTIERTE PRÄMIE</span><strong>150 GIBB · 1’000 Punkte = 100 GIBB</strong><small>Einmaliger Eintritt pro Lauf · jede Marke serverseitig nur einmal</small></div> : <div className="wager-choice"><label htmlFor="game-wager">Eigener Eintritt · kein Limit</label><div className="wager-input"><input id="game-wager" className="input" type="number" inputMode="numeric" min={1} step={1} value={wager || ""} onChange={(event) => setWager(Number(event.target.value))} disabled={busy || Boolean(blackjack) || Boolean(poker)} aria-describedby="wager-presets" /><span>GIBB</span></div><div className="wager-presets" id="wager-presets" aria-label="Schnelleinsätze">{wagers.map((value) => <button className={wager === value ? "active" : ""} type="button" disabled={busy || Boolean(blackjack) || Boolean(poker)} key={value} onClick={() => setWager(value)}>{value.toLocaleString("de-CH")}</button>)}<button className={`wager-all-in ${wager === allInWager && allInWager > 0 ? "active" : ""}`} type="button" aria-label={`All-in mit ${allInWager.toLocaleString("de-CH")} GIBB`} disabled={busy || Boolean(blackjack) || Boolean(poker) || allInWager < 1} onClick={() => setWager(allInWager)}>All-in · {allInWager.toLocaleString("de-CH")}</button></div></div>}
             {selectedGame === "blackjack" && blackjack ? <div className="blackjack-actions"><button type="button" className="primary" disabled={busy} onClick={() => void actBlackjack("hit")}>Karte ziehen</button><button type="button" className="secondary" disabled={busy} onClick={() => void actBlackjack("stand")}>Halten</button></div> : selectedGame === "poker" && poker ? <div className="poker-actions"><button type="button" className="primary" disabled={busy} onClick={() => void drawPoker()}>{busy ? "Karten werden gezogen …" : heldPokerCards.size === 5 ? "Hand auswerten" : `${5 - heldPokerCards.size} Karte${5 - heldPokerCards.size === 1 ? "" : "n"} neu ziehen`}</button></div> : <button className="primary game-play" type="button" disabled={busy || loading || !currentEnabled || Boolean(dino) || (selectedGame === "dino_run" && !dinoCanStart)} onClick={() => void startSelectedGame()}><span>{busy ? "Runde läuft …" : loading ? "Wallet wird verbunden …" : selectedGame === "dino_run" ? dino ? "Dino läuft …" : dinoCanStart ? `Dino Run starten · ${DINO_ENTRY_COST} GIBB` : `${DINO_ENTRY_COST} GIBB benötigt` : wagerValid ? `Runde starten · ${wager} GIBB` : "Einsatz eingeben"}</span><i aria-hidden="true">→</i></button>}
           </div>

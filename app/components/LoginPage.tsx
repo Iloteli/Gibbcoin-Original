@@ -35,7 +35,7 @@ function registrationErrorMessage(error?: { code?: string; message?: string; sta
     return "Deine E-Mail-Adresse ist frei und kann wiederverwendet werden. Nur das Versandlimit für Bestätigungs-E-Mails ist gerade erreicht.";
   }
   if (detail.includes("already") || detail.includes("exists")) {
-    return "Für diese E-Mail besteht bereits ein Konto. Nutze die Anmeldung oder setze dein Passwort zurück.";
+    return "Das Konto konnte gerade nicht erstellt werden. Bitte prüfe deine Eingaben oder versuche es später erneut.";
   }
   if (detail.includes("password") || detail.includes("weak")) {
     return "Das Passwort ist zu schwach. Verwende mindestens 8 Zeichen und mische Buchstaben, Zahlen und Sonderzeichen.";
@@ -136,12 +136,12 @@ export function LoginPage() {
           const retryAt = Date.now() + EMAIL_RATE_LIMIT_COOLDOWN_MS;
           window.sessionStorage.setItem(REGISTRATION_COOLDOWN_KEY, String(retryAt));
           setRegistrationCooldownSeconds(Math.ceil(EMAIL_RATE_LIMIT_COOLDOWN_MS / 1000));
-          setError("Deine E-Mail-Adresse ist frei und kann wiederverwendet werden. Der E-Mail-Versand war kurz ausgelastet. Versuche die Registrierung in 60 Sekunden genau einmal erneut.");
+          setError("Die Registrierung konnte gerade nicht abgeschlossen werden, weil der E-Mail-Versand ausgelastet ist. Versuche es in 60 Sekunden erneut.");
         } else {
           setError(registrationErrorMessage(authError));
         }
       } else if (!data.session) {
-        setMessage("Fast geschafft: Öffne jetzt den Bestätigungslink in deiner E-Mail. Falls die Adresse bereits registriert ist, kannst du dich direkt anmelden oder dein Passwort zurücksetzen.");
+        setMessage("Fast geschafft: Öffne jetzt den Bestätigungslink in deiner E-Mail, um die Registrierung abzuschliessen.");
       }
     }
     setBusy(false);
