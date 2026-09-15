@@ -75,9 +75,6 @@ class Blockchain {
 
 const gibb = new Blockchain();
 
-gibb.blockHinzufuegen({ von: "Lea", an: "Tim", betrag: 5 });
-gibb.blockHinzufuegen({ von: "Tim", an: "Noah", betrag: 2 });
-gibb.blockHinzufuegen({ von: "Noah", an: "Lea", betrag: 1 });
 
 console.log("\nKette gültig?", gibb.istGueltig());
 
