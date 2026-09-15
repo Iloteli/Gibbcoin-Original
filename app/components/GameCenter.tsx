@@ -352,13 +352,20 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
   }, [loadLeaderboard, selectedGame]);
 
   useEffect(() => {
-    setLeaderboard(null);
-    setDinoLeaderboard(null);
+    const resetTimer = window.setTimeout(() => {
+      setLeaderboard(null);
+      setDinoLeaderboard(null);
+    }, 0);
     const refresh = () => void refreshLeaderboards();
     const timer = window.setInterval(refresh, 30_000);
     window.addEventListener("focus", refresh);
     window.addEventListener("online", refresh);
-    return () => { window.clearInterval(timer); window.removeEventListener("focus", refresh); window.removeEventListener("online", refresh); };
+    return () => {
+      window.clearTimeout(resetTimer);
+      window.clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("online", refresh);
+    };
   }, [refreshLeaderboards]);
 
   useEffect(() => {
