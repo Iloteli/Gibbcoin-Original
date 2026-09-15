@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Blockchain } from "./chain.mjs";
 import { loadSupabaseConfig, syncSupabaseAccounts } from "./supabase-sync.mjs";
+import { startFallbackMiner } from "./fallback-miner.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -22,6 +23,14 @@ const log = [];
 
 // Lokaler Miner (blockchain-node/miner.mjs) als Kindprozess auf diesem Rechner,
 // gestartet über die Website. Nutzt standardmässig alle Prozessorkerne.
+// Reserve-Miner: dedizierte Server-Wallet sicherstellen und Reserve-Miner starten.
+const FALLBACK_ADDRESS = "srv_fallback";
+if (!chain.accounts[FALLBACK_ADDRESS]) {
+  chain.accounts[FALLBACK_ADDRESS] = { name: "Server (Reserve-Miner)", balance: 0, cash: chain.settings.startingCash, lockedGibb: 0, lockedCash: 0, createdAt: Date.now(), source: "server" };
+  chain.save();
+}
+const fallbackMiner = startFallbackMiner(chain, { getAddress: () => FALLBACK_ADDRESS, note: (m) => note("block", m) });
+
 // Automatische Spiegelung der Supabase-Konten.
 const supabaseSync = { configured: loadSupabaseConfig().configured, lastRun: null, lastResult: null, lastError: null, running: false };
 async function runSupabaseSync() {
@@ -95,7 +104,7 @@ function note(kind, message) {
 
 // ---------- API ----------
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), supabaseSync: { ...supabaseSync, configured: loadSupabaseConfig().configured } }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), supabaseSync: { ...supabaseSync, configured: loadSupabaseConfig().configured }, fallbackMiner: fallbackMiner.status() }),
   "POST /api/sync-supabase": async () => {
     try { return { ok: true, ...(await runSupabaseSync()) }; }
     catch (error) { return { ok: false, error: error.message }; }

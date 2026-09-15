@@ -27,6 +27,9 @@ const defaultSettings = {
   startingCash: 100,    // Rappen, die jedes neue Wallet fair als Startguthaben bekommt (= 1 CHF)
   tradingFeePercent: 0, // fair: standardmässig keine Gebühr
   minOrderAmount: 1,    // kleinste handelbare GIBB-Menge
+  // Reserve-Miner: springt nur ein, wenn die Kette stillsteht (kein anderer Miner).
+  fallbackMinerEnabled: false,
+  fallbackDelaySeconds: 60,
 };
 
 export function transactionHash(tx) {
@@ -409,7 +412,7 @@ export class Blockchain {
 
   updateSettings(patch) {
     const next = { ...this.settings };
-    for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock", "startingCash", "minOrderAmount"]) {
+    for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock", "startingCash", "minOrderAmount", "fallbackDelaySeconds"]) {
       if (patch[key] !== undefined) {
         const value = Number(patch[key]);
         if (!Number.isFinite(value)) throw new Error(`invalid_${key}`);
@@ -425,6 +428,7 @@ export class Blockchain {
     }
     if (patch.autoAdjust !== undefined) next.autoAdjust = Boolean(patch.autoAdjust);
     if (patch.marketEnabled !== undefined) next.marketEnabled = Boolean(patch.marketEnabled);
+    if (patch.fallbackMinerEnabled !== undefined) next.fallbackMinerEnabled = Boolean(patch.fallbackMinerEnabled);
     next.reward = clamp(next.reward, 0, 10_000);
     next.minBits = clamp(next.minBits, 1, 40);
     next.maxBits = clamp(next.maxBits, next.minBits, 40);
@@ -435,6 +439,7 @@ export class Blockchain {
     next.startingCash = clamp(next.startingCash, 0, 100_000_000);
     next.tradingFeePercent = clamp(next.tradingFeePercent, 0, 20);
     next.minOrderAmount = clamp(next.minOrderAmount, 1, 1_000_000);
+    next.fallbackDelaySeconds = clamp(next.fallbackDelaySeconds, 5, 3600);
     this.settings = next;
     this.save();
     return next;

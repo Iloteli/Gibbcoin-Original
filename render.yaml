@@ -1,13 +1,35 @@
-# Render.com Blueprint: gratis Web Service für den GIBB-Blockchain-Node.
-# Hinweis: Der Free-Plan hat keine persistente Festplatte – die Kette startet
-# nach jedem Neustart/Deploy mit einem frischen Genesis-Block (reine Testumgebung).
+# Render.com Blueprint – hostet beide GIBB-Websites gratis (ohne Kreditkarte).
+#
+#   1) Blockchain-Website + Node (mit Reserve-Miner, der einspringt, wenn sonst
+#      niemand minet). FALLBACK_MINER=1 schaltet den Reserve-Miner ein.
+#   2) Die GibbCoin-Website (Next.js).
+#
+# WICHTIG: Der Render-Free-Plan hat KEINE dauerhafte Festplatte und schläft nach
+# ~15 Min ohne Zugriff ein. Die Blockchain (chain.json) startet dadurch nach
+# jedem Neustart neu. Für einen echten Dauerbetrieb den Node auf einem eigenen
+# Rechner laufen lassen oder eine externe Speicherung ergänzen.
 services:
   - type: web
     name: gibb-blockchain-node
     runtime: docker
     plan: free
     dockerfilePath: ./blockchain-node/Dockerfile
+    healthCheckPath: /api/stats
     envVars:
       - key: PORT
-        value: 8787
-    healthCheckPath: /api/stats
+        value: "8787"
+      - key: FALLBACK_MINER
+        value: "1"
+
+  - type: web
+    name: gibb-coin-website
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm run build
+    startCommand: pnpm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_OPTIONS
+        value: "--max-old-space-size=512"
