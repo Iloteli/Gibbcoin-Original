@@ -37,10 +37,11 @@ export function DinoRunner({ sessionId, seed, running, speedLevel, difficultyLev
   useEffect(() => { crashRef.current = onCrash; }, [onCrash]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !running) return;
-    const context = canvas.getContext("2d");
-    if (!context) return;
+    if (!canvasRef.current || !running) return;
+    const canvasElement: HTMLCanvasElement = canvasRef.current;
+    const maybeContext = canvasElement.getContext("2d");
+    if (!maybeContext) return;
+    const drawingContext: CanvasRenderingContext2D = maybeContext;
 
     let width = 720;
     let height = 280;
@@ -72,11 +73,11 @@ export function DinoRunner({ sessionId, seed, running, speedLevel, difficultyLev
 
     function resize() {
       const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      width = Math.max(320, canvas.clientWidth);
-      height = Math.max(230, canvas.clientHeight);
-      canvas.width = Math.round(width * ratio);
-      canvas.height = Math.round(height * ratio);
-      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      width = Math.max(320, canvasElement.clientWidth);
+      height = Math.max(230, canvasElement.clientHeight);
+      canvasElement.width = Math.round(width * ratio);
+      canvasElement.height = Math.round(height * ratio);
+      drawingContext.setTransform(ratio, 0, 0, ratio, 0, 0);
       if (dinoY === 0) dinoY = height - 98;
     }
 
@@ -100,7 +101,7 @@ export function DinoRunner({ sessionId, seed, running, speedLevel, difficultyLev
     resize();
 
     const resizeObserver = new ResizeObserver(resize);
-    resizeObserver.observe(canvas);
+    resizeObserver.observe(canvasElement);
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.code === "Space" || event.code === "ArrowUp") {
@@ -112,58 +113,58 @@ export function DinoRunner({ sessionId, seed, running, speedLevel, difficultyLev
 
     function draw(currentScore: number, speed: number) {
       const ground = height - 50;
-      context.clearRect(0, 0, width, height);
+      drawingContext.clearRect(0, 0, width, height);
 
-      const sky = context.createLinearGradient(0, 0, 0, height);
+      const sky = drawingContext.createLinearGradient(0, 0, 0, height);
       sky.addColorStop(0, "#07100b");
       sky.addColorStop(1, "#10251a");
-      context.fillStyle = sky;
-      context.fillRect(0, 0, width, height);
+      drawingContext.fillStyle = sky;
+      drawingContext.fillRect(0, 0, width, height);
 
-      context.fillStyle = "rgba(149,255,190,.38)";
+      drawingContext.fillStyle = "rgba(149,255,190,.38)";
       for (const star of stars) {
         const starX = (star.x * width - playedSeconds * (10 + star.size * 3)) % width;
-        context.fillRect(starX < 0 ? starX + width : starX, 16 + star.y * (height - 110), star.size, star.size);
+        drawingContext.fillRect(starX < 0 ? starX + width : starX, 16 + star.y * (height - 110), star.size, star.size);
       }
 
-      context.fillStyle = "rgba(47,100,68,.42)";
+      drawingContext.fillStyle = "rgba(47,100,68,.42)";
       for (let x = -80; x < width + 100; x += 95) {
         const hillX = x - (playedSeconds * 20) % 95;
-        context.beginPath();
-        context.moveTo(hillX, ground);
-        context.lineTo(hillX + 48, ground - 48);
-        context.lineTo(hillX + 96, ground);
-        context.fill();
+        drawingContext.beginPath();
+        drawingContext.moveTo(hillX, ground);
+        drawingContext.lineTo(hillX + 48, ground - 48);
+        drawingContext.lineTo(hillX + 96, ground);
+        drawingContext.fill();
       }
 
-      context.strokeStyle = "#72f59a";
-      context.lineWidth = 3;
-      context.beginPath();
-      context.moveTo(0, ground);
-      context.lineTo(width, ground);
-      context.stroke();
+      drawingContext.strokeStyle = "#72f59a";
+      drawingContext.lineWidth = 3;
+      drawingContext.beginPath();
+      drawingContext.moveTo(0, ground);
+      drawingContext.lineTo(width, ground);
+      drawingContext.stroke();
 
-      context.fillStyle = "rgba(114,245,154,.33)";
+      drawingContext.fillStyle = "rgba(114,245,154,.33)";
       const groundOffset = (playedSeconds * speed) % 38;
-      for (let x = -38; x < width + 38; x += 38) context.fillRect(x - groundOffset, ground + 13, 20, 3);
+      for (let x = -38; x < width + 38; x += 38) drawingContext.fillRect(x - groundOffset, ground + 13, 20, 3);
 
-      context.fillStyle = "#7cf6a0";
-      context.fillRect(72, dinoY + 13, 38, 30);
-      context.fillRect(96, dinoY, 27, 26);
-      context.fillRect(63, dinoY + 23, 14, 11);
-      context.fillStyle = "#08110c";
-      context.fillRect(113, dinoY + 7, 4, 4);
-      context.fillStyle = "#7cf6a0";
+      drawingContext.fillStyle = "#7cf6a0";
+      drawingContext.fillRect(72, dinoY + 13, 38, 30);
+      drawingContext.fillRect(96, dinoY, 27, 26);
+      drawingContext.fillRect(63, dinoY + 23, 14, 11);
+      drawingContext.fillStyle = "#08110c";
+      drawingContext.fillRect(113, dinoY + 7, 4, 4);
+      drawingContext.fillStyle = "#7cf6a0";
       const legPhase = Math.floor(playedSeconds * 12) % 2;
-      context.fillRect(79 + legPhase * 13, dinoY + 40, 8, 16);
-      context.fillRect(101 - legPhase * 13, dinoY + 40, 8, 16);
+      drawingContext.fillRect(79 + legPhase * 13, dinoY + 40, 8, 16);
+      drawingContext.fillRect(101 - legPhase * 13, dinoY + 40, 8, 16);
 
-      context.fillStyle = "#ffb45f";
+      drawingContext.fillStyle = "#ffb45f";
       for (const obstacle of obstacles) {
         const top = ground - obstacle.height;
-        context.fillRect(obstacle.x, top, obstacle.width, obstacle.height);
-        context.fillRect(obstacle.x - 7, top + 13, 8, 8);
-        context.fillRect(obstacle.x + obstacle.width - 1, top + 23, 8, 8);
+        drawingContext.fillRect(obstacle.x, top, obstacle.width, obstacle.height);
+        drawingContext.fillRect(obstacle.x - 7, top + 13, 8, 8);
+        drawingContext.fillRect(obstacle.x + obstacle.width - 1, top + 23, 8, 8);
       }
     }
 

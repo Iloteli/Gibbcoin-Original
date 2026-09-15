@@ -704,7 +704,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     const finished = lastResult?.game_key === "blackjack" ? lastResult.result : null;
     const playerCards = blackjack?.player_cards ?? (finished?.player_cards as number[] | undefined) ?? [];
     const dealerCards = blackjack?.dealer_cards ?? (finished?.dealer_cards as number[] | undefined) ?? [];
-    return <div className="game-stage blackjack-stage" key={`blackjack-${animationKey}`}><div><span>Bank {blackjack?.dealer_hidden ? "" : finished?.dealer_score ? `· ${finished.dealer_score}` : ""}</span><PlayingCards cards={dealerCards} hidden={Boolean(blackjack?.dealer_hidden)} /></div><div><span>Du · {blackjack?.player_score ?? finished?.player_score ?? 0}</span><PlayingCards cards={playerCards} /></div>{!blackjack && playerCards.length === 0 && <p>Neue Runde starten und zwei Karten erhalten.</p>}</div>;
+    return <div className="game-stage blackjack-stage" key={`blackjack-${animationKey}`}><div><span>Bank {blackjack?.dealer_hidden ? "" : finished?.dealer_score ? `· ${Number(finished.dealer_score)}` : ""}</span><PlayingCards cards={dealerCards} hidden={Boolean(blackjack?.dealer_hidden)} /></div><div><span>Du · {Number(blackjack?.player_score ?? finished?.player_score ?? 0)}</span><PlayingCards cards={playerCards} /></div>{!blackjack && playerCards.length === 0 && <p>Neue Runde starten und zwei Karten erhalten.</p>}</div>;
   }
 
   const activeGame = games.find((game) => game.key === selectedGame)!;
