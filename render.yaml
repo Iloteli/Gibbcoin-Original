@@ -1,0 +1,13 @@
+# Render.com Blueprint: gratis Web Service für den GIBB-Blockchain-Node.
+# Hinweis: Der Free-Plan hat keine persistente Festplatte – die Kette startet
+# nach jedem Neustart/Deploy mit einem frischen Genesis-Block (reine Testumgebung).
+services:
+  - type: web
+    name: gibb-blockchain-node
+    runtime: docker
+    plan: free
+    dockerfilePath: ./blockchain-node/Dockerfile
+    envVars:
+      - key: PORT
+        value: 8787
+    healthCheckPath: /api/stats
