@@ -135,7 +135,9 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
             <option value="unavailable">Nicht verfügbar</option><option value="configured">Konfiguriert</option><option value="enabled">Aktiv</option><option value="disabled">Deaktiviert</option>
           </select>
         </div>
-        <div className="admin-control-tools">
+      </article>)}
+    </div>
+    <div className="admin-control-tools">
           <article className="admin-operation"><h3>Wartungsmodus & Hinweis</h3><p>Der Wartungshinweis wird allen angemeldeten Personen angezeigt. Kritische Server-RPCs bleiben serverseitig geschützt.</p>
             <textarea className="input" rows={2} value={maintenanceMessage} onChange={(event) => setMaintenanceMessage(event.target.value)} placeholder="Wartungshinweis" />
             <button className="primary compact" type="button" disabled={busy !== ""} onClick={() => void saveControl("maintenance", { enabled: true, message: maintenanceMessage, until: null })}>Wartung aktivieren</button>
@@ -157,8 +159,6 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
             {(center.tasks ?? []).slice(0, 6).map((item) => <div className="admin-operation-foot" key={String(item.task_key)}><span>{String(item.name)}</span><button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void updateCatalog("task", item, { active: !item.active })}>{item.active ? "Pausieren" : "Aktivieren"}</button></div>)}
             {(center.seasons ?? []).slice(0, 3).map((item) => <div className="admin-operation-foot" key={String(item.id)}><span>{String(item.name)}</span><button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void updateCatalog("season", item, { name: String(item.name) })}>Speichern</button></div>)}
           </article>
-        </div>
-      </article>)}
     </div>
     {message && <p className="message" role="status">{message}</p>}
     {error && <p className="message error" role="alert">{error}</p>}

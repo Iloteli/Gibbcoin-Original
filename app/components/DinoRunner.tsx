@@ -243,7 +243,7 @@ export function DinoRunner({ sessionId, seed, running, speedLevel, difficultyLev
         <span>PUNKTE</span><strong>{score.toLocaleString("de-CH")}</strong>
         <small>Tempo: Stufe {Math.max(1, Math.min(5, speedLevel))} von 5</small>
         <small>Schwierigkeit: {Math.max(1, Math.min(5, difficultyLevel))}/5 · Laufstufe {scoreDifficultyStage(score)}/6</small>
-        <small>Nächste Prämie bei {(Math.floor(score / 1000) + 1).toLocaleString("de-CH")}</small>
+        <small>Nächste Prämie bei {((Math.floor(score / 1000) + 1) * 1000).toLocaleString("de-CH")}</small>
       </div>
       <canvas
         ref={canvasRef}
