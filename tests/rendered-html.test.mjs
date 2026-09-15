@@ -434,7 +434,7 @@ test("hard-deletes accounts so their email can be registered again", async () =>
   assert.match(login, /Auch nach einer Kontolöschung darfst du dieselbe E-Mail wiederverwenden/);
   assert.match(login, /const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000/);
   assert.match(login, /cooldownUntil - Date\.now\(\) > EMAIL_RATE_LIMIT_COOLDOWN_MS/);
-  assert.match(login, /Der E-Mail-Versand war kurz ausgelastet/);
+  assert.match(login, /E-Mail-Versand ausgelastet/);
 });
 
 test("creates every new account with a valid unique username and ten starting coins", async () => {
@@ -658,7 +658,8 @@ test("lets every user pick their own username in the profile tab", async () => {
 
   // Der Benutzername ist im Profil-Tab editierbar und wird serverseitig geprueft.
   assert.match(profileEditor, /htmlFor="profile-username"/);
-  assert.match(profileEditor, /supabase\.rpc\("set_my_username", \{ p_username: nextUsername \}\)/);
+  assert.match(profileEditor, /supabase\.rpc\("update_my_profile_atomic", \{/);
+  assert.match(profileEditor, /p_username: nextUsername/);
   assert.match(profileEditor, /username_taken/);
   assert.match(profileEditor, /bereits vergeben/);
   assert.match(types, /username\?: string;/);
