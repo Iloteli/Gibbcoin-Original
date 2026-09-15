@@ -61,6 +61,16 @@ Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherhe
 
 Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-core.js` und in den SQL-Funktionen `private.block_header`, `private.merkle_root` und `private.leading_zero_bits` identisch umgesetzt; `tests/blockchain.test.mjs` prüft die JavaScript-Seite gegen Node-Crypto. `scripts/simple-blockchain.py` ist ein eigenständiges Mini-Beispiel zum Verstehen des Prinzips (`python scripts/simple-blockchain.py`).
 
+### Beide Websites mit GitHub synchron halten
+
+Die GibbCoin-Website (`app/`) und die Blockchain-Website (`blockchain-node/`) liegen im selben Repo und laufen damit immer dieselbe Version. Um lokal exakt den Stand von `Iloteli/Gibbcoin-Original` (main) zu übernehmen und neu zu bauen:
+
+```bash
+pnpm deploy
+```
+
+Das holt den aktuellen GitHub-Stand (`git reset --hard` auf main – lokale, nicht committete Änderungen werden dabei verworfen), installiert bei Bedarf Abhängigkeiten und baut die Website neu. Mit `pnpm deploy -- --run` werden zusätzlich beide Server gestartet (Website auf 3000, Node auf 8787).
+
 ### Lokaler Blockchain-Node zum Testen
 
 `blockchain-node/` ist ein eigenständiger Node ohne Abhängigkeiten (kein Supabase nötig) mit Verwaltungs-Website: Wallets anlegen, Coins senden (Mempool), Kette prüfen, Block manipulieren (Demo), Belohnung/Schwierigkeit einstellen. **Gemint wird im Browser der Nutzer** (Web Worker auf dem eigenen Prozessor): Der Server gibt nur Blockvorlagen heraus (`POST /api/template`) und prüft eingereichte Nonces vollständig nach (`POST /api/submit`) – er rechnet selbst keinen einzigen Hash. Header, Merkle-Root und Nullbits sind dieselben Formeln wie in der App.

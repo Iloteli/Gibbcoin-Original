@@ -13,7 +13,8 @@
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "chain": "node blockchain-node/server.mjs",
-    "miner": "node blockchain-node/miner.mjs"
+    "miner": "node blockchain-node/miner.mjs",
+    "deploy": "node scripts/deploy-from-github.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",
