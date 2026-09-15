@@ -61,6 +61,16 @@ Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherhe
 
 Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-core.js` und in den SQL-Funktionen `private.block_header`, `private.merkle_root` und `private.leading_zero_bits` identisch umgesetzt; `tests/blockchain.test.mjs` prüft die JavaScript-Seite gegen Node-Crypto. `scripts/simple-blockchain.mjs` ist ein eigenständiges Mini-Beispiel zum Verstehen des Prinzips (`node scripts/simple-blockchain.mjs`).
 
+### Lokaler Blockchain-Node zum Testen
+
+`blockchain-node/` ist ein eigenständiger Node ohne Abhängigkeiten (kein Supabase nötig) mit Verwaltungs-Website: Wallets anlegen, Coins senden (Mempool), Blöcke minen (einzeln oder Dauerbetrieb), Kette prüfen, Block manipulieren (Demo), Belohnung/Schwierigkeit einstellen. Header, Merkle-Root und Nullbits sind dieselben Formeln wie in der App.
+
+```bash
+pnpm chain
+```
+
+Danach `http://localhost:8787` öffnen. Daten liegen in `blockchain-node/data/chain.json` (nicht versioniert). Port über `PORT`, Datei über `CHAIN_FILE`. Für einen Server: `docker build -f blockchain-node/Dockerfile -t gibb-chain . && docker run -p 8787:8787 -v gibb-chain-data:/app/blockchain-node/data gibb-chain`.
+
 ## Sicherheitsmodell
 
 Für die Produktivdatenbank gibt es `.github/workflows/production-supabase.yml`. Der Workflow ist ebenfalls nur manuell startbar, verlangt beim Start die Eingabe `MIGRATE` und eine Backup-Bestätigung, läuft im GitHub-Environment `production` und wendet Migrationen erst nach Lint, Build, Tests und einem Trockenlauf an. Benötigt werden dort `SUPABASE_ACCESS_TOKEN` und `SUPABASE_PROJECT_ID`. Der projektgebundene, kurzlebige Token erlaubt der Supabase CLI einen temporären Datenbank-Login, sodass kein dauerhaftes Datenbankpasswort in GitHub gespeichert werden muss. Diese Werte gehören ausschliesslich in die GitHub-Secrets, niemals ins Repository.
