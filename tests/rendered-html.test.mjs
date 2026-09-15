@@ -474,7 +474,7 @@ test("persists auth without competing manual refresh calls", async () => {
   assert.doesNotMatch(app, /DELETED_NOTICE/);
   assert.match(worker, /client\.navigate\(client\.url\)/);
   assert.match(login, /Angemeldet bleiben ist aktiv/);
-  assert.match(mfa, /bleibt die sichere Sitzung in diesem Browser gespeichert/);
+  assert.match(mfa, /Zwei-Faktor-Bestätigung ist für privilegierte Aktionen erforderlich/);
 });
 
 test("service worker replaces every legacy tab without blocking activation", async () => {
@@ -569,23 +569,21 @@ test("detects the device and adapts the layout for phones", async () => {
   assert.match(styles, /-webkit-tap-highlight-color: transparent/);
 });
 
-test("makes two factor confirmation optional instead of mandatory", async () => {
+test("requires two factor confirmation for privileged actions", async () => {
   const [app, challenge, migration] = await Promise.all([
     readFile(new URL("../app/components/GibbCoinApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MfaChallengePage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260909180000_make_admin_mfa_optional.sql", import.meta.url), "utf8"),
   ]);
 
-  // Die Challenge sperrt die App nicht mehr aus.
-  assert.match(app, /onSkip=\{\(\) => setMfaRequired\(false\)\}/);
-  assert.match(challenge, /onSkip\?: \(\) => void/);
-  assert.match(challenge, /Ohne Zwei-Faktor-Code fortfahren/);
+  // Die Challenge darf nicht umgangen werden.
+  assert.doesNotMatch(app, /onSkip/);
+  assert.doesNotMatch(challenge, /onSkip|Ohne Zwei-Faktor-Code fortfahren/);
 
-  // Serverseitig ist die Pruefung schaltbar und standardmaessig aus.
-  assert.match(migration, /create table if not exists private\.security_settings/);
-  assert.match(migration, /values \('require_admin_mfa', false\)/);
-  assert.match(migration, /if not coalesce\(/);
-  assert.match(migration, /return;/);
+  // Die neue additive Migration erzwingt AAL2 bei verifiziertem Faktor.
+  assert.match(migration, /create or replace function private\.assert_mfa_if_enrolled/);
+  assert.match(migration, /raise exception 'mfa_required'/);
+  assert.doesNotMatch(migration, /values \('require_admin_mfa', false\)/);
 
   // Die Identitaetspruefung und die Faktor-Logik bleiben erhalten.
   assert.match(migration, /raise exception 'authentication_required'/);
