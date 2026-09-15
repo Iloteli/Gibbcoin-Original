@@ -17,7 +17,7 @@ const defaultSettings = {
   reward: 10,
   difficultyBits: 16,
   minBits: 8,
-  maxBits: 26,
+  maxBits: 32,
   targetSeconds: 30,
   autoAdjust: true,
   maxTxPerBlock: 50,

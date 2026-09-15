@@ -69,7 +69,15 @@ Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-co
 pnpm chain
 ```
 
-Danach `http://localhost:8787` öffnen. Daten liegen in `blockchain-node/data/chain.json` (nicht versioniert). Port über `PORT`, Datei über `CHAIN_FILE`. Für einen Server: `docker build -f blockchain-node/Dockerfile -t gibb-chain . && docker run -p 8787:8787 -v gibb-chain-data:/app/blockchain-node/data gibb-chain`.
+Danach `http://localhost:8787` öffnen.
+
+**Lokaler Miner auf dem eigenen PC** (nutzt alle Prozessorkerne, ~0,5 MH/s pro Kern):
+
+```bash
+pnpm miner -- --name "Mein PC"
+```
+
+Beim ersten Start legt der Miner ein Wallet auf dem Node an und zeigt die Adresse; danach mit `--wallet Gxxxx` weiterverwenden. Optionen: `--server http://host:8787` (entfernter Node), `--threads 4`. Der Miner holt Blockvorlagen, sucht die Nonce lokal und reicht Treffer ein; der Node prüft alles nach. Mehrere PCs können gleichzeitig minen – die Schwierigkeit passt sich an. Daten liegen in `blockchain-node/data/chain.json` (nicht versioniert). Port über `PORT`, Datei über `CHAIN_FILE`. Für einen Server: `docker build -f blockchain-node/Dockerfile -t gibb-chain . && docker run -p 8787:8787 -v gibb-chain-data:/app/blockchain-node/data gibb-chain`.
 
 ## Sicherheitsmodell
 

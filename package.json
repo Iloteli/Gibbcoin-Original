@@ -12,7 +12,8 @@
     "test": "pnpm run build && node --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
-    "chain": "node blockchain-node/server.mjs"
+    "chain": "node blockchain-node/server.mjs",
+    "miner": "node blockchain-node/miner.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.112.3",
