@@ -7,6 +7,7 @@ function sha256(text) {
   return createHash("sha256").update(text).digest("hex");
 }
 
+
 class Block {
   constructor(index, daten, vorherigerHash) {
     this.index = index;
