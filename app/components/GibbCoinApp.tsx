@@ -192,7 +192,6 @@ export function GibbCoinApp() {
   if (loading) return <main className="loading-page"><div><div className="loader" /><p>GIBB Coin wird geladen …</p></div></main>;
   if (passwordRecovery) return <PasswordResetPage recoveryAvailable={Boolean(recoverySession)} onComplete={finishPasswordRecovery} />;
   if (!session) return <LoginPage />;
-  // Der Code bleibt der empfohlene Weg, sperrt die App aber nicht mehr aus.
-  if (mfaRequired) return <MfaChallengePage onVerified={(verifiedSession) => { setSession(verifiedSession); setMfaRequired(false); }} onLogout={logoutFromMfa} onSkip={() => setMfaRequired(false)} />;
+  if (mfaRequired) return <MfaChallengePage onVerified={(verifiedSession) => { setSession(verifiedSession); setMfaRequired(false); }} onLogout={logoutFromMfa} />;
   return <Dashboard user={session.user} />;
 }

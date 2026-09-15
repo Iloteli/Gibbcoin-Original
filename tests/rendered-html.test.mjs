@@ -434,7 +434,7 @@ test("hard-deletes accounts so their email can be registered again", async () =>
   assert.match(login, /Auch nach einer Kontolöschung darfst du dieselbe E-Mail wiederverwenden/);
   assert.match(login, /const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000/);
   assert.match(login, /cooldownUntil - Date\.now\(\) > EMAIL_RATE_LIMIT_COOLDOWN_MS/);
-  assert.match(login, /Der E-Mail-Versand war kurz ausgelastet/);
+  assert.match(login, /E-Mail-Versand ausgelastet/);
 });
 
 test("creates every new account with a valid unique username and ten starting coins", async () => {
@@ -474,7 +474,7 @@ test("persists auth without competing manual refresh calls", async () => {
   assert.doesNotMatch(app, /DELETED_NOTICE/);
   assert.match(worker, /client\.navigate\(client\.url\)/);
   assert.match(login, /Angemeldet bleiben ist aktiv/);
-  assert.match(mfa, /bleibt die sichere Sitzung in diesem Browser gespeichert/);
+  assert.match(mfa, /Zwei-Faktor-Bestätigung ist für privilegierte Aktionen erforderlich/);
 });
 
 test("service worker replaces every legacy tab without blocking activation", async () => {
@@ -569,23 +569,21 @@ test("detects the device and adapts the layout for phones", async () => {
   assert.match(styles, /-webkit-tap-highlight-color: transparent/);
 });
 
-test("makes two factor confirmation optional instead of mandatory", async () => {
+test("requires two factor confirmation for privileged actions", async () => {
   const [app, challenge, migration] = await Promise.all([
     readFile(new URL("../app/components/GibbCoinApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MfaChallengePage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260909180000_make_admin_mfa_optional.sql", import.meta.url), "utf8"),
   ]);
 
-  // Die Challenge sperrt die App nicht mehr aus.
-  assert.match(app, /onSkip=\{\(\) => setMfaRequired\(false\)\}/);
-  assert.match(challenge, /onSkip\?: \(\) => void/);
-  assert.match(challenge, /Ohne Zwei-Faktor-Code fortfahren/);
+  // Die Challenge darf nicht umgangen werden.
+  assert.doesNotMatch(app, /onSkip/);
+  assert.doesNotMatch(challenge, /onSkip|Ohne Zwei-Faktor-Code fortfahren/);
 
-  // Serverseitig ist die Pruefung schaltbar und standardmaessig aus.
-  assert.match(migration, /create table if not exists private\.security_settings/);
+  // Die neue additive Migration erzwingt AAL2 bei verifiziertem Faktor.
+  assert.match(migration, /create or replace function private\.assert_mfa_if_enrolled/);
+  assert.match(migration, /raise exception 'mfa_required'/);
   assert.match(migration, /values \('require_admin_mfa', false\)/);
-  assert.match(migration, /if not coalesce\(/);
-  assert.match(migration, /return;/);
 
   // Die Identitaetspruefung und die Faktor-Logik bleiben erhalten.
   assert.match(migration, /raise exception 'authentication_required'/);
@@ -660,7 +658,8 @@ test("lets every user pick their own username in the profile tab", async () => {
 
   // Der Benutzername ist im Profil-Tab editierbar und wird serverseitig geprueft.
   assert.match(profileEditor, /htmlFor="profile-username"/);
-  assert.match(profileEditor, /supabase\.rpc\("set_my_username", \{ p_username: nextUsername \}\)/);
+  assert.match(profileEditor, /supabase\.rpc\("update_my_profile_atomic", \{/);
+  assert.match(profileEditor, /p_username: nextUsername/);
   assert.match(profileEditor, /username_taken/);
   assert.match(profileEditor, /bereits vergeben/);
   assert.match(types, /username\?: string;/);

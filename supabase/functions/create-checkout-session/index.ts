@@ -35,7 +35,10 @@ Deno.serve(async (request) => {
 
     const secretKey = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
     const appUrl = Deno.env.get("APP_URL")?.trim();
+    const purchasesEnabled = Deno.env.get("COIN_PURCHASES_ENABLED")?.trim().toLowerCase() === "true";
+    if (!purchasesEnabled) throw new Error("purchases_disabled");
     if (!secretKey || !appUrl) throw new Error("payment_not_configured");
+    if (!appUrl.startsWith("https://")) throw new Error("payment_not_configured");
 
     console.log(JSON.stringify({
       event: "checkout_configuration",
@@ -63,13 +66,19 @@ Deno.serve(async (request) => {
       cancel_url: `${appUrl.replace(/\/$/, "")}/?purchase=cancelled`,
     });
 
+    if (!session.url || !session.url.startsWith("https://")) throw new Error("invalid_checkout_url");
     return new Response(JSON.stringify({ url: session.url }), { status: 200, headers: corsHeaders });
   } catch (error) {
     const code = error instanceof Error ? error.message : "checkout_failed";
-    const status = code === "not_authenticated" ? 401 : code === "invalid_pack" ? 400 : 500;
+    const status = code === "not_authenticated" ? 401
+      : code === "invalid_pack" ? 400
+        : code === "purchases_disabled" ? 403
+          : 500;
     const details = error && typeof error === "object" ? error as Record<string, unknown> : {};
     const stripeType = typeof details.type === "string" ? details.type : "";
-    const publicCode = code === "not_authenticated" || code === "invalid_pack" || code === "payment_not_configured"
+    const publicCode = code === "not_authenticated" || code === "invalid_pack"
+      || code === "payment_not_configured" || code === "purchases_disabled"
+      || code === "invalid_checkout_url"
       ? code
       : stripeType === "StripeAuthenticationError"
         ? "stripe_authentication_error"

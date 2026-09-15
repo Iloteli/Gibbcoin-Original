@@ -25,7 +25,7 @@ type BarcodeDetectorInstance = {
 
 type BarcodeDetectorConstructor = new (options: { formats: string[] }) => BarcodeDetectorInstance;
 
-const walletLinkPattern = /^gibbcoin:\/\/pay\?user=([0-9a-f-]{36})$/i;
+const walletLinkPattern = /^(?:gibbcoin:\/\/pay\?user=|https:\/\/[^/?#]+(?:\/[^?#]*)?\?pay=)([0-9a-f-]{36})$/i;
 
 export function QrWallet({ userId, walletId, onRecipient }: Props) {
   const [scannerActive, setScannerActive] = useState(false);
@@ -37,7 +37,9 @@ export function QrWallet({ userId, walletId, onRecipient }: Props) {
   const scannerStream = useRef<MediaStream | null>(null);
   const scannerTimer = useRef<number | null>(null);
   const lastRejectedCode = useRef<string | null>(null);
-  const qrValue = `gibbcoin://pay?user=${userId}`;
+  const qrValue = typeof window !== "undefined" && window.location.protocol === "https:"
+    ? `${window.location.origin}/?pay=${userId}`
+    : `gibbcoin://pay?user=${userId}`;
   const walletCode = walletId ? walletId.replaceAll("-", "").slice(-6).toUpperCase() : "------";
 
   const stopScanner = useCallback(() => {
