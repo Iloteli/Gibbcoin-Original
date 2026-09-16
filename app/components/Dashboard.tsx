@@ -8,7 +8,6 @@ import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
 import { AbuseReports } from "./AbuseReports";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
-import { BlockchainExplorer } from "./BlockchainExplorer";
 import { BrowserMinerCard } from "./BrowserMinerCard";
 import { LocalMinerCard } from "./LocalMinerCard";
 import { GroupWallets } from "./GroupWallets";
@@ -622,7 +621,6 @@ export function Dashboard({ user }: Props) {
         <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>{profile?.role === "super_admin" ? "Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle." : "Mine GIBB direkt im Browser – dein Rechner löst echte Blöcke."}</p></div>
         {activeView === "chain" && <BrowserMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />}
         {profile?.role === "super_admin" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
-        {profile?.role === "super_admin" && (offlineMode ? <section className="card card-pad offline-placeholder"><strong>Blockchain ist offline pausiert</strong><p>Blöcke werden nur mit Serververbindung geprüft und belohnt.</p></section> : activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={true} onChanged={loadData} />)}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">
