@@ -239,10 +239,13 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
   assert.match(deletionFunction, /admin_authorize_account_deletion/);
 });
 
-test("reserves account bans and Owner deletion for Robyn as primary Owner", async () => {
-  const [adminPanel, migration, statusFunction, deletionFunction] = await Promise.all([
+test("reserves account bans and Owner deletion for Robyn and Ilja as primary Owners", async () => {
+  const [adminPanel, dashboard, migration, ownerMigration, promoteMigration, statusFunction, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260901071439_restrict_account_management_to_primary_owner.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260915120000_add_ilja_as_primary_owner.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20260915130000_promote_ilja_to_owner.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/admin-account-status/index.ts", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/owner-delete-account/index.ts", import.meta.url), "utf8"),
   ]);
@@ -251,14 +254,31 @@ test("reserves account bans and Owner deletion for Robyn as primary Owner", asyn
   assert.match(migration, /primary_owner_required/);
   assert.match(migration, /target_role in \('user', 'admin', 'super_admin'\)/);
   assert.match(migration, /v_target_role = 'super_admin' and not v_actor_is_primary_owner/);
+  // Ilja hat dieselben Haupt-Owner-Rechte wie Robyn: Datenbank, Edge Functions und UI.
+  assert.match(ownerMigration, /create or replace function private\.is_primary_owner/);
+  assert.match(ownerMigration, /d465d88f-0acb-4bff-ad55-945761acaeea/);
+  assert.match(ownerMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
+  assert.match(ownerMigration, /p\.role = 'super_admin'/);
+  assert.match(ownerMigration, /v_is_primary_owner := private\.is_primary_owner\(v_user_id\)/);
+  assert.match(statusFunction, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
+  assert.match(statusFunction, /const callerIsPrimaryOwner = isPrimaryOwnerUser\(authData\.user, caller\.role\)/);
   assert.match(statusFunction, /caller\.role === "super_admin" && !callerIsPrimaryOwner/);
+  assert.match(deletionFunction, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
+  assert.match(deletionFunction, /const actorIsPrimaryOwner = isPrimaryOwnerUser\(authData\.user, actorProfile\.role\)/);
   assert.match(deletionFunction, /actorProfile\.role === "super_admin" && !actorIsPrimaryOwner/);
   assert.match(adminPanel, /const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea"/);
-  assert.match(adminPanel, /currentRole === "super_admin" && currentUserId === PRIMARY_OWNER_USER_ID/);
+  assert.match(adminPanel, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
+  assert.match(adminPanel, /currentRole === "super_admin" && \(currentUserId === PRIMARY_OWNER_USER_ID \|\| \(currentUserEmail \?\? ""\)\.toLowerCase\(\) === PRIMARY_OWNER_EMAIL\)/);
   assert.doesNotMatch(adminPanel, /get_my_admin_account_capabilities/);
-  assert.match(adminPanel, /Nur Haupt-Owner Robyn darf Konten bannen/);
+  assert.match(adminPanel, /Nur die Haupt-Owner Robyn und Ilja dürfen Konten bannen/);
   assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
-  assert.match(adminPanel, /Haupt-Owner Robyn aktiv/);
+  assert.match(adminPanel, /Haupt-Owner aktiv/);
+  assert.match(dashboard, /currentUserEmail=\{user\.email\}/);
+  // Ilja wird per Migration selbst Owner (super_admin).
+  assert.match(promoteMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
+  assert.match(promoteMigration, /set role = 'super_admin'/);
+  assert.match(promoteMigration, /v_old_role = 'super_admin' then/);
+  assert.match(promoteMigration, /'ROLE_CHANGED'/);
   assert.match(adminPanel, /Jetzt bannen/);
   assert.match(adminPanel, /function openAccountStatusChange/);
   assert.match(adminPanel, /statusTarget && <div className="modal-backdrop"/);
