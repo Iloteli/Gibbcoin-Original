@@ -180,7 +180,7 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
             <div><span>Status</span><strong>{running ? "mint …" : "bereit"}</strong></div>
           </div>
           <div className="local-miner-actions">
-            <button className={running ? "secondary" : "primary"} type="button" onClick={() => (running ? stop("Mining gestoppt.") : startMining())}>{running ? "Mining stoppen" : "Im Browser minen"}</button>
+            <button className={running ? "secondary" : "primary"} type="button" onClick={() => (running ? stop("Mining gestoppt.") : startMining())}>{running ? "Mining stoppen" : "Minen"}</button>
           </div>
           <small className="field-hint">Ein Browser-Kern schafft rund 100–300 kH/s. Läuft nur, solange dieser Tab offen ist.</small>
           {message && !error && <div className="message">{message}</div>}
