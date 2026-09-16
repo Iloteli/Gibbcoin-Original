@@ -619,10 +619,10 @@ export function Dashboard({ user }: Props) {
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
-        <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle.</p></div>
+        <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>{profile?.role === "super_admin" ? "Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle." : "Mine GIBB direkt im Browser – dein Rechner löst echte Blöcke."}</p></div>
         {activeView === "chain" && <BrowserMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />}
-        {activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} />}
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Blockchain ist offline pausiert</strong><p>Blöcke werden nur mit Serververbindung geprüft und belohnt.</p></section> : activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={loadData} />}
+        {profile?.role === "super_admin" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
+        {profile?.role === "super_admin" && (offlineMode ? <section className="card card-pad offline-placeholder"><strong>Blockchain ist offline pausiert</strong><p>Blöcke werden nur mit Serververbindung geprüft und belohnt.</p></section> : activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={true} onChanged={loadData} />)}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">
