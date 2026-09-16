@@ -71,7 +71,7 @@ cd Gibbcoin-Original
 sudo bash deploy/install-debian.sh
 ```
 
-Danach laufen dauerhaft: die Website auf Port 3000 (`gibb-website.service`) und der Blockchain-Node mit Reserve-Miner auf Port 8787 (`gibb-node.service`). Die Browser der Besucher erreichen den Node automatisch unter derselben Domain wie die Website (Port 8787). Status/Logs: `systemctl status gibb-node gibb-website`, `journalctl -u gibb-node -f`. Aktualisieren: im Repo `git pull` und das Skript erneut ausführen. Ports/Benutzer sind über Umgebungsvariablen einstellbar (`WEBSITE_PORT`, `NODE_PORT`, `RUN_USER`). Für Port 80/HTTPS einen Reverse-Proxy (nginx/Caddy) vor die Website setzen.
+Danach laufen dauerhaft: die Website auf Port 3000 (`gibb-website.service`) und der Blockchain-Node mit Reserve-Miner auf Port 8787 (`gibb-node.service`). Die Browser der Besucher erreichen den Node automatisch unter derselben Domain wie die Website (Port 8787). Status/Logs: `systemctl status gibb-node gibb-website`, `journalctl -u gibb-node -f`. Aktualisieren nach Änderungen: `sudo bash deploy/update-debian.sh` (holt den neuesten Stand von GitHub, baut neu und startet die Dienste neu). Ports/Benutzer sind über Umgebungsvariablen einstellbar (`WEBSITE_PORT`, `NODE_PORT`, `RUN_USER`). Für Port 80/HTTPS einen Reverse-Proxy (nginx/Caddy) vor die Website setzen.
 
 ### Beide Websites mit GitHub synchron halten
 
