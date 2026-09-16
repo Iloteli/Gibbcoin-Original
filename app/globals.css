@@ -2287,3 +2287,133 @@ body {
 
 @media (prefers-reduced-motion: reduce) { .chain-live i.on, .chain-block.fresh { animation: none; } }
 @media (max-width: 560px) { .chain-block { grid-template-columns: 42px minmax(0, 1fr); } .chain-block-meta { grid-column: 2; text-align: left; } }
+
+/* ============================================================
+   Design v2 — mehr Übersicht, satisfying casino, extra Bewegung
+   Visuell/additiv: nur transform, filter, box-shadow, opacity.
+   Nutzt die vorhandenen Motion-Tokens (--motion-*, --ease-*).
+   ============================================================ */
+
+/* --- Casino Juice v2: befriedigenderes Gewinn-/Verlust-Feedback --- */
+/* Die ganze Maschine feiert, sobald ein Gewinn-Ergebnis gerendert wird. */
+.game-machine:has(.game-result.win) {
+  animation: juice-machine-win 900ms var(--ease-spring) both;
+}
+.game-machine:has(.game-result.loss) {
+  animation: juice-machine-loss 520ms var(--ease-out) both;
+}
+/* Arena leuchtet im Akzent des Spiels beim Gewinn nach. */
+.game-machine:has(.game-result.win) .game-stage {
+  animation: juice-stage-win 1.4s var(--ease-out) both;
+}
+/* Auszahlungs-Zahl mit sattem "cha-ching"-Sprung + Nach-Glühen. */
+.game-result.win strong {
+  animation: juice-payout-pop 720ms var(--ease-spring) both;
+  text-shadow: 0 0 22px rgba(var(--game-accent-rgb), .55);
+}
+.game-result.win {
+  animation: win-pop var(--motion-normal) var(--ease-spring) both, juice-win-breathe 1.6s var(--ease-soft) 1;
+}
+.game-result.win::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: 0 0 0 1px rgba(var(--game-accent-rgb), .5), 0 0 46px rgba(var(--game-accent-rgb), .28);
+  opacity: 0;
+  animation: juice-win-ring 900ms var(--ease-out) both;
+}
+.game-result { position: relative; }
+/* Buntere, lebendigere Konfetti-Explosion. */
+.win-confetti i {
+  width: 8px;
+  height: 15px;
+  box-shadow: 0 0 10px rgba(var(--game-accent-rgb), .35);
+  animation-duration: 2.1s;
+}
+.win-confetti i:nth-child(4n) { background: #ffffff; }
+.win-confetti i:nth-child(5n) { background: #54e7ff; border-radius: 50%; }
+/* Landende Würfel/Coins/Karten bekommen einen kurzen Glanz-Impuls. */
+.dice-stage b:not(.rolling),
+.game-coin:not(.flipping),
+.playing-card {
+  transition: box-shadow var(--motion-normal) var(--ease-out), filter var(--motion-fast) var(--ease-out);
+}
+.game-machine:has(.game-result.win) :is(.dice-stage b, .game-coin, .playing-card:not(.card-back)) {
+  filter: brightness(1.08) drop-shadow(0 0 14px rgba(var(--game-accent-rgb), .4));
+}
+/* Play-Button spürbarer beim Drücken. */
+.game-play:not(:disabled):active { scale: .955; filter: brightness(.96); }
+
+@keyframes juice-machine-win {
+  0% { transform: translate3d(0,0,0); }
+  14% { transform: translate3d(-6px,2px,0) rotate(-.35deg); }
+  28% { transform: translate3d(6px,-2px,0) rotate(.35deg); }
+  42% { transform: translate3d(-4px,1px,0); }
+  56% { transform: translate3d(4px,-1px,0); }
+  70% { transform: translate3d(-2px,0,0); }
+  100% { transform: translate3d(0,0,0); }
+}
+@keyframes juice-machine-loss {
+  0%,100% { transform: translateX(0); filter: none; }
+  25% { transform: translateX(-4px); filter: saturate(.7) brightness(.95); }
+  50% { transform: translateX(4px); filter: saturate(.7) brightness(.95); }
+  75% { transform: translateX(-2px); }
+}
+@keyframes juice-stage-win {
+  0% { box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+  30% { box-shadow: inset 0 0 60px rgba(var(--game-accent-rgb), .18), 0 0 70px rgba(var(--game-accent-rgb), .16); border-color: rgba(var(--game-accent-rgb), .4); }
+  100% { box-shadow: inset 0 0 0 1px rgba(255,255,255,.06); }
+}
+@keyframes juice-payout-pop {
+  0% { transform: scale(.6); opacity: 0; }
+  55% { transform: scale(1.28); opacity: 1; }
+  72% { transform: scale(.94); }
+  100% { transform: scale(1); }
+}
+@keyframes juice-win-breathe {
+  0%,100% { box-shadow: 0 0 30px rgba(var(--game-accent-rgb), .06); }
+  40% { box-shadow: 0 0 46px rgba(var(--game-accent-rgb), .2); }
+}
+@keyframes juice-win-ring {
+  0% { opacity: 0; transform: scale(.985); }
+  35% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.02); }
+}
+
+/* --- Globaler Feinschliff: mehr Übersicht + Bewegung --- */
+/* Karten-Überschriften bekommen eine feine Akzentlinie = klarere Struktur. */
+.card-head h2 { position: relative; padding-left: 12px; }
+.card-head h2::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 16px;
+  border-radius: 3px;
+  background: linear-gradient(var(--green), var(--green-2));
+  box-shadow: 0 0 12px rgba(117,245,154,.5);
+  transform: translateY(-50%);
+}
+/* Empfänger-/Listenzeilen heben sich beim Hover leicht an. */
+@media (hover: hover) and (pointer: fine) {
+  .recipient:hover, .pack:hover:not(:disabled), .balance-actions a:hover, .mini-stat:hover {
+    translate: 0 -1px;
+  }
+  .tx:hover { filter: brightness(1.03); }
+}
+.recipient, .pack, .mini-stat, .tx {
+  transition: translate var(--motion-fast) var(--ease-out), filter var(--motion-fast) var(--ease-out), background-color var(--motion-fast) var(--ease-out), border-color var(--motion-fast) var(--ease-out);
+}
+/* Chain-Status-Pille atmet dezent im Live-Betrieb (mehr Leben). */
+.chain-status:not(.invalid) { transition: box-shadow var(--motion-normal) var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .game-machine:has(.game-result.win),
+  .game-machine:has(.game-result.loss),
+  .game-machine:has(.game-result.win) .game-stage,
+  .game-result.win, .game-result.win strong, .game-result.win::after,
+  .win-confetti i {
+    animation: none !important;
+  }
+}

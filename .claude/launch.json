@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "blockchain-node",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["blockchain-node/server.mjs"],
+      "port": 8787
+    },
+    {
+      "name": "gibbcoin-website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "port": 3000
+    }
+  ]
+}
