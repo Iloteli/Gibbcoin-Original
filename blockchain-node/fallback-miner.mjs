@@ -9,7 +9,7 @@ import { leadingZeroBits } from "../app/lib/blockchain-core.js";
 
 const sha256 = (value) => createHash("sha256").update(value, "utf8").digest("hex");
 
-export function startFallbackMiner(chain, { getAddress, note, batch = 8000, throttleMs = 6 } = {}) {
+export function startFallbackMiner(chain, { getAddress, note, batch = 4000, throttleMs = 25 } = {}) {
   const state = { running: false, minedByFallback: 0, lastBlock: null, active: true };
 
   const idleSeconds = () => Date.now() / 1000 - chain.tip().timestamp;

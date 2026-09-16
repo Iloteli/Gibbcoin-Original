@@ -23,6 +23,17 @@ type MinerStatus = {
   account: { address: string; name: string; balance: number; cash: number } | null;
 };
 
+type NodeSettings = {
+  reward: number; difficultyBits: number; minBits: number; maxBits: number; targetSeconds: number; autoAdjust: boolean;
+  marketEnabled: boolean; startPrice: number; startingCash: number; tradingFeePercent: number; minOrderAmount: number;
+  fallbackMinerEnabled: boolean; fallbackDelaySeconds: number;
+};
+const numberFields: Array<[keyof NodeSettings, string]> = [
+  ["reward", "Belohnung pro Block (GIBB)"], ["difficultyBits", "Schwierigkeit (Bit)"], ["minBits", "Min. Bit"], ["maxBits", "Max. Bit"],
+  ["targetSeconds", "Ziel-Blockzeit (s)"], ["startPrice", "Startpreis (Rappen)"], ["startingCash", "Startguthaben (Rappen)"],
+  ["tradingFeePercent", "Handelsgebühr (%)"], ["minOrderAmount", "Min. Ordermenge"], ["fallbackDelaySeconds", "Reserve-Miner ab Stillstand (s)"],
+];
+
 function initialNode() {
   try {
     return localStorage.getItem(NODE_KEY) || DEFAULT_NODE;
@@ -46,8 +57,13 @@ export function LocalMinerCard({ userId, name, balance, isAdmin }: { userId: str
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const [settings, setSettings] = useState<NodeSettings | null>(null);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState("");
+
   const registeredRef = useRef(false);
   const threadsTouched = useRef(false);
+  const settingsDirty = useRef(false);
 
   useEffect(() => {
     let active = true;
@@ -70,6 +86,8 @@ export function LocalMinerCard({ userId, name, balance, isAdmin }: { userId: str
         setStatus(data);
         setOnline(true);
         if (!threadsTouched.current) setThreads(data.cores);
+        const stats = await call("/api/stats") as { settings: NodeSettings };
+        if (active && !settingsDirty.current) setSettings(stats.settings);
       } catch {
         if (active) setOnline(false);
       }
@@ -78,6 +96,24 @@ export function LocalMinerCard({ userId, name, balance, isAdmin }: { userId: str
     const interval = window.setInterval(poll, 2000);
     return () => { active = false; window.clearInterval(interval); };
   }, [userId, name, balance, node]);
+
+  const saveSettings = async () => {
+    if (!settings) return;
+    setSavingSettings(true); setSettingsMsg("");
+    try {
+      await call("/api/settings", settings);
+      settingsDirty.current = false;
+      setSettingsMsg("✔ Blockchain-Einstellungen gespeichert.");
+    } catch {
+      setSettingsMsg("Einstellungen konnten nicht gespeichert werden (Node erreichbar?).");
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+  const editSetting = (key: keyof NodeSettings, value: number | boolean) => {
+    settingsDirty.current = true;
+    setSettings((s) => (s ? { ...s, [key]: value } : s));
+  };
 
   const call = async (path: string, body?: unknown) => {
     const res = await fetch(node + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
@@ -166,6 +202,27 @@ export function LocalMinerCard({ userId, name, balance, isAdmin }: { userId: str
               <div><strong>Admin: alle Nutzer übernehmen</strong><span>Überträgt alle Konten der Website auf die Blockchain-Website.</span></div>
               <button className="secondary" type="button" disabled={syncing} onClick={() => void syncAllUsers()}>{syncing ? "Übertrage …" : "Alle Website-Nutzer übernehmen"}</button>
               {syncMsg && <div className={`message ${syncMsg.startsWith("✔") ? "" : "error"}`}>{syncMsg}</div>}
+            </div>
+          )}
+          {isAdmin && settings && (
+            <div className="node-settings">
+              <div className="node-settings-head"><strong>Blockchain-Einstellungen</strong><span>Steuere den Node direkt von hier.</span></div>
+              <div className="node-settings-grid">
+                {numberFields.map(([key, label]) => (
+                  <label className="field" key={key}><span>{label}</span>
+                    <input className="input" type="number" value={String(settings[key])} onChange={(e) => editSetting(key, Number(e.target.value))} />
+                  </label>
+                ))}
+              </div>
+              <div className="node-settings-toggles">
+                <label className="check"><input type="checkbox" checked={settings.autoAdjust} onChange={(e) => editSetting("autoAdjust", e.target.checked)} /> Schwierigkeit automatisch anpassen</label>
+                <label className="check"><input type="checkbox" checked={settings.marketEnabled} onChange={(e) => editSetting("marketEnabled", e.target.checked)} /> Markt aktiv</label>
+                <label className="check"><input type="checkbox" checked={settings.fallbackMinerEnabled} onChange={(e) => editSetting("fallbackMinerEnabled", e.target.checked)} /> Reserve-Miner aktiv (langsam, nur bei Stillstand)</label>
+              </div>
+              <div className="local-miner-actions">
+                <button className="primary" type="button" disabled={savingSettings} onClick={() => void saveSettings()}>{savingSettings ? "Speichert …" : "Einstellungen speichern"}</button>
+                {settingsMsg && <span className={`message ${settingsMsg.startsWith("✔") ? "" : "error"}`}>{settingsMsg}</span>}
+              </div>
             </div>
           )}
         </>

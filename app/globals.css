@@ -2235,3 +2235,14 @@ body {
   .browser-miner-live { width: 100%; }
   .browser-miner-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+
+/* Blockchain-Einstellungen im Owner-Bereich der Coin-Website */
+.node-settings { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.node-settings-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+.node-settings-head strong { font-size: 13px; }
+.node-settings-head span { color: var(--muted); font-size: 11px; }
+.node-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.node-settings-grid .field { margin: 0; }
+.node-settings-grid .field > span { display: block; margin-bottom: 5px; color: #c8d2cc; font-size: 11px; font-weight: 700; }
+.node-settings-toggles { display: grid; gap: 6px; margin: 12px 0 4px; }
+@media (max-width: 560px) { .node-settings-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

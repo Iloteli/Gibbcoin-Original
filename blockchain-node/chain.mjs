@@ -28,7 +28,7 @@ const defaultSettings = {
   tradingFeePercent: 0, // fair: standardmässig keine Gebühr
   minOrderAmount: 1,    // kleinste handelbare GIBB-Menge
   // Reserve-Miner: springt nur ein, wenn die Kette stillsteht (kein anderer Miner).
-  fallbackMinerEnabled: false,
+  fallbackMinerEnabled: true,
   fallbackDelaySeconds: 60,
 };
 
@@ -249,29 +249,31 @@ export class Blockchain {
   }
 
   // ---------- Prüfung & Demo ----------
+  // Prüft die Integrität der Block-Kette: Verkettung, Block-Hash, Proof of Work,
+  // Merkle-Root und Transaktions-Hashes. Kontostände werden hier NICHT gegengerechnet,
+  // weil gespiegelte Website-Konten (Supabase) ihr Guthaben von aussen bekommen – die
+  // Kette ist ein Proof-of-Work-Nachweis, kein geschlossenes Kassenbuch. Doppelausgabe
+  // wird nur unter reinen Node-Wallets geprüft.
   verify() {
     let expectedPrevious = ZERO_HASH;
-    const balances = {};
+    const nativeBalances = {};
+    const isNative = (addr) => addr !== COINBASE && this.accounts[addr] && !this.accounts[addr].source;
     for (const block of this.blocks) {
       const fail = (reason) => ({ valid: false, height: block.height, reason });
       if (block.previous_hash !== expectedPrevious) return fail("previous_hash_mismatch");
       const header = { height: block.height, previous_hash: block.previous_hash, merkle_root: block.merkle_root, timestamp: block.timestamp, difficulty_bits: block.difficulty_bits, miner_user_id: block.miner_user_id, nonce: block.nonce };
       if (sha256(blockHeaderString(header)) !== block.hash) return fail("block_hash_mismatch");
       if (leadingZeroBits(block.hash) < block.difficulty_bits) return fail("insufficient_work");
-      const expectedMerkle = merkleRoot(block.transactions.map((tx) => tx.hash));
-      if (expectedMerkle !== block.merkle_root) return fail("merkle_root_mismatch");
+      if (merkleRoot(block.transactions.map((tx) => tx.hash)) !== block.merkle_root) return fail("merkle_root_mismatch");
       for (const tx of block.transactions) {
         if (transactionHash(tx) !== tx.hash) return fail(`transaction_hash_mismatch:${tx.id}`);
-        if (tx.from !== COINBASE) {
-          if ((balances[tx.from] ?? 0) < tx.amount) return fail(`overspend:${tx.id}`);
-          balances[tx.from] -= tx.amount;
+        if (isNative(tx.from)) {
+          if ((nativeBalances[tx.from] ?? 0) < tx.amount) return fail(`overspend:${tx.id}`);
+          nativeBalances[tx.from] -= tx.amount;
         }
-        balances[tx.to] = (balances[tx.to] ?? 0) + tx.amount;
+        if (isNative(tx.to)) nativeBalances[tx.to] = (nativeBalances[tx.to] ?? 0) + tx.amount;
       }
       expectedPrevious = block.hash;
-    }
-    for (const [address, account] of Object.entries(this.accounts)) {
-      if ((balances[address] ?? 0) !== account.balance) return { valid: false, height: null, reason: `balance_mismatch:${address}` };
     }
     return { valid: true, blocks: this.blocks.length, checkedAt: Date.now() };
   }
