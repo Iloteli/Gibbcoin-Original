@@ -4,7 +4,7 @@
 // Der Server mined NICHT selbst: Er gibt Blockvorlagen heraus und prüft
 // Blöcke, deren Nonce im Browser der Miner gefunden wurde.
 
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { ZERO_HASH, blockHeaderString, leadingZeroBits, merkleRoot } from "../app/lib/blockchain-core.js";
@@ -45,6 +45,7 @@ export class Blockchain {
     this.accounts = {}; // address -> { name, balance, createdAt }
     this.settings = { ...defaultSettings };
     this.templates = new Map(); // ausgegebene Vorlagen (id -> Vorlage), nicht persistiert
+    this.users = {};   // benutzername (klein) -> { address, salt, hash, role, username, createdAt }
     this.orders = [];  // offene Kauf-/Verkaufsaufträge (Orderbuch)
     this.trades = [];  // ausgeführte Handel (Kurshistorie), neueste zuletzt
     this.lastPrice = null;
@@ -58,6 +59,7 @@ export class Blockchain {
       this.blocks = raw.blocks ?? [];
       this.mempool = raw.mempool ?? [];
       this.accounts = raw.accounts ?? {};
+      this.users = raw.users ?? {};
       this.settings = { ...defaultSettings, ...(raw.settings ?? {}) };
       this.orders = raw.orders ?? [];
       this.trades = raw.trades ?? [];
@@ -76,7 +78,7 @@ export class Blockchain {
     if (!this.file) return;
     mkdirSync(dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice }, null, 2));
+    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice }, null, 2));
     renameSync(tmp, this.file);
   }
 
@@ -84,6 +86,7 @@ export class Blockchain {
     this.blocks = [];
     this.mempool = [];
     this.accounts = {};
+    this.users = {};
     this.settings = { ...defaultSettings };
     this.orders = [];
     this.trades = [];
@@ -185,6 +188,41 @@ export class Blockchain {
   }
 
   // ---------- Konten & Transaktionen ----------
+// ---------- Benutzer & Anmeldung (lokal, ohne Cloud) ----------
+  hashPassword(password, salt) {
+    return scryptSync(String(password), salt, 64).toString("hex");
+  }
+
+  // Registriert einen Benutzer mit Passwort und legt sein Wallet an. Der erste
+  // Benutzer wird automatisch Owner (super_admin); alle weiteren sind normale Nutzer.
+  registerUser(username, password) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const name = String(username ?? "").trim().slice(0, 40);
+    if (key.length < 3 || key.length > 40 || !/^[a-z0-9_.-]+$/.test(key)) throw new Error("invalid_username");
+    if (String(password ?? "").length < 6) throw new Error("weak_password");
+    if (this.users[key]) throw new Error("username_taken");
+    const { address } = this.createWallet(name);
+    const salt = randomBytes(16).toString("hex");
+    const hasOwner = Object.values(this.users).some((u) => u.role === "super_admin");
+    this.users[key] = { address, salt, hash: this.hashPassword(password, salt), role: hasOwner ? "user" : "super_admin", username: name, createdAt: Date.now() };
+    this.save();
+    return { address, username: name, role: this.users[key].role };
+  }
+
+  verifyUser(username, password) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("invalid_login");
+    const got = Buffer.from(this.hashPassword(password, u.salt), "hex");
+    const want = Buffer.from(u.hash, "hex");
+    if (got.length !== want.length || !timingSafeEqual(got, want)) throw new Error("invalid_login");
+    return { address: u.address, username: u.username, role: u.role };
+  }
+
+  userByAddress(address) {
+    return Object.values(this.users).find((u) => u.address === address) || null;
+  }
+
   createWallet(name) {
     const clean = String(name ?? "").trim().slice(0, 40) || `Wallet ${Object.keys(this.accounts).length + 1}`;
     let address;

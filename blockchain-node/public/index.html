@@ -64,12 +64,40 @@
   .depth span, .depth b { position: relative; z-index: 1; }
   .depth.ask b { color: #ff9b9b; } .depth.bid b { color: var(--green); }
   footer { color: var(--muted); font-size: 11px; text-align: center; border: 1px solid rgba(246,200,95,.15); border-radius: 12px; padding: 12px; }
+  .owner-only { display: none !important; }
+  body.is-owner .owner-only { display: revert !important; }
+  #authGate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 50% 20%, rgba(46,209,100,.14), transparent 40%), var(--bg); }
+  #authGate .box { width: min(400px, 100%); border: 1px solid var(--line); border-radius: 20px; padding: 28px; background: linear-gradient(145deg, rgba(16,24,20,.96), rgba(10,15,12,.98)); }
+  #authGate h2 { margin: 0 0 4px; font-size: 22px; }
+  #authGate p { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+  #authGate .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  #authGate .tabs button { flex: 1; }
+  #authGate .tabs button.active { background: var(--green); color: #07100a; border-color: transparent; }
+  .whoami { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+  .whoami b { color: var(--text); }
+  .whoami button { padding: 6px 11px; font-size: 12px; }
 </style>
 </head>
 <body>
+<div id="authGate">
+  <div class="box">
+    <h2>GIBB Chain</h2>
+    <p id="authIntro">Melde dich an oder erstelle ein Konto – alles lokal, ohne Cloud.</p>
+    <div class="tabs"><button id="tabLogin" class="active" type="button">Anmelden</button><button id="tabReg" type="button">Registrieren</button></div>
+    <label for="authUser">Benutzername</label>
+    <input id="authUser" autocomplete="username" placeholder="z. B. ilja">
+    <label for="authPass" style="margin-top:8px">Passwort</label>
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 6 Zeichen">
+    <div class="actions"><button class="primary" id="authGo" style="width:100%">Anmelden</button></div>
+    <div class="msg" id="authMsg"></div>
+  </div>
+</div>
 <header>
-  <h1>⛓ GIBB Blockchain-Node <small>Testumgebung · Proof of Work</small></h1>
-  <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>
+  <h1>⛓ GIBB Chain <small>lokal · Proof of Work</small></h1>
+  <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+    <span class="whoami" id="whoami" hidden><span>Konto:</span> <b id="whoName">—</b> <button id="logout" type="button">Abmelden</button></span>
+    <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>
+  </div>
 </header>
 <main>
   <section class="stats" id="stats"></section>
@@ -174,8 +202,8 @@
       <p class="muted" style="margin:0 0 8px">Die Prüfung rechnet jeden Block nach: Vorgänger-Hash, Block-Hash, Proof of Work, Merkle-Root, Transaktions-Hashes und alle Kontostände.</p>
       <div class="actions">
         <button class="primary" id="verify">Kette prüfen</button>
-        <button class="danger" id="tamper">Block manipulieren (Demo)</button>
-        <button class="danger" id="reset">Alles zurücksetzen</button>
+        <button class="danger owner-only" id="tamper">Block manipulieren (Demo)</button>
+        <button class="danger owner-only" id="reset">Alles zurücksetzen</button>
       </div>
       <div class="msg" id="verifyMsg"></div>
       <h2 style="margin-top:18px">Einstellungen</h2>
@@ -224,8 +252,11 @@
 <script type="module">
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "/blockchain-core.js";
 const $ = (id) => document.getElementById(id);
+let authToken = (() => { try { return JSON.parse(localStorage.getItem("gibb-auth") || "null")?.token || null; } catch { return null; } })();
+let myAddress = null;
 const api = async (path, body) => {
-  const res = await fetch(path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
+  const payload = body ? (authToken ? { ...body, token: authToken } : body) : undefined;
+  const res = await fetch(path, payload ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) } : undefined);
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || "Fehler");
   return data;
@@ -261,6 +292,7 @@ async function refresh() {
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
     fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
+  if (myAddress) ["minerAddress", "orderAddress", "txFrom"].forEach((id) => { const el = $(id); if (el && [...el.options].some((o) => o.value === myAddress)) el.value = myAddress; });
     // Neuer Block von jemand anderem? Dann ist unsere Vorlage veraltet.
     if (miner.template && s.height + 1 !== miner.template.height) restartRound("Neuer Block in der Kette – Vorlage erneuert.");
   } catch (e) { $("chainStatus").className = "status bad"; $("chainStatus").querySelector("span").textContent = "Server nicht erreichbar"; }
@@ -501,8 +533,37 @@ $("reset").onclick = async () => { if (!confirm("Wirklich alle Blöcke, Wallets 
 ["sReward", "sTarget", "sBits", "sMaxTx", "sMin", "sMax", "sAuto", "sStartPrice", "sStartCash", "sFee", "sMinOrder", "sMarket", "sFallback", "sFallbackDelay", "sBrowserThreads"].forEach((id) => $(id).addEventListener("input", () => { settingsDirty = true; }));
 $("saveSettings").onclick = async () => { try { await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value }); settingsDirty = false; say("settingsMsg", "Gespeichert."); await refresh(); } catch (e) { fail("settingsMsg", e); } };
 
-refresh().then(async () => { try { const r = await api("/api/verify"); $("chainStatus").className = "status" + (r.valid ? "" : " bad"); $("chainStatus").querySelector("span").textContent = r.valid ? "Kette verifiziert" : "Kette beschädigt"; } catch {} });
-setInterval(refresh, 2000);
+// ---------- Anmeldung (lokal) ----------
+let booted = false;
+function boot() { if (booted) return; booted = true; refresh(); setInterval(refresh, 2000); }
+let authMode = "login";
+function setMode(m) { authMode = m; $("tabLogin").classList.toggle("active", m === "login"); $("tabReg").classList.toggle("active", m === "reg"); $("authGo").textContent = m === "login" ? "Anmelden" : "Konto erstellen"; $("authPass").autocomplete = m === "login" ? "current-password" : "new-password"; }
+$("tabLogin").onclick = () => setMode("login");
+$("tabReg").onclick = () => setMode("reg");
+const authErrors = { invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 6 Zeichen haben." };
+function onAuthed(me) {
+  myAddress = me.address;
+  try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
+  document.body.classList.toggle("is-owner", me.role === "super_admin");
+  $("whoami").hidden = false; $("whoName").textContent = me.username + (me.role === "super_admin" ? " · Owner" : "");
+  $("authGate").hidden = true;
+  boot();
+}
+$("authGo").onclick = async () => {
+  const username = $("authUser").value.trim(); const password = $("authPass").value;
+  $("authMsg").textContent = ""; $("authMsg").className = "msg";
+  try {
+    const r = await api(authMode === "login" ? "/api/auth/login" : "/api/auth/register", { username, password });
+    authToken = r.token; onAuthed(r);
+  } catch (e) { $("authMsg").textContent = authErrors[e.message] || "Fehlgeschlagen. Läuft der Node?"; $("authMsg").className = "msg err"; }
+};
+$("authPass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("authGo").click(); });
+$("logout").onclick = () => { authToken = null; myAddress = null; try { localStorage.removeItem("gibb-auth"); } catch {} location.reload(); };
+
+(async () => {
+  if (authToken) { try { const me = await api("/api/auth/me", {}); if (me.ok) { onAuthed(me); return; } } catch {} authToken = null; }
+  $("authGate").hidden = false; setMode("login");
+})();
 </script>
 </body>
 </html>

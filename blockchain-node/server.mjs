@@ -103,14 +103,41 @@ function note(kind, message) {
 }
 
 // ---------- API ----------
+// Anmelde-Sitzungen: token -> { address, username, role }. Nur im Speicher.
+import { randomBytes as _rnd } from "node:crypto";
+const sessions = new Map();
+const sessionOf = (body) => (body && body.token && sessions.get(body.token)) || null;
+const requireOwner = (body) => { const sess = sessionOf(body); if (!sess || sess.role !== "super_admin") throw new Error("not_owner"); return sess; };
+
 const routes = {
   "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), supabaseSync: { ...supabaseSync, configured: loadSupabaseConfig().configured }, fallbackMiner: fallbackMiner.status() }),
-  "POST /api/sync-supabase": async () => {
+  // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
+  "POST /api/auth/register": (_, body) => {
+    const u = chain.registerUser(body.username, body.password);
+    const token = _rnd(24).toString("hex");
+    sessions.set(token, { address: u.address, username: u.username, role: u.role });
+    note("auth", `Neuer Nutzer registriert: ${u.username}${u.role === "super_admin" ? " (Owner)" : ""}`);
+    return { token, ...u };
+  },
+  "POST /api/auth/login": (_, body) => {
+    const u = chain.verifyUser(body.username, body.password);
+    const token = _rnd(24).toString("hex");
+    sessions.set(token, { address: u.address, username: u.username, role: u.role });
+    return { token, ...u };
+  },
+  "POST /api/auth/me": (_, body) => {
+    const sess = sessionOf(body);
+    if (!sess) return { ok: false };
+    const acc = chain.accounts[sess.address] || {};
+    return { ok: true, ...sess, balance: acc.balance ?? 0, cash: acc.cash ?? 0 };
+  },
+  "POST /api/sync-supabase": async (_, body) => {
+    try { requireOwner(body); } catch { return { ok: false, error: "not_owner" }; }
     try { return { ok: true, ...(await runSupabaseSync()) }; }
     catch (error) { return { ok: false, error: error.message }; }
   },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
-  "POST /api/local-miner": (_, body) => (body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner()),
+  "POST /api/local-miner": (_, body) => { requireOwner(body); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
   // Von der echten Website: aktuelles Konto anmelden, damit es hier erscheint.
   "POST /api/register": (_, body) => {
     const acc = chain.upsertWebsiteAccount(body.supabaseId, body.name, Number(body.balance));
@@ -119,6 +146,7 @@ const routes = {
   },
   // Von einem Admin der Website: alle Nutzer auf einmal übernehmen.
   "POST /api/register-many": (_, body) => {
+    requireOwner(body);
     const list = Array.isArray(body.users) ? body.users : [];
     let added = 0;
     let updated = 0;
@@ -162,8 +190,14 @@ const routes = {
   "GET /api/verify": () => chain.verify(),
   "POST /api/wallets": (_, body) => chain.createWallet(body.name),
   "POST /api/transactions": (_, body) => {
-    const tx = chain.addTransaction(body.from, body.to, body.amount, body.note);
-    note("tx", `${chain.accounts[tx.from].name} → ${chain.accounts[tx.to].name}: ${tx.amount} GIBB im Mempool`);
+    const sess = sessionOf(body);
+    const from = sess ? sess.address : body.from; // eingeloggt: nur vom eigenen Konto senden
+    if (sess && body.from && body.from !== sess.address) throw new Error("not_your_account");
+    // Empfänger darf Adresse ODER Benutzername sein.
+    let to = body.to;
+    if (to && !chain.accounts[to]) { const u = chain.users[String(to).trim().toLowerCase()]; if (u) to = u.address; }
+    const tx = chain.addTransaction(from, to, body.amount, body.note);
+    note("tx", `${chain.accounts[tx.from]?.name || tx.from} → ${chain.accounts[tx.to]?.name || tx.to}: ${tx.amount} GIBB im Mempool`);
     return tx;
   },
   // Vorlage für den Browser-Miner (Transaktionen nur als Hashes, der Header-Präfix ist fertig zusammengesetzt).
@@ -184,9 +218,9 @@ const routes = {
       throw error;
     }
   },
-  "POST /api/settings": (_, body) => { const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
-  "POST /api/tamper": (_, body) => { const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
-  "POST /api/reset": () => { stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
+  "POST /api/settings": (_, body) => { requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
+  "POST /api/tamper": (_, body) => { requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
+  "POST /api/reset": (_, body) => { requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
 
 function summarize(block) {
