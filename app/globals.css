@@ -1387,9 +1387,26 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Transparent casino game stages and shared online leaderboards */
 .casino-stage { min-height: 315px; flex-direction: column; gap: 16px; padding: 22px; }
-.slot-reels { display: flex; gap: 10px; }
-.slot-reels span { width: 82px; height: 96px; display: grid; place-items: center; border: 2px solid rgba(var(--game-accent-rgb),.38); border-radius: 14px; color: var(--game-accent); background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(var(--game-accent-rgb),.08)); font-size: 42px; box-shadow: inset 0 0 25px rgba(var(--game-accent-rgb),.08), 0 12px 30px rgba(0,0,0,.25); }
-.slot-reels span.rolling { animation: casino-roll .55s ease-in-out infinite alternate; }
+.slot-reels { display: flex; gap: 10px; perspective: 700px; }
+.slot-reel { --slot-cell: 96px; position: relative; width: 82px; height: var(--slot-cell); border: 2px solid rgba(var(--game-accent-rgb),.38); border-radius: 14px; overflow: hidden; background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(var(--game-accent-rgb),.08)); box-shadow: inset 0 0 25px rgba(var(--game-accent-rgb),.08), 0 12px 30px rgba(0,0,0,.25); }
+/* Tiefe: obere/untere Kante abdunkeln, damit nur die Mitte scharf wirkt */
+.slot-reel::before { content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; border-radius: inherit; background: linear-gradient(180deg, rgba(3,7,5,.75), transparent 26%, transparent 74%, rgba(3,7,5,.75)); }
+/* Einrast-Blitz: leuchtet auf, sobald die Walze stoppt */
+.slot-reel::after { content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; box-shadow: inset 0 0 0 2px var(--game-accent), 0 0 32px rgba(var(--game-accent-rgb),.65); opacity: 0; }
+.slot-strip { display: flex; flex-direction: column; will-change: transform; }
+.slot-strip span { flex: 0 0 var(--slot-cell); height: var(--slot-cell); display: grid; place-items: center; color: var(--game-accent); font-size: 42px; }
+.slot-reel.spinning .slot-strip { filter: blur(4px) brightness(1.12); animation: slot-spin .32s linear infinite; }
+.slot-reel.locking .slot-strip { animation: slot-lock 1.05s cubic-bezier(.16,.72,.2,1) var(--d) both; }
+.slot-reel.locking::after { animation: slot-lock-flash .5s ease-out calc(var(--d) + .82s) both; }
+@keyframes slot-spin { from { transform: translateY(0); } to { transform: translateY(calc(-6 * var(--slot-cell))); } }
+@keyframes slot-lock {
+  0% { transform: translateY(calc(-7 * var(--slot-cell))); filter: blur(7px) brightness(1.18); }
+  62% { filter: blur(2px) brightness(1.06); }
+  82% { transform: translateY(9px); filter: blur(0) brightness(1); }
+  91% { transform: translateY(-4px); }
+  100% { transform: translateY(0); filter: none; }
+}
+@keyframes slot-lock-flash { 0% { opacity: 0; } 22% { opacity: 1; } 100% { opacity: 0; } }
 .payout-table { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; color: var(--muted); font-size: 8px; }
 .payout-table span { border: 1px solid rgba(var(--game-accent-rgb),.2); border-radius: 999px; padding: 5px 8px; background: rgba(var(--game-accent-rgb),.05); }
 .baccarat-stage { flex-direction: row; flex-wrap: wrap; }
@@ -1444,8 +1461,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes crash-rise { to { transform: translateY(-7px) scale(1.06); } }
 
 @media (max-width: 980px) { .game-leaderboard { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.07); } }
-@media (max-width: 680px) { .slot-reels span { width: 70px; height: 82px; font-size: 33px; }.wheel-disc { width: 190px; height: 190px; }.keno-picker { grid-template-columns: repeat(8, minmax(22px,1fr)); } }
-@media (prefers-reduced-motion: reduce) { .slot-reels span.rolling, .keno-balls span.rolling, .wheel-disc.spinning, .bingo-ball.rolling, .crash-meter.rising strong, .mine-grid span.safe, .mine-grid span.mine { animation: none !important; } }
+@media (max-width: 680px) { .slot-reel { width: 70px; --slot-cell: 82px; }.slot-strip span { font-size: 33px; }.wheel-disc { width: 190px; height: 190px; }.keno-picker { grid-template-columns: repeat(8, minmax(22px,1fr)); } }
+@media (prefers-reduced-motion: reduce) { .slot-reel.spinning .slot-strip, .slot-reel.locking .slot-strip, .slot-reel.locking::after, .keno-balls span.rolling, .wheel-disc.spinning, .bingo-ball.rolling, .crash-meter.rising strong, .mine-grid span.safe, .mine-grid span.mine { animation: none !important; } .slot-reel.spinning .slot-strip { filter: none; } }
 
 @media (min-width: 981px) {
   .game-layout { grid-template-columns: minmax(0,1.45fr) minmax(220px,.68fr) minmax(220px,.68fr); }

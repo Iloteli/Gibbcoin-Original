@@ -237,6 +237,27 @@ function PlinkoBoard({ slot, dropping, animationKey }: { slot: number | null; dr
   </div>;
 }
 
+const SLOT_FACES = ["🍒", "⭐", "💎", "🔔", "7️⃣", "🍀"];
+
+// Echte Walzen: drehen unscharf und rasten dann gestaffelt (links → rechts) mit
+// leichtem Überschwingen ein. Der Füll-Streifen ist deterministisch (kein Math.random
+// im Render – der React-Compiler verbietet unreine Render-Ausgaben).
+function SlotReels({ symbols, busy, animationKey }: { symbols: string[]; busy: boolean; animationKey: number }) {
+  return <div className="slot-reels" aria-label="Slot-Walzen">{symbols.map((symbol, index) => {
+    if (busy || symbol === "?") {
+      const cells = [...SLOT_FACES, ...SLOT_FACES];
+      return <div className="slot-reel spinning" key={`sp-${animationKey}-${index}`} style={{ "--d": `${index * 0.09}s` } as CSSProperties}>
+        <div className="slot-strip">{cells.map((face, i) => <span key={i}>{face}</span>)}</div>
+      </div>;
+    }
+    const filler = Array.from({ length: 7 }, (_, i) => SLOT_FACES[(animationKey + index * 3 + i * 5) % SLOT_FACES.length]);
+    const cells = [symbol, ...filler];
+    return <div className="slot-reel locking" key={`lk-${animationKey}-${index}`} style={{ "--d": `${index * 0.28}s` } as CSSProperties}>
+      <div className="slot-strip">{cells.map((face, i) => <span key={i}>{face}</span>)}</div>
+    </div>;
+  })}</div>;
+}
+
 export function GameCenter({ walletBalance, onChanged }: Props) {
   const [state, setState] = useState<CenterState | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameKey>("roulette");
@@ -727,7 +748,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
     if (selectedGame === "slots") {
       const symbols = (lastResult?.game_key === "slots" && Array.isArray(lastResult.result.symbols) ? lastResult.result.symbols : [null, null, null]).map((symbol) => symbol === null ? "?" : ["🍒", "⭐", "💎", "🔔", "7️⃣", "🍀"][Number(symbol)] ?? "?");
       const multiplier = lastResult?.game_key === "slots" ? Number(lastResult.result.multiplier ?? 0) : null;
-      return <div className="game-stage casino-stage slots-stage" key={`slots-${animationKey}`}><div className="slot-reels">{symbols.map((symbol, index) => <span className={busy ? "rolling" : ""} key={`${symbol}-${index}`}>{symbol}</span>)}</div><div className="game-outcome">{multiplier === null ? <span>Drei gleiche Symbole bringen die sichtbare Auszahlung</span> : <><strong>{multiplier}×</strong><span>{multiplier > 0 ? "Treffer" : "Kein Treffer"}</span></>}</div><div className="payout-table" aria-label="Slot Gewinn-Tabelle"><span>Paar · 2×</span><span>3 gleiche · 8×</span><span>3× 7️⃣ · 20×</span></div></div>;
+      return <div className="game-stage casino-stage slots-stage" key={`slots-${animationKey}`}><SlotReels symbols={symbols} busy={busy} animationKey={animationKey} /><div className="game-outcome">{multiplier === null ? <span>Drei gleiche Symbole bringen die sichtbare Auszahlung</span> : <><strong>{multiplier}×</strong><span>{multiplier > 0 ? "Treffer" : "Kein Treffer"}</span></>}</div><div className="payout-table" aria-label="Slot Gewinn-Tabelle"><span>Paar · 2×</span><span>3 gleiche · 8×</span><span>3× 7️⃣ · 20×</span></div></div>;
     }
     if (selectedGame === "baccarat") {
       const result = lastResult?.game_key === "baccarat" ? lastResult.result : null;
