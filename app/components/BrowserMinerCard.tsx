@@ -36,6 +36,7 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
   const [difficulty, setDifficulty] = useState<number | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [flash, setFlash] = useState(false);
 
   const m = useRef({ want: false, worker: null as Worker | null, workerUrl: null as string | null, template: null as Template | null, startedAt: 0, hashes: 0, timer: 0 as number });
   const startRoundRef = useRef<() => Promise<void>>(async () => {});
@@ -124,6 +125,8 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
         try {
           const block = await call("/api/submit", { template_id: t.id, nonce: msg.nonce, hash: msg.hash, attempts: msg.nonce + 1, ms: Date.now() - m.current.startedAt }) as { height: number; reward: number };
           setBlocks((b) => b + 1);
+          setFlash(true);
+          window.setTimeout(() => setFlash(false), 1400);
           setMessage(`✔ Block #${block.height} gefunden – +${block.reward} GIBB auf dein Konto.`);
           if (m.current.want) void startRoundRef.current();
         } catch (e) {
@@ -161,26 +164,39 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
 
   const expected = difficulty ? 2 ** difficulty : 0;
 
+  const progress = expected ? Math.min(100, Math.round(hashes / expected * 100)) : 0;
+
   return (
-    <section className="card card-pad browser-miner">
-      <div className="card-head"><h2>Coins minen im Browser</h2><span>{online === false ? "Node offline" : online ? "bereit – keine Installation nötig" : "verbinde …"}</span></div>
-      <p className="local-miner-intro">Mint GIBB für <strong>{name}</strong> direkt hier im Browser – es muss <strong>nichts installiert</strong> werden. Dein Browser sucht die Nonce, der Blockchain-Node prüft den Block und schreibt die Belohnung gut. Schliesst du den Tab, stoppt das Mining.</p>
+    <section className={`card card-pad browser-miner${running ? " is-mining" : ""}${flash ? " is-flash" : ""}`}>
+      <div className="card-head"><h2>Coins minen</h2><span className="miner-badge">{online === false ? "Node offline" : online ? "bereit – keine Installation" : "verbinde …"}</span></div>
+      <p className="local-miner-intro">Mint GIBB für <strong>{name}</strong> direkt im Browser – <strong>ohne Installation</strong>. Dein Rechner löst echte Blöcke, der Node prüft sie und schreibt die Belohnung gut.</p>
 
       {online === false ? (
         <div className="local-miner-offline"><p>Es ist gerade kein Blockchain-Node erreichbar. Sobald einer läuft (lokal mit <code>pnpm chain</code> oder gehostet), kannst du hier ohne Installation minen.</p></div>
       ) : (
         <>
-          <div className="meter" style={{ height: 6, background: "#1d2622", borderRadius: 999, overflow: "hidden", margin: "4px 0 14px" }}><i style={{ display: "block", height: "100%", width: `${expected ? Math.min(100, Math.round(hashes / expected * 100)) : 0}%`, background: "var(--green)", transition: "width .4s" }} /></div>
-          <div className="local-miner-stats">
-            <div><span>Hashrate</span><strong>{running && hashrate ? `${(hashrate / 1000).toFixed(0)} kH/s` : "–"}</strong></div>
-            <div><span>Versuche</span><strong>{running ? fmt(hashes) : "–"}</strong></div>
+          <div className="browser-miner-stage">
+            <div className="mining-orb" aria-hidden="true">
+              <span className="mining-orb-ring" />
+              <span className="mining-orb-ring" />
+              <span className="mining-orb-core">◆</span>
+            </div>
+            <div className="browser-miner-live">
+              <div className="browser-miner-rate"><strong>{running && hashrate ? (hashrate / 1000).toFixed(0) : "0"}</strong><span>kH/s</span></div>
+              <div className="browser-miner-meter"><i style={{ width: `${progress}%` }} /></div>
+              <small>{running ? `${fmt(hashes)} Versuche · ${progress}% des Erwartungswerts` : "bereit zum Minen"}</small>
+            </div>
+          </div>
+
+          <div className="local-miner-stats browser-miner-tiles">
             <div><span>Schwierigkeit</span><strong>{difficulty ? `${difficulty} Bit` : "–"}</strong></div>
-            <div><span>Blöcke gefunden</span><strong>{fmt(blocks)}</strong></div>
-            <div><span>Dein Guthaben (Node)</span><strong>{nodeBalance === null ? "–" : `${fmt(nodeBalance)} GIBB`}</strong></div>
-            <div><span>Status</span><strong>{running ? "mint …" : "bereit"}</strong></div>
+            <div className={flash ? "pop" : ""}><span>Blöcke gefunden</span><strong>{fmt(blocks)}</strong></div>
+            <div><span>Dein Guthaben</span><strong>{nodeBalance === null ? "–" : `${fmt(nodeBalance)} GIBB`}</strong></div>
           </div>
           <div className="local-miner-actions">
-            <button className={running ? "secondary" : "primary"} type="button" onClick={() => (running ? stop("Mining gestoppt.") : startMining())}>{running ? "Mining stoppen" : "Minen"}</button>
+            <button className={`browser-miner-btn ${running ? "secondary" : "primary"}`} type="button" onClick={() => (running ? stop("Mining gestoppt.") : startMining())}>
+              <span aria-hidden="true">{running ? "⏹" : "⛏"}</span>{running ? "Mining stoppen" : "Minen"}
+            </button>
           </div>
           <small className="field-hint">Ein Browser-Kern schafft rund 100–300 kH/s. Läuft nur, solange dieser Tab offen ist.</small>
           {message && !error && <div className="message">{message}</div>}
