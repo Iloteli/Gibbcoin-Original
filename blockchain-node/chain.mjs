@@ -15,8 +15,8 @@ export const COINBASE = "COINBASE";
 
 const defaultSettings = {
   reward: 10,
-  difficultyBits: 16,
-  minBits: 8,
+  difficultyBits: 20,   // spürbare echte Rechenzeit pro Block (Browser: einige Sekunden)
+  minBits: 18,          // auch am Minimum bleibt es echte Arbeit, nie "sofort"
   maxBits: 32,
   targetSeconds: 30,
   autoAdjust: true,
