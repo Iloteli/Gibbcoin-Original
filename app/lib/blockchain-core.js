@@ -159,7 +159,7 @@ self.onmessage = (event) => {
   const difficultyBits = Number(message.difficultyBits);
   const nonceStep = Number(message.nonceStep) || 1;
   let nonce = Number(message.startNonce) || 0;
-  const batch = 2000;
+  const batch = 40000; // grosse Batches = mehr CPU-Auslastung pro Kern (Worker blockiert die UI nicht)
   const tick = () => {
     if (!running) return;
     for (let i = 0; i < batch; i += 1) {

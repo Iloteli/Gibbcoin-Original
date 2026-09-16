@@ -15,10 +15,10 @@ export const COINBASE = "COINBASE";
 
 const defaultSettings = {
   reward: 10,
-  difficultyBits: 24,   // echte, spürbare Rechenzeit pro Block (Browser-Kern: ~Minuten)
-  minBits: 24,          // fest bei 24 Bit: die Auto-Regelung senkt nie darunter
-  maxBits: 32,
-  targetSeconds: 30,
+  difficultyBits: 18,   // Start moderat; die Auto-Regelung passt an die Rechenleistung an
+  minBits: 15,          // Untergrenze, damit Blöcke auch auf schwachen Geräten zügig kommen
+  maxBits: 30,          // Obergrenze für starke Miner
+  targetSeconds: 15,    // Ziel: etwa alle 15 s ein Block -> Transaktionen werden zügig verarbeitet
   autoAdjust: true,
   maxTxPerBlock: 50,
   // Markt (Orderbuch). Preis in Rappen pro GIBB; Start bei 1 Rappen = 0.01 CHF.
