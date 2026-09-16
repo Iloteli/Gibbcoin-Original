@@ -26,12 +26,12 @@ type MinerStatus = {
 type NodeSettings = {
   reward: number; difficultyBits: number; minBits: number; maxBits: number; targetSeconds: number; autoAdjust: boolean;
   marketEnabled: boolean; startPrice: number; startingCash: number; tradingFeePercent: number; minOrderAmount: number;
-  fallbackMinerEnabled: boolean; fallbackDelaySeconds: number;
+  fallbackMinerEnabled: boolean; fallbackDelaySeconds: number; browserMinerThreads: number;
 };
 const numberFields: Array<[keyof NodeSettings, string]> = [
   ["reward", "Belohnung pro Block (GIBB)"], ["difficultyBits", "Schwierigkeit (Bit)"], ["minBits", "Min. Bit"], ["maxBits", "Max. Bit"],
   ["targetSeconds", "Ziel-Blockzeit (s)"], ["startPrice", "Startpreis (Rappen)"], ["startingCash", "Startguthaben (Rappen)"],
-  ["tradingFeePercent", "Handelsgebühr (%)"], ["minOrderAmount", "Min. Ordermenge"], ["fallbackDelaySeconds", "Reserve-Miner ab Stillstand (s)"],
+  ["tradingFeePercent", "Handelsgebühr (%)"], ["minOrderAmount", "Min. Ordermenge"], ["fallbackDelaySeconds", "Reserve-Miner ab Stillstand (s)"], ["browserMinerThreads", "Browser-Miner Kerne (0 = alle)"],
 ];
 
 function initialNode() {

@@ -89,6 +89,8 @@ test("upsertWebsiteAccount legt Website-Konten an und aktualisiert Guthaben", ()
   assert.equal(c.accounts["sb_abc-123"].source, "supabase");
   c.upsertWebsiteAccount("abc-123", "Ilja P.", 999);
   assert.equal(c.accounts["sb_abc-123"].name, "Ilja P.");
+  assert.equal(c.accounts["sb_abc-123"].balance, 250); // ohne overwriteBalance bleibt das Guthaben (Mining-Schutz)
+  c.upsertWebsiteAccount("abc-123", "Ilja P.", 999, { overwriteBalance: true });
   assert.equal(c.accounts["sb_abc-123"].balance, 999);
   assert.throws(() => c.upsertWebsiteAccount("", "X", 1), /invalid_supabase_id/);
 });

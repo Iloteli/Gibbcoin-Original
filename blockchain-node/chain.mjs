@@ -30,6 +30,7 @@ const defaultSettings = {
   // Reserve-Miner: springt nur ein, wenn die Kette stillsteht (kein anderer Miner).
   fallbackMinerEnabled: true,
   fallbackDelaySeconds: 60,
+  browserMinerThreads: 0,  // Standard-Kernzahl des Browser-Miners (0 = alle Kerne des Geräts)
 };
 
 export function transactionHash(tx) {
@@ -195,7 +196,10 @@ export class Blockchain {
 
   // Konto der echten Website (Supabase-Nutzer) anlegen oder aktualisieren.
   // Adresse = sb_<supabaseId>, damit es mit der Massen-Synchronisierung zusammenpasst.
-  upsertWebsiteAccount(supabaseId, name, balance) {
+  // WICHTIG: overwriteBalance nur beim ausdrücklichen Admin-Sync setzen. Die laufende
+  // Auto-Registrierung (alle paar Sekunden) darf das Guthaben NICHT überschreiben,
+  // sonst würden gerade gefundene Mining-Belohnungen sofort wieder gelöscht.
+  upsertWebsiteAccount(supabaseId, name, balance, { overwriteBalance = false } = {}) {
     if (!supabaseId || typeof supabaseId !== "string") throw new Error("invalid_supabase_id");
     const address = `sb_${supabaseId}`;
     const cleanName = String(name ?? "").trim().slice(0, 40) || "Nutzer";
@@ -208,7 +212,7 @@ export class Blockchain {
       };
     } else {
       existing.name = cleanName;
-      if (Number.isFinite(balance)) existing.balance = Math.max(0, Math.round(balance));
+      if (overwriteBalance && Number.isFinite(balance)) existing.balance = Math.max(0, Math.round(balance));
       existing.source = "supabase";
       existing.supabaseId = supabaseId;
     }
@@ -414,7 +418,7 @@ export class Blockchain {
 
   updateSettings(patch) {
     const next = { ...this.settings };
-    for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock", "startingCash", "minOrderAmount", "fallbackDelaySeconds"]) {
+    for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock", "startingCash", "minOrderAmount", "fallbackDelaySeconds", "browserMinerThreads"]) {
       if (patch[key] !== undefined) {
         const value = Number(patch[key]);
         if (!Number.isFinite(value)) throw new Error(`invalid_${key}`);
@@ -442,6 +446,7 @@ export class Blockchain {
     next.tradingFeePercent = clamp(next.tradingFeePercent, 0, 20);
     next.minOrderAmount = clamp(next.minOrderAmount, 1, 1_000_000);
     next.fallbackDelaySeconds = clamp(next.fallbackDelaySeconds, 5, 3600);
+    next.browserMinerThreads = clamp(next.browserMinerThreads, 0, 64);
     this.settings = next;
     this.save();
     return next;

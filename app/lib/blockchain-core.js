@@ -141,7 +141,8 @@ export function expectedAttempts(difficultyBits) {
 /**
  * Quelltext eines Web Workers, der die Nonce-Suche ausführt. Er kennt nur den
  * Header-Präfix (alles vor der Nonce) und meldet Fortschritt sowie Treffer.
- * Nachrichten an den Worker: { type: "start", prefix, difficultyBits, startNonce } | { type: "stop" }
+ * Nachrichten an den Worker: { type: "start", prefix, difficultyBits, startNonce, nonceStep } | { type: "stop" }
+ * Mit nonceStep > 1 durchsuchen mehrere Worker versetzte Nonce-Bereiche (ein Worker pro Prozessorkern).
  * Nachrichten vom Worker: { type: "progress", nonce, hashes } | { type: "found", nonce, hash }
  */
 export function minerWorkerSource() {
@@ -156,9 +157,10 @@ self.onmessage = (event) => {
   running = true;
   const prefix = String(message.prefix);
   const difficultyBits = Number(message.difficultyBits);
+  const nonceStep = Number(message.nonceStep) || 1;
   let nonce = Number(message.startNonce) || 0;
   const batch = 2000;
-  const step = () => {
+  const tick = () => {
     if (!running) return;
     for (let i = 0; i < batch; i += 1) {
       const hash = sha256Hex(prefix + nonce);
@@ -167,12 +169,12 @@ self.onmessage = (event) => {
         self.postMessage({ type: "found", nonce, hash });
         return;
       }
-      nonce += 1;
+      nonce += nonceStep;
     }
     self.postMessage({ type: "progress", nonce, hashes: batch });
-    setTimeout(step, 0);
+    setTimeout(tick, 0);
   };
-  step();
+  tick();
 };
 `;
 }

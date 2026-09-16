@@ -37,9 +37,18 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [flash, setFlash] = useState(false);
+  const [cores, setCores] = useState(0);
 
-  const m = useRef({ want: false, worker: null as Worker | null, workerUrl: null as string | null, template: null as Template | null, startedAt: 0, hashes: 0, timer: 0 as number });
+  const m = useRef({ want: false, workers: [] as Worker[], workerUrl: null as string | null, template: null as Template | null, startedAt: 0, hashes: 0, timer: 0 as number });
+  const coresRef = useRef(0); // 0 = alle Kerne des Geräts
   const startRoundRef = useRef<() => Promise<void>>(async () => {});
+
+  // Wie viele Kerne der Browser-Miner nutzt: Node-Einstellung (0 = alle) begrenzt auf das Gerät.
+  const threadCount = () => {
+    const hw = typeof navigator !== "undefined" && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
+    const wanted = coresRef.current > 0 ? coresRef.current : hw;
+    return Math.max(1, Math.min(hw, wanted));
+  };
 
   const call = useCallback(async (path: string, body?: unknown) => {
     const res = await fetch(node + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
@@ -59,6 +68,11 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
         if (!active) return;
         setOnline(true);
         setNodeBalance(s.account?.balance ?? null);
+        try {
+          const stats = await call("/api/stats") as { settings?: { browserMinerThreads?: number } };
+          coresRef.current = Number(stats.settings?.browserMinerThreads) || 0;
+          setCores(threadCount());
+        } catch { /* Standardwert behalten */ }
       } catch { if (active) setOnline(false); }
     };
     void poll();
@@ -68,9 +82,8 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
   }, [userId, name, balance, node]);
 
   const stopWorker = useCallback(() => {
-    m.current.worker?.postMessage({ type: "stop" });
-    m.current.worker?.terminate();
-    m.current.worker = null;
+    for (const w of m.current.workers) { w.postMessage({ type: "stop" }); w.terminate(); }
+    m.current.workers = [];
     if (m.current.workerUrl) { URL.revokeObjectURL(m.current.workerUrl); m.current.workerUrl = null; }
     if (m.current.timer) { window.clearTimeout(m.current.timer); m.current.timer = 0; }
   }, []);
@@ -105,10 +118,10 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
     setDifficulty(t.difficulty_bits);
     setRunning(true);
 
+    const count = threadCount();
+    setCores(count);
     m.current.workerUrl = URL.createObjectURL(new Blob([minerWorkerSource()], { type: "text/javascript" }));
-    const worker = new Worker(m.current.workerUrl);
-    m.current.worker = worker;
-    worker.onmessage = async (event: MessageEvent<{ type: string; nonce: number; hashes?: number; hash?: string }>) => {
+    const onMessage = async (event: MessageEvent<{ type: string; nonce: number; hashes?: number; hash?: string }>) => {
       const msg = event.data;
       if (m.current.template !== t) return;
       if (msg.type === "progress") {
@@ -136,8 +149,14 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
         }
       }
     };
-    worker.onerror = () => stop("Der Mining-Worker ist abgestürzt.");
-    worker.postMessage({ type: "start", prefix, difficultyBits: t.difficulty_bits, startNonce: 0 });
+    // Ein Worker pro Kern, jeder durchsucht einen versetzten Nonce-Bereich (Schrittweite = Kernzahl).
+    for (let i = 0; i < count; i += 1) {
+      const worker = new Worker(m.current.workerUrl);
+      worker.onmessage = onMessage;
+      worker.onerror = () => stop("Der Mining-Worker ist abgestürzt.");
+      worker.postMessage({ type: "start", prefix, difficultyBits: t.difficulty_bits, startNonce: i, nonceStep: count });
+      m.current.workers.push(worker);
+    }
     m.current.timer = window.setTimeout(() => { if (m.current.template === t) void startRoundRef.current(); }, TEMPLATE_REFRESH_MS);
   }, [call, stop, stopWorker, userId]);
 
@@ -184,7 +203,7 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
             <div className="browser-miner-live">
               <div className="browser-miner-rate"><strong>{running && hashrate ? (hashrate / 1000).toFixed(0) : "0"}</strong><span>kH/s</span></div>
               <div className="browser-miner-meter"><i style={{ width: `${progress}%` }} /></div>
-              <small>{running ? `${fmt(hashes)} Versuche · ${progress}% des Erwartungswerts` : "bereit zum Minen"}</small>
+              <small>{running ? `${fmt(hashes)} Versuche · ${cores} ${cores === 1 ? "Kern" : "Kerne"} · ${progress}% des Erwartungswerts` : `bereit zum Minen${cores ? ` · ${cores} ${cores === 1 ? "Kern" : "Kerne"}` : ""}`}</small>
             </div>
           </div>
 

@@ -125,7 +125,7 @@ const routes = {
     for (const u of list) {
       if (!u || !u.supabaseId) continue;
       const before = Boolean(chain.accounts[`sb_${u.supabaseId}`]);
-      chain.upsertWebsiteAccount(u.supabaseId, u.name, Number(u.balance));
+      chain.upsertWebsiteAccount(u.supabaseId, u.name, Number(u.balance), { overwriteBalance: true });
       if (before) updated += 1; else added += 1;
     }
     note("sync", `Alle Website-Nutzer übernommen: ${added} neu, ${updated} aktualisiert (${list.length} gesamt)`);
