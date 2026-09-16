@@ -8,7 +8,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
-const DEFAULT_NODE = "http://localhost:8787";
+// Standard-Node-Adresse: gleiche Domain wie die Website, Port 8787. So funktioniert
+// es lokal (localhost) und auf einem echten Server automatisch für alle Besucher.
+const DEFAULT_NODE = typeof window !== "undefined" && window.location?.hostname
+  ? `${window.location.protocol}//${window.location.hostname}:8787`
+  : "http://localhost:8787";
 const NODE_KEY = "gibb-node-url";
 
 type NodeSettings = {

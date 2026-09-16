@@ -61,6 +61,18 @@ Vor einer Live-Migration ist ein Datenbank-Backup Pflicht. Die aktuelle Sicherhe
 
 Die Formeln für Header, Merkle-Root und Nullbits sind in `app/lib/blockchain-core.js` und in den SQL-Funktionen `private.block_header`, `private.merkle_root` und `private.leading_zero_bits` identisch umgesetzt; `tests/blockchain.test.mjs` prüft die JavaScript-Seite gegen Node-Crypto. `scripts/simple-blockchain.py` ist ein eigenständiges Mini-Beispiel zum Verstehen des Prinzips (`python scripts/simple-blockchain.py`).
 
+### Auf einem Debian-Server installieren
+
+Ein fertiges Installationsskript richtet alles ein (Node.js, Build, zwei systemd-Dienste, die beim Booten starten):
+
+```bash
+git clone https://github.com/Iloteli/Gibbcoin-Original.git
+cd Gibbcoin-Original
+sudo bash deploy/install-debian.sh
+```
+
+Danach laufen dauerhaft: die Website auf Port 3000 (`gibb-website.service`) und der Blockchain-Node mit Reserve-Miner auf Port 8787 (`gibb-node.service`). Die Browser der Besucher erreichen den Node automatisch unter derselben Domain wie die Website (Port 8787). Status/Logs: `systemctl status gibb-node gibb-website`, `journalctl -u gibb-node -f`. Aktualisieren: im Repo `git pull` und das Skript erneut ausführen. Ports/Benutzer sind über Umgebungsvariablen einstellbar (`WEBSITE_PORT`, `NODE_PORT`, `RUN_USER`). Für Port 80/HTTPS einen Reverse-Proxy (nginx/Caddy) vor die Website setzen.
+
 ### Beide Websites mit GitHub synchron halten
 
 Die GibbCoin-Website (`app/`) und die Blockchain-Website (`blockchain-node/`) liegen im selben Repo und laufen damit immer dieselbe Version. Um lokal exakt den Stand von `Iloteli/Gibbcoin-Original` (main) zu übernehmen und neu zu bauen:
