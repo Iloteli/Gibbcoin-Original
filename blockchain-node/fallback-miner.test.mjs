@@ -7,6 +7,8 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function fastChain() {
   const c = new Blockchain(null);
+  c.settings.minBits = 8;      // Test braucht niedrige Schwierigkeit, um schnell zu laufen
+  c.settings.maxBits = 20;
   c.settings.difficultyBits = 10;
   c.settings.autoAdjust = false;
   c.settings.fallbackMinerEnabled = true;
