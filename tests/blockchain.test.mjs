@@ -57,9 +57,16 @@ test("block header and hash use the pipe-separated layout shared with private.bl
 test("the miner worker finds a nonce that the reference implementation accepts", async () => {
   const prefix = `3|${"c".repeat(64)}|${"d".repeat(64)}|1760000000|10|8b0c9d6e-1234-5678-9abc-def012345678|`;
   const messages = [];
+  // Synchroner MessageChannel-Ersatz: port2.postMessage ruft direkt port1.onmessage auf.
+  class FakeChannel {
+    constructor() {
+      this.port1 = { onmessage: null };
+      this.port2 = { postMessage: () => { if (this.port1.onmessage) this.port1.onmessage({ data: 0 }); } };
+    }
+  }
   const sandbox = {
     self: {},
-    setTimeout: (callback) => { callback(); },
+    MessageChannel: FakeChannel,
   };
   sandbox.self.postMessage = (message) => messages.push(message);
   runInNewContext(minerWorkerSource(), sandbox);

@@ -150,6 +150,13 @@ export function minerWorkerSource() {
 const sha256Hex = ${sha256Hex.toString()};
 const leadingZeroBits = ${leadingZeroBits.toString()};
 let running = false;
+// Nächsten Rechen-Batch über einen MessageChannel planen statt über setTimeout.
+// setTimeout wird von Browsern in Hintergrund-Tabs stark gedrosselt (~1x/s),
+// MessageChannel-Nachrichten NICHT – so mint der Worker auch im Hintergrund voll weiter.
+const scheduler = new MessageChannel();
+let tick = () => {};
+scheduler.port1.onmessage = () => tick();
+const schedule = () => scheduler.port2.postMessage(0);
 self.onmessage = (event) => {
   const message = event.data || {};
   if (message.type === "stop") { running = false; return; }
@@ -160,7 +167,7 @@ self.onmessage = (event) => {
   const nonceStep = Number(message.nonceStep) || 1;
   let nonce = Number(message.startNonce) || 0;
   const batch = 40000; // grosse Batches = mehr CPU-Auslastung pro Kern (Worker blockiert die UI nicht)
-  const tick = () => {
+  tick = () => {
     if (!running) return;
     for (let i = 0; i < batch; i += 1) {
       const hash = sha256Hex(prefix + nonce);
@@ -172,9 +179,9 @@ self.onmessage = (event) => {
       nonce += nonceStep;
     }
     self.postMessage({ type: "progress", nonce, hashes: batch });
-    setTimeout(tick, 0);
+    schedule();
   };
-  tick();
+  schedule();
 };
 `;
 }
