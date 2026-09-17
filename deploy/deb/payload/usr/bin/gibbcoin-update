@@ -1,0 +1,3 @@
+#!/bin/sh
+# Holt die neueste GIBB-Coin-Version und baut/startet alles neu.
+exec /usr/lib/gibbcoin/setup.sh "$@"

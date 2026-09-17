@@ -1,0 +1,14 @@
+Package: gibbcoin
+Version: 1.0.0
+Architecture: all
+Maintainer: GIBB Coin <ilja.podorieszach@icloud.com>
+Depends: curl, ca-certificates, git, gnupg
+Section: web
+Priority: optional
+Homepage: https://github.com/Iloteli/Gibbcoin-Original
+Description: GIBB Coin - Schulwallet, Blockchain-Node und Website
+ Installiert die GIBB-Coin-Website und den Blockchain-Node als systemd-Dienste.
+ Beim Einrichten werden Node.js und pnpm installiert, die aktuelle App aus dem
+ Git-Repository geholt und gebaut. Zwei Dienste starten automatisch beim Booten:
+ gibb-node (Blockchain-API + Reserve-Miner, Port 8787) und gibb-website
+ (Website, Port 3000).

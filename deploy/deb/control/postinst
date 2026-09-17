@@ -1,0 +1,18 @@
+#!/bin/sh
+set -e
+# Nach dem Entpacken: App holen, bauen und Dienste einrichten.
+case "$1" in
+  configure)
+    chmod +x /usr/lib/gibbcoin/setup.sh /usr/bin/gibbcoin-update 2>/dev/null || true
+    if [ -t 1 ]; then
+      /usr/lib/gibbcoin/setup.sh
+    else
+      # Nicht-interaktive Installation (z. B. Cloud-Image): im Hintergrund
+      # nicht möglich – wir laufen synchron, Ausgabe geht ins apt-Log.
+      /usr/lib/gibbcoin/setup.sh
+    fi
+    ;;
+  abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+esac
+exit 0

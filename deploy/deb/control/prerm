@@ -1,0 +1,14 @@
+#!/bin/sh
+set -e
+# Vor dem Entfernen: Dienste stoppen und deaktivieren.
+case "$1" in
+  remove|deconfigure|upgrade)
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl stop gibb-node.service gibb-website.service 2>/dev/null || true
+      if [ "$1" != "upgrade" ]; then
+        systemctl disable gibb-node.service gibb-website.service 2>/dev/null || true
+      fi
+    fi
+    ;;
+esac
+exit 0

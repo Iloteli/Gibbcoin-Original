@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+# Nach dem Entfernen aufräumen. Bei "purge" auch App-Verzeichnis und Benutzer.
+case "$1" in
+  remove|purge)
+    rm -f /etc/systemd/system/gibb-node.service /etc/systemd/system/gibb-website.service
+    if command -v systemctl >/dev/null 2>&1; then
+      systemctl daemon-reload 2>/dev/null || true
+    fi
+    ;;
+esac
+
+if [ "$1" = "purge" ]; then
+  rm -rf /opt/gibbcoin
+  rm -f /etc/default/gibbcoin
+  if id gibb >/dev/null 2>&1; then
+    userdel -r gibb 2>/dev/null || true
+  fi
+fi
+exit 0

@@ -1,0 +1,21 @@
+# GIBB Coin – Einstellungen für Installation/Update.
+# Nach Änderungen:  sudo gibbcoin-update
+
+# Git-Quelle der App
+REPO_URL=https://github.com/Iloteli/Gibbcoin-Original.git
+REPO_BRANCH=main
+
+# Zielverzeichnis und Dienst-Benutzer
+APP_DIR=/opt/gibbcoin
+RUN_USER=gibb
+
+# Ports
+WEBSITE_PORT=3000
+NODE_PORT=8787
+
+# Node.js-Hauptversion und Build-Speicher (MB)
+NODE_MAJOR=22
+BUILD_MEM_MB=3072
+
+# 1 = ufw-Ports automatisch öffnen (falls ufw vorhanden)
+OPEN_FIREWALL=1
