@@ -2454,6 +2454,151 @@ body {
   .brand, .profile-button, .desktop-nav button, .home-shortcuts button, .primary, .secondary, .primary-link, .secondary-link { transition: none; }
 }
 
+/* Final interaction polish: feedback that helps users understand what is
+   active, loading or ready. No business logic is coupled to these effects. */
+.dashboard-view:not([hidden]) .view-heading > span {
+  animation: product-label-in .55s var(--ease-out) both;
+}
+
+.dashboard-view:not([hidden]) .view-heading h1 {
+  animation: product-title-in .65s var(--ease-out) both;
+}
+
+.dashboard-view:not([hidden]) .view-heading p {
+  animation: product-copy-in .7s var(--ease-out) 70ms both;
+}
+
+.card,
+.home-shortcuts button,
+.dashboard-tabs button,
+.desktop-nav button,
+.profile-button,
+.global-alert,
+.offline-banner {
+  will-change: transform;
+}
+
+.card {
+  transition: border-color .28s ease, box-shadow .28s ease, transform .28s var(--ease-out);
+}
+
+.card:focus-within {
+  border-color: rgba(117,245,154,.34);
+  box-shadow: 0 24px 78px rgba(0,0,0,.28), 0 0 0 3px rgba(117,245,154,.06);
+}
+
+.primary:active:not(:disabled),
+.secondary:active:not(:disabled),
+.primary-link:active,
+.secondary-link:active,
+.home-shortcuts button:active,
+.dashboard-tabs button:active,
+.desktop-nav button:active,
+.profile-button:active {
+  transform: translateY(1px) scale(.985);
+}
+
+.input:focus,
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  transition: box-shadow .2s ease, border-color .2s ease, outline-offset .2s ease;
+}
+
+.chain-status,
+.sync-status {
+  animation: product-status-in .5s var(--ease-out) both;
+}
+
+.chain-status i,
+.sync-status i:not(.syncing) {
+  animation: product-status-pulse 2.8s ease-in-out infinite;
+}
+
+.global-alert,
+.offline-banner {
+  animation: product-alert-in .45s var(--ease-out) both;
+}
+
+.loader {
+  animation: spin .8s linear infinite, product-loader-glow 1.8s ease-in-out infinite alternate;
+}
+
+.dashboard-view:not([hidden]) .home-launchpad,
+.dashboard-view:not([hidden]) .workspace-grid > *,
+.dashboard-view:not([hidden]) .overview-grid > *,
+.dashboard-view:not([hidden]) .transactions,
+.dashboard-view:not([hidden]) .notification-center,
+.dashboard-view:not([hidden]) .profile-card {
+  animation: product-surface-in .6s var(--ease-out) both;
+}
+
+.dashboard-view:not([hidden]) .home-launchpad { animation-delay: 120ms; }
+.dashboard-view:not([hidden]) .workspace-grid > :nth-child(2) { animation-delay: 90ms; }
+.dashboard-view:not([hidden]) .overview-grid > :nth-child(2) { animation-delay: 80ms; }
+.dashboard-view:not([hidden]) .overview-grid > :nth-child(3) { animation-delay: 140ms; }
+
+@keyframes product-label-in {
+  from { opacity: 0; letter-spacing: .28em; transform: translateY(4px); }
+  to { opacity: 1; letter-spacing: .17em; transform: translateY(0); }
+}
+
+@keyframes product-title-in {
+  from { opacity: 0; transform: translateY(10px); filter: blur(5px); }
+  to { opacity: 1; transform: translateY(0); filter: blur(0); }
+}
+
+@keyframes product-copy-in {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes product-surface-in {
+  from { opacity: 0; transform: translateY(8px) scale(.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes product-status-in {
+  from { opacity: 0; transform: translateX(8px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes product-status-pulse {
+  0%, 100% { opacity: .72; box-shadow: 0 0 8px currentColor; }
+  50% { opacity: 1; box-shadow: 0 0 16px currentColor; }
+}
+
+@keyframes product-alert-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes product-loader-glow {
+  from { box-shadow: 0 0 0 rgba(117,245,154,0); }
+  to { box-shadow: 0 0 26px rgba(117,245,154,.24); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-view:not([hidden]) .view-heading > span,
+  .dashboard-view:not([hidden]) .view-heading h1,
+  .dashboard-view:not([hidden]) .view-heading p,
+  .chain-status,
+  .sync-status,
+  .chain-status i,
+  .sync-status i:not(.syncing),
+  .global-alert,
+  .offline-banner,
+  .dashboard-view:not([hidden]) .home-launchpad,
+  .dashboard-view:not([hidden]) .workspace-grid > *,
+  .dashboard-view:not([hidden]) .overview-grid > *,
+  .dashboard-view:not([hidden]) .transactions,
+  .dashboard-view:not([hidden]) .notification-center,
+  .dashboard-view:not([hidden]) .profile-card {
+    animation: none;
+  }
+}
+
 /* ============================================================
    Design v2 — mehr Übersicht, satisfying casino, extra Bewegung
    Visuell/additiv: nur transform, filter, box-shadow, opacity.
