@@ -31,6 +31,8 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
   const [memberIds, setMemberIds] = useState<Record<string, string>>({});
   const [centerPage, setCenterPage] = useState(1);
   const [centerHasMore, setCenterHasMore] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [controlError, setControlError] = useState("");
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -39,10 +41,13 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
     if (!active) return;
     const supabase = getSupabase();
     if (!supabase) return;
+    setLoading(true); setControlError("");
     const { data, error: rpcError } = await supabase.rpc("admin_list_operations");
-    if (rpcError) { setError("Die Operationsübersicht ist noch nicht verfügbar."); return; }
+    if (rpcError) { setError("Die Operationsübersicht ist noch nicht verfügbar."); setLoading(false); return; }
     setOperations((data ?? []) as Operation[]);
-    const { data: control } = await supabase.rpc("admin_list_control_center_page", { p_page: centerPage, p_page_size: 12 });
+    const { data: control, error: controlRpcError } = await supabase.rpc("admin_list_control_center_page", { p_page: centerPage, p_page_size: 12 });
+    setLoading(false);
+    if (controlRpcError) { setControlError("Der Kontrollbereich konnte nicht geladen werden. Versuche es erneut."); return; }
     if (control) {
       const next = control as typeof center;
       setCenter(next);
@@ -142,8 +147,19 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
   }
 
   if (!active) return null;
+  const ticketCount = center.tickets?.length ?? 0;
+  const exportCount = center.exports?.length ?? 0;
+  const privacyCount = center.privacy?.length ?? 0;
+  const classCount = center.classes?.length ?? 0;
   return <section className="admin-operations card card-pad" aria-labelledby="admin-operations-title">
-    <div className="admin-users-head"><div><strong id="admin-operations-title">Weitere Admin-Operationen</strong><p>Konfiguration und Status der noch nicht integrierten Dienste. Keine Aktion meldet fälschlich einen erfolgreichen Versand, Backup oder Restore.</p></div><span>{operations.length} Bereiche</span></div>
+    <div className="admin-users-head"><div><strong id="admin-operations-title">Weitere Admin-Operationen</strong><p>Konfiguration und Status der noch nicht integrierten Dienste. Keine Aktion meldet fälschlich einen erfolgreichen Versand, Backup oder Restore.</p></div><span>{loading ? "Wird geladen …" : `${operations.length} Bereiche`}</span></div>
+    {loading && <p className="message" role="status">Admin-Übersicht wird geladen …</p>}
+    {controlError && <p className="message error" role="alert">{controlError} <button className="secondary compact" type="button" onClick={() => void load()}>Erneut laden</button></p>}
+    {!loading && !controlError && <div className="admin-operation-grid">
+      <article className="admin-operation"><span className="eyebrow">Support</span><h3>{ticketCount} Fälle</h3><p>Offene und bearbeitete Anfragen im aktuellen Bereich.</p><a className="secondary compact" href="#support-privacy">Support & Datenschutz öffnen</a></article>
+      <article className="admin-operation"><span className="eyebrow">Datenschutz</span><h3>{exportCount + privacyCount} Anfragen</h3><p>{exportCount} Exporte · {privacyCount} Datenschutzanfragen.</p></article>
+      <article className="admin-operation"><span className="eyebrow">Klassen</span><h3>{classCount} Klassen</h3><p>Mitglieder werden nur über die geschützten Admin-RPCs verwaltet.</p></article>
+    </div>}
     <div className="admin-operation-grid">
       {operations.map((operation) => <article className="admin-operation" key={operation.operation_key}>
         <div><span className="eyebrow">{categoryLabel[operation.category] ?? operation.category}</span><h3>{operation.label}</h3><p>{operation.description}</p></div>
@@ -167,7 +183,7 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
             <button className="primary compact" type="button" disabled={busy !== ""} onClick={() => void saveControl("announcement", { enabled: true, ...announcement, until: null })}>Ankündigung veröffentlichen</button>
             <button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void saveControl("announcement", { enabled: false, ...announcement, until: null })}>Ausblenden</button>
           </article>
-          <article className="admin-operation"><h3>Klassenverwaltung</h3><form onSubmit={createClass}><input className="input" value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Klassenname" /><input className="input" value={classYear} onChange={(event) => setClassYear(event.target.value)} placeholder="Schuljahr (optional)" /><button className="primary compact" disabled={busy !== ""}>Klasse anlegen</button></form>{(center.classes ?? []).map((item) => <div key={String(item.id)}><p><strong>{String(item.name)}</strong> · {item.school_year || "ohne Schuljahr"}</p><input className="input compact" value={memberIds[String(item.id)] ?? ""} onChange={(event) => setMemberIds((current) => ({ ...current, [String(item.id)]: event.target.value }))} placeholder="Benutzer-ID hinzufügen" /><button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void updateClassMember(String(item.id), memberIds[String(item.id)] ?? "")}>Mitglied hinzufügen</button><div>{(Array.isArray(item.members) ? item.members : []).map((member) => <button className="secondary compact" type="button" key={String(member)} disabled={busy !== ""} onClick={() => void updateClassMember(String(item.id), String(member), true)}>Mitglied {String(member).slice(0, 8)} entfernen</button>)}</div></div>)}<div className="admin-operation-foot"><button className="secondary compact" type="button" disabled={centerPage <= 1 || busy !== ""} onClick={() => setCenterPage((page) => page - 1)}>Neuere</button><button className="secondary compact" type="button" disabled={!centerHasMore || busy !== ""} onClick={() => setCenterPage((page) => page + 1)}>Ältere</button></div></article>
+          <article className="admin-operation"><h3>Klassenverwaltung</h3><p>Klassen dienen der Organisation. Die App-Rolle bleibt davon getrennt: <strong>Benutzer</strong> nutzt Wallet-Funktionen, <strong>Admin</strong> verwaltet freigegebene Bereiche, <strong>Owner</strong> vergibt Adminrechte.</p><form onSubmit={createClass}><input className="input" value={className} onChange={(event) => setClassName(event.target.value)} placeholder="Klassenname" /><input className="input" value={classYear} onChange={(event) => setClassYear(event.target.value)} placeholder="Schuljahr (optional)" /><button className="primary compact" disabled={busy !== ""}>Klasse anlegen</button></form>{(center.classes ?? []).map((item) => <div key={String(item.id)}><p><strong>{String(item.name)}</strong> · {item.school_year || "ohne Schuljahr"} · {Array.isArray(item.members) ? item.members.length : 0} Mitglieder</p><input className="input compact" value={memberIds[String(item.id)] ?? ""} onChange={(event) => setMemberIds((current) => ({ ...current, [String(item.id)]: event.target.value }))} placeholder="Benutzer-ID hinzufügen" /><button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void updateClassMember(String(item.id), memberIds[String(item.id)] ?? "")}>Mitglied hinzufügen</button><div>{(Array.isArray(item.members) ? item.members : []).map((member) => <button className="secondary compact" type="button" key={String(member)} disabled={busy !== ""} onClick={() => void updateClassMember(String(item.id), String(member), true)}>Mitglied {String(member).slice(0, 8)} entfernen</button>)}</div></div>)}{!(center.classes ?? []).length && <p>Noch keine Klassen auf dieser Seite.</p>}<div className="admin-operation-foot"><button className="secondary compact" type="button" disabled={centerPage <= 1 || busy !== ""} onClick={() => setCenterPage((page) => page - 1)}>Neuere</button><button className="secondary compact" type="button" disabled={!centerHasMore || busy !== ""} onClick={() => setCenterPage((page) => page + 1)}>Ältere</button></div></article>
           <article className="admin-operation"><h3>Support-Fälle</h3>{(center.tickets ?? []).slice(0, 8).map((item) => <div key={item.id} className="admin-operation-foot"><span>{item.subject} · {item.priority}</span><select className="input compact" value={item.status} disabled={busy === item.id} onChange={(event) => void updateCase(item, event.target.value)}><option value="open">Offen</option><option value="in_progress">In Arbeit</option><option value="waiting">Wartet</option><option value="closed">Geschlossen</option></select></div>)}{!(center.tickets ?? []).length && <p>Keine Support-Fälle.</p>}</article>
           <article className="admin-operation"><h3>Datenschutz & Exporte</h3><p>{(center.exports ?? []).length} Exportanfragen · {(center.privacy ?? []).length} Datenschutzanfragen</p><p>Neue Anfragen werden sicher erfasst und hier zur Bearbeitung angezeigt.</p></article>
           <article className="admin-operation"><h3>Shop, Aufgaben & Saison</h3>

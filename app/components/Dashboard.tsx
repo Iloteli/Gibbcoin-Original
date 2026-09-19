@@ -619,7 +619,7 @@ export function Dashboard({ user }: Props) {
         {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Spiele sind offline pausiert</strong><p>Damit jeder Einsatz korrekt verbucht wird, startet das Game Center nur mit Serververbindung.</p></section> : <><PlayerSafetyPanel /><GameCenter walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></>}
         </div>
 
-        <div className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
+        <div id="community" className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
         <div className="view-heading"><span>GEMEINSAM & SICHER</span><h1>Community</h1><p>Gruppen-Wallets verwalten und verdächtige Vorgänge melden.</p></div>
         {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /><GroupWallets onChanged={loadData} /><AbuseReports transactions={transactions} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} /></>}
         </div>
