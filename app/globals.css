@@ -401,6 +401,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .group-summary > div:first-child > span { color: var(--green); font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .group-summary h3 { margin: 5px 0 5px; font-size: 23px; letter-spacing: -.035em; }
 .group-summary p { margin: 0; color: var(--muted); font-size: 11px; }
+.group-rename-form { display: grid; gap: 6px; padding: 13px 15px; border: 1px solid rgba(124,245,157,.14); border-radius: 13px; background: rgba(124,245,157,.025); }
+.group-rename-form label { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.group-rename-form > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.group-rename-form small { color: var(--muted); font-size: 8px; }
 .group-balance { display: grid; justify-items: end; align-content: center; gap: 2px; }
 .group-balance > span { color: var(--muted); font-size: 9px; }
 .group-balance > strong { font-size: 24px; }

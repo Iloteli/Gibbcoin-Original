@@ -42,6 +42,7 @@ function groupError(message?: string) {
   if (message?.includes("group_limit_reached")) return "Du kannst maximal zehn eigene Gruppen-Wallets erstellen.";
   if (message?.includes("membership_limit_reached")) return "Du bist bereits in zu vielen Gruppen-Wallets.";
   if (message?.includes("group_manager_required")) return "Nur Verantwortliche dürfen Coins aus der Gruppe auszahlen.";
+  if (message?.includes("group_owner_required")) return "Nur der Owner darf den Gruppennamen ändern.";
   if (message?.includes("recipient_not_group_member")) return "Wähle ein Mitglied dieser Gruppe aus.";
   if (message?.includes("owner_cannot_leave_group")) return "Die erstellende Person kann ihre Gruppe nicht verlassen.";
   if (message?.includes("wallet_locked")) return "Dein Konto ist gesperrt.";
@@ -60,6 +61,7 @@ export function GroupWallets({ onChanged }: Props) {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [history, setHistory] = useState<GroupEntry[]>([]);
   const [name, setName] = useState("");
+  const [renameValue, setRenameValue] = useState("");
   const [description, setDescription] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [depositAmount, setDepositAmount] = useState("");
@@ -190,6 +192,21 @@ export function GroupWallets({ onChanged }: Props) {
     await loadGroupDetails(selectedId);
   }
 
+  async function renameGroup(event: React.FormEvent) {
+    event.preventDefault();
+    if (!selected) return;
+    setError(""); setMessage(""); setBusy("rename");
+    const supabase = getSupabase();
+    const { error: renameError } = supabase
+      ? await supabase.rpc("rename_group_wallet", { p_group_id: selected.group_id, p_name: renameValue })
+      : { error: { message: "client_unavailable" } };
+    setBusy("");
+    if (renameError) { setError(groupError(renameError.message)); return; }
+    setRenameValue("");
+    setMessage("Der Gruppenname wurde geändert.");
+    await refreshGroup(selected.group_id);
+  }
+
   async function leaveGroup() {
     setError(""); setMessage(""); setBusy("leave");
     const supabase = getSupabase();
@@ -222,6 +239,7 @@ export function GroupWallets({ onChanged }: Props) {
       <div className="group-tabs" role="tablist" aria-label="Gruppen-Wallet auswählen">{groups.map((group) => <button type="button" role="tab" aria-selected={selectedId === group.group_id} className={selectedId === group.group_id ? "active" : ""} key={group.group_id} onClick={() => setSelectedId(group.group_id)}><strong>{group.group_name}</strong><span>{new Intl.NumberFormat("de-CH").format(group.balance)} GIBB</span></button>)}</div>
       {selected && <div className="group-dashboard">
         <div className="group-summary"><div><span>{roleLabel(selected.member_role)}</span><h3>{selected.group_name}</h3><p>{selected.group_description || "Gemeinsam Coins verwalten und jede Bewegung nachvollziehen."}</p></div><div className="group-balance"><span>Gruppenguthaben</span><strong>{new Intl.NumberFormat("de-CH").format(selected.balance)} <small>GIBB</small></strong><button type="button" onClick={() => void navigator.clipboard?.writeText(selected.join_code)}>Code {selected.join_code} kopieren</button></div></div>
+        {selected.member_role === "owner" && <form className="group-rename-form" onSubmit={renameGroup}><label htmlFor="group-rename">Gruppenname ändern</label><div><input id="group-rename" className="input" value={renameValue} onChange={(event) => setRenameValue(event.target.value)} minLength={3} maxLength={60} required placeholder={selected.group_name} /><button className="secondary compact" type="submit" disabled={busy !== "" || renameValue.trim() === selected.group_name}>Speichern</button></div><small>Nur der Owner kann den offiziellen Namen dieser Gruppen-Wallet ändern.</small></form>}
         <div className="group-actions-grid">
           <form onSubmit={deposit}><strong>Coins einzahlen</strong><div className="group-inline-fields"><input className="input" type="number" min="1" max="100000" step="1" required value={depositAmount} onChange={(event) => setDepositAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={depositNote} onChange={(event) => setDepositNote(event.target.value)} placeholder="Notiz (optional)" /><button className="primary compact" disabled={busy !== ""}>Einzahlen</button></div></form>
           <form onSubmit={withdraw}><strong>Ins eigene Wallet nehmen</strong><div className="group-inline-fields"><input className="input" type="number" min="1" max="100000" step="1" required value={withdrawAmount} onChange={(event) => setWithdrawAmount(event.target.value)} placeholder="Betrag" /><input className="input" maxLength={160} value={withdrawNote} onChange={(event) => setWithdrawNote(event.target.value)} placeholder="Notiz (optional)" /><button className="secondary" disabled={busy !== ""}>Entnehmen</button></div></form>
