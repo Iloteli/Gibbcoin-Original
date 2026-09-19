@@ -783,7 +783,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
   const activeGame = games.find((game) => game.key === selectedGame)!;
   return (
-    <section className={`card game-center game-theme-${selectedGame} ${busy ? "is-playing" : ""} ${won ? "is-win" : ""} ${lost ? "is-loss" : ""}`} id="game-center">
+    <section className={`card game-center game-motion-enabled game-theme-${selectedGame} ${busy ? "is-playing" : ""} ${won ? "is-win" : ""} ${lost ? "is-loss" : ""}`} id="game-center">
       <div className="game-ambient" aria-hidden="true"><i /><i /><i /><i /><i /><i /></div>
       <div className="game-center-hero">
         <div><div className="game-live-line"><span className="game-eyebrow">GIBB GAME CENTER</span><b><i /> LIVE</b></div><h2>Spielen. Riskieren. <em>Coins gewinnen.</em></h2><p>Einsätze, Gewinne und Dino-Prämien werden direkt in deinem einzigen GIBB-Wallet verbucht. Es gibt kein separates Spielkonto.</p></div>
