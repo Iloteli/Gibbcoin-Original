@@ -709,13 +709,27 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .admin-quick-nav a { padding: 8px 12px; border-radius: 9px; color: var(--muted); font-size: 11px; font-weight: 750; text-decoration: none; }
 .admin-quick-nav a:hover, .admin-quick-nav a:focus-visible { color: var(--green); background: rgba(117,245,154,.1); outline: none; }
 .admin-panel-section { scroll-margin-top: 145px; margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--line); }
-.admin-section-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.admin-collapsible { padding: 0; border: 1px solid rgba(255,255,255,.08); border-radius: 16px; background: rgba(255,255,255,.012); overflow: hidden; }
+.admin-collapsible[open] { border-color: rgba(117,245,154,.16); background: rgba(117,245,154,.018); }
+.admin-section-kicker { display: flex; align-items: center; gap: 10px; margin: 0; padding: 16px 18px; cursor: pointer; list-style: none; user-select: none; }
+.admin-section-kicker::-webkit-details-marker { display: none; }
+.admin-section-kicker::marker { display: none; }
+.admin-section-kicker:hover { background: rgba(255,255,255,.025); }
+.admin-section-kicker:focus-visible { outline: 2px solid var(--green); outline-offset: -2px; }
 .admin-section-kicker > span { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid rgba(117,245,154,.35); border-radius: 8px; color: var(--green); font-size: 10px; font-weight: 850; }
+.admin-section-kicker > div { min-width: 0; flex: 1; }
 .admin-section-kicker strong, .admin-section-kicker small { display: block; }
 .admin-section-kicker strong { font-size: 15px; }
 .admin-section-kicker small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.admin-section-kicker > b { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid var(--line); border-radius: 50%; color: var(--muted); font-size: 15px; font-weight: 500; line-height: 1; transition: transform .2s ease, color .2s ease, border-color .2s ease; }
+.admin-collapsible[open] > .admin-section-kicker > b { transform: rotate(180deg); color: var(--green); border-color: rgba(117,245,154,.32); }
+.admin-collapsible > :not(summary) { margin-right: 18px; margin-left: 18px; }
+.admin-collapsible > .admin-section-kicker + .admin-game-controls,
+.admin-collapsible > .admin-section-kicker + .admin-audit { margin-top: 4px; }
+.admin-collapsible > .admin-section-kicker ~ .admin-users-head { margin-top: 4px; }
 .admin-panel-section > .admin-audit { margin-top: 0; padding-top: 0; border-top: 0; }
 .admin-user-list { max-height: 560px; overflow: auto; padding-right: 4px; scrollbar-color: #35453c transparent; }
+.admin-user-list:empty::after { content: "Keine Konten für diese Suche gefunden."; display: block; padding: 24px; color: var(--muted); text-align: center; font-size: 12px; }
 .admin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: -4px 0 22px; }
 .admin-stats > div { display: grid; gap: 5px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.014); }
 .admin-stats span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 8px; font-weight: 800; }
@@ -767,6 +781,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .admin-reserve { align-items: stretch; flex-direction: column; }
   .admin-reserve button { width: 100%; }
   .admin-adjust-form > .admin-danger { width: 100%; }
+}
+
+@media (max-width: 720px) {
+  .admin-collapsible > :not(summary) { margin-right: 12px; margin-left: 12px; }
+  .admin-section-kicker { padding: 14px 13px; }
+  .admin-section-kicker small { max-width: 230px; line-height: 1.35; }
 }
 
 @media (max-width: 470px) {
