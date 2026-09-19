@@ -1296,12 +1296,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .game-machine { background: radial-gradient(circle at 50% 43%, rgba(var(--game-accent-rgb),.045), transparent 48%); }
 .game-machine > header > div > span { background: var(--game-accent); box-shadow: 0 10px 35px rgba(var(--game-accent-rgb),.22); transition: background .4s ease; }
 .game-machine > header > b { border-color: rgba(var(--game-accent-rgb),.22); color: var(--game-accent); background: rgba(var(--game-accent-rgb),.045); }
-.stage-shell { position: relative; animation: stage-enter .45s cubic-bezier(.2,.8,.2,1) both; }
+.stage-shell { position: relative; animation: stage-enter .45s cubic-bezier(.2,.8,.2,1) both; will-change: transform, opacity; }
 .stage-lights { position: absolute; inset: 8px 0 auto; z-index: 3; display: flex; justify-content: center; gap: 34px; pointer-events: none; }
 .stage-lights i { width: 5px; height: 5px; border-radius: 50%; background: var(--game-accent); box-shadow: 0 0 14px 3px rgba(var(--game-accent-rgb),.55), 0 0 55px 16px rgba(var(--game-accent-rgb),.11); }
 .stage-lights i:nth-child(2) { animation: game-live-pulse .9s ease-in-out infinite alternate; }
 .stage-lights i:nth-child(3) { animation: game-live-pulse 1.2s -.4s ease-in-out infinite alternate; }
-.stage-shell .game-stage { position: relative; border-color: rgba(var(--game-accent-rgb),.14); background: radial-gradient(circle at center, rgba(var(--game-accent-rgb),.115), transparent 52%), repeating-linear-gradient(90deg, transparent 0 39px, rgba(255,255,255,.014) 40px), rgba(2,6,4,.67); box-shadow: inset 0 0 70px rgba(0,0,0,.45), 0 20px 45px rgba(0,0,0,.16); perspective: 900px; }
+.stage-shell .game-stage { position: relative; border-color: rgba(var(--game-accent-rgb),.14); background: radial-gradient(circle at center, rgba(var(--game-accent-rgb),.115), transparent 52%), repeating-linear-gradient(90deg, transparent 0 39px, rgba(255,255,255,.014) 40px), rgba(2,6,4,.67); box-shadow: inset 0 0 70px rgba(0,0,0,.45), 0 20px 45px rgba(0,0,0,.16); perspective: 900px; will-change: transform, filter, box-shadow; }
 .stage-shell .game-stage::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 30%, rgba(255,255,255,.035) 48%, transparent 66%); transform: translateX(-120%); animation: stage-sweep 5.5s ease-in-out infinite; }
 .stage-shell .game-stage::after { content: ""; position: absolute; inset: 0; z-index: 5; border-radius: inherit; pointer-events: none; background: radial-gradient(circle at 50% 46%, transparent 38%, rgba(0,0,0,.34) 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.018); }
 .stage-shell .game-stage > * { position: relative; z-index: 2; }
@@ -1310,6 +1310,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .stage-energy i:nth-child(2) { animation-delay: .14s !important; }.stage-energy i:nth-child(3) { animation-delay: .28s !important; }.stage-energy i:nth-child(4) { animation-delay: .42s !important; }
 .is-playing .stage-energy i { animation: stage-charge .85s ease-out infinite; }
 .is-playing .stage-shell { animation: machine-surge .72s ease-in-out infinite alternate; }
+.is-playing .game-stage { animation: game-stage-active 1.15s var(--ease-soft) both; }
+.is-playing .game-stage > * { animation-play-state: running; }
 .is-playing .game-machine > header > div > span { animation: game-icon-charge .65s ease-in-out infinite alternate; }
 .is-win .stage-energy i { animation: stage-impact 1s ease-out both; }
 .is-loss .stage-energy i { border-color: rgba(255,112,120,.34); animation: stage-impact .72s ease-out both; }
@@ -1321,10 +1323,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .roulette-ball-track { position: absolute; inset: -7px; border-radius: 50%; }
 .roulette-ball-track i { position: absolute; left: calc(50% - 5px); top: -2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; box-shadow: 0 0 10px white; }
 .roulette-ball-track.orbiting { animation: roulette-ball 1.15s cubic-bezier(.15,.65,.22,1) both; }
+.is-playing .roulette-wheel { filter: brightness(1.08) saturate(1.15); }
 .coin-stage { isolation: isolate; }
 .coin-energy { position: absolute; width: 210px; height: 210px; display: grid; place-items: center; }
 .coin-energy i { position: absolute; inset: 0; border: 1px solid rgba(var(--game-accent-rgb),.18); border-radius: 50%; animation: coin-ring 2.4s ease-out infinite; }
 .coin-energy i:nth-child(2) { animation-delay: -.8s; }.coin-energy i:nth-child(3) { animation-delay: -1.6s; }
+.is-playing .game-coin { filter: brightness(1.12) saturate(1.18); }
 .game-coin { position: relative; z-index: 2; border-color: #7b5b19; box-shadow: 0 24px 55px rgba(0,0,0,.42), inset 0 0 0 9px rgba(255,255,255,.2), 0 0 48px rgba(var(--game-accent-rgb),.11); }
 .dice-stage b { color: #111915; font-size: 72px; line-height: 1; text-shadow: 0 2px 0 white; }
 .high-card-stage > div { display: grid; justify-items: center; gap: 3px; }
@@ -1336,6 +1340,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .blackjack-stage .playing-card:nth-child(3), .poker-stage .playing-card:nth-child(3) { animation-delay: .14s; }
 .blackjack-stage .playing-card:nth-child(4), .poker-stage .playing-card:nth-child(4) { animation-delay: .21s; }
 .blackjack-stage .playing-card:nth-child(5), .poker-stage .playing-card:nth-child(5) { animation-delay: .28s; }
+.is-playing .playing-card { animation-name: card-deal-active; }
 .plinko-stage { min-height: 390px; flex-direction: column; gap: 5px; padding: 18px 14px 12px; }
 .plinko-board { width: min(100%, 390px); display: grid; justify-items: center; filter: drop-shadow(0 20px 30px rgba(0,0,0,.3)); }
 .plinko-drop-zone { position: relative; width: 100%; height: 245px; display: flex; flex-direction: column; align-items: center; gap: 19px; padding-top: 40px; border: 1px solid rgba(var(--game-accent-rgb),.16); border-bottom: 0; border-radius: 24px 24px 6px 6px; background: linear-gradient(180deg, rgba(var(--game-accent-rgb),.075), transparent 28%), repeating-linear-gradient(90deg, transparent 0 42px, rgba(var(--game-accent-rgb),.022) 43px); box-shadow: inset 0 0 55px rgba(var(--game-accent-rgb),.045); overflow: hidden; }
@@ -1358,6 +1363,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .plinko-slots span i { position: absolute; inset: 0; background: radial-gradient(circle, rgba(255,255,255,.55), transparent 66%); opacity: 0; }
 .plinko-slots span.active { border-color: #fff; transform-origin: 50% 0; animation: plinko-slot-hit .58s 1s cubic-bezier(.2,1.5,.4,1) both; box-shadow: 0 0 25px rgba(var(--game-accent-rgb),.55); }
 .plinko-slots span.active i { animation: plinko-slot-flash .8s 1s ease-out both; }
+.is-playing .plinko-peg-row > i { animation: peg-glow .7s ease-in-out infinite alternate; }
 .game-controls { padding: 12px; border: 1px solid rgba(255,255,255,.06); border-radius: 14px; background: rgba(0,0,0,.2); }
 .wager-choice { min-width: 0; }
 .wager-input { position: relative; }
@@ -1444,6 +1450,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes wallet-scan { 0%,48% { transform: translateX(0) skewX(-18deg); } 78%,100% { transform: translateX(543%) skewX(-18deg); } }
 @keyframes game-marquee { to { transform: translateX(-50%); } }
 @keyframes stage-enter { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes game-stage-active { 0% { transform: scale(.985); filter: brightness(.86); } 28% { transform: scale(1.008); filter: brightness(1.08); } 100% { transform: scale(1); filter: brightness(1); } }
 @keyframes stage-sweep { 0%,58% { transform: translateX(-120%); } 82%,100% { transform: translateX(120%); } }
 @keyframes particle-rise { 0% { opacity: 0; transform: translateY(20px) scale(.4); } 25% { opacity: .75; } 100% { opacity: 0; transform: translateY(-240px) scale(1.4); } }
 @keyframes roulette-ball { 0% { transform: rotate(0deg); } 100% { transform: rotate(2520deg); } }
@@ -1460,6 +1467,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes loss-reveal { 0% { opacity: 0; transform: translateX(-8px); } 40% { transform: translateX(5px); } 70% { transform: translateX(-2px); } 100% { opacity: 1; transform: translateX(0); } }
 @keyframes push-reveal { from { opacity: 0; transform: translateY(8px) scale(.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
 @keyframes stage-loss-flash { 32% { border-color: rgba(255,112,120,.38); box-shadow: inset 0 0 75px rgba(255,112,120,.09), 0 20px 45px rgba(0,0,0,.16); } }
+@keyframes card-deal-active { 0% { opacity: 0; transform: translateY(-30px) rotate(-10deg) scale(.82); filter: brightness(1.35); } 60% { opacity: 1; transform: translateY(4px) rotate(2deg) scale(1.035); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); filter: brightness(1); } }
+@keyframes peg-glow { to { filter: brightness(1.7); box-shadow: 0 0 17px rgba(var(--game-accent-rgb),.8); } }
 @keyframes plinko-launch-pulse { to { opacity: .3; transform: scaleY(.55); } }
 @keyframes plinko-ready { 50% { transform: translateY(5px); filter: brightness(1.25); } }
 @keyframes plinko-search { 0% { transform: translate(0,0); } 24% { transform: translate(-22px,48px) rotate(150deg); } 48% { transform: translate(24px,101px) rotate(330deg); } 72% { transform: translate(-17px,157px) rotate(510deg); } 100% { transform: translate(0,0) rotate(720deg); } }
@@ -1518,6 +1527,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .slot-reels { display: flex; gap: 10px; }
 .slot-reels span { width: 82px; height: 96px; display: grid; place-items: center; border: 2px solid rgba(var(--game-accent-rgb),.38); border-radius: 14px; color: var(--game-accent); background: linear-gradient(145deg, rgba(255,255,255,.12), rgba(var(--game-accent-rgb),.08)); font-size: 42px; box-shadow: inset 0 0 25px rgba(var(--game-accent-rgb),.08), 0 12px 30px rgba(0,0,0,.25); }
 .slot-reels span.rolling { animation: casino-roll .55s ease-in-out infinite alternate; }
+.is-playing .slot-reels span { animation: casino-reel-active .72s ease-in-out infinite alternate; }
 .payout-table { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; color: var(--muted); font-size: 8px; }
 .payout-table span { border: 1px solid rgba(var(--game-accent-rgb),.2); border-radius: 999px; padding: 5px 8px; background: rgba(var(--game-accent-rgb),.05); }
 .baccarat-stage { flex-direction: row; flex-wrap: wrap; }
@@ -1530,6 +1540,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .keno-balls { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; max-width: 390px; }
 .keno-balls span { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(var(--game-accent-rgb),.35); border-radius: 50%; color: var(--game-accent); background: radial-gradient(circle at 35% 25%, rgba(255,255,255,.18), rgba(var(--game-accent-rgb),.08)); font-size: 14px; font-weight: 900; }
 .keno-balls span.rolling { animation: casino-ball .55s ease-in-out infinite alternate; }
+.is-playing .keno-balls span { animation: casino-ball-active .72s ease-in-out infinite alternate; }
 .keno-picker { display: grid; grid-template-columns: repeat(10, minmax(22px,1fr)); gap: 3px; max-width: 340px; }
 .keno-picker button { min-height: 24px; border: 1px solid rgba(255,255,255,.08); border-radius: 5px; color: var(--muted); background: rgba(255,255,255,.025); font-size: 8px; }
 .keno-picker button.active { border-color: rgba(var(--game-accent-rgb),.5); color: #07110a; background: var(--game-accent); font-weight: 900; }
@@ -1545,8 +1556,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .mine-grid span { width: 62px; height: 62px; display: grid; place-items: center; border: 1px solid rgba(var(--game-accent-rgb),.28); border-radius: 11px; color: rgba(var(--game-accent-rgb),.35); background: rgba(var(--game-accent-rgb),.06); font-size: 22px; }
 .mine-grid span.safe { border-color: var(--game-accent); color: var(--game-accent); background: rgba(var(--game-accent-rgb),.18); animation: win-pop .45s var(--ease-spring) both; }
 .mine-grid span.mine { border-color: #ff7777; color: #ff7777; background: rgba(255,70,80,.14); animation: loss-reveal .45s ease-out both; }
+.is-playing .mine-grid span { animation: mine-scan .8s ease-in-out infinite alternate; }
 .bingo-ball { width: 128px; height: 128px; display: grid; place-items: center; border: 7px double #e4c67c; border-radius: 50%; color: #211a08; background: radial-gradient(circle at 32% 25%, #fff7bf, #dbab39 62%, #8f651a); box-shadow: 0 17px 40px rgba(0,0,0,.4); font-size: 48px; font-weight: 950; }
 .bingo-ball.rolling { animation: casino-ball .55s ease-in-out infinite alternate; }
+.is-playing .bingo-ball { animation: bingo-active .8s ease-in-out infinite alternate; }
 .crash-meter { width: min(100%, 330px); min-height: 150px; display: grid; place-items: center; border: 1px solid rgba(var(--game-accent-rgb),.28); border-radius: 20px; background: radial-gradient(circle at 50% 78%, rgba(var(--game-accent-rgb),.28), transparent 54%), linear-gradient(155deg, rgba(var(--game-accent-rgb),.1), rgba(0,0,0,.25)); }
 .crash-meter strong { color: var(--game-accent); font-size: 48px; font-variant-numeric: tabular-nums; text-shadow: 0 0 24px rgba(var(--game-accent-rgb),.32); }
 .crash-meter span { margin-top: -34px; color: var(--muted); font-size: 8px; letter-spacing: .2em; }
@@ -1570,6 +1583,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes casino-roll { to { transform: translateY(-8px) rotate(4deg); filter: brightness(1.2); } }
 @keyframes casino-ball { to { transform: translateY(-7px) scale(1.06); filter: brightness(1.18); } }
 @keyframes crash-rise { to { transform: translateY(-7px) scale(1.06); } }
+@keyframes casino-reel-active { 0% { transform: translateY(6px) rotate(-2deg); filter: blur(1px) brightness(.95); } 100% { transform: translateY(-8px) rotate(3deg); filter: blur(0) brightness(1.2); } }
+@keyframes casino-ball-active { 0% { transform: translateY(5px) scale(.96); } 100% { transform: translateY(-8px) scale(1.08); filter: brightness(1.25); } }
+@keyframes mine-scan { to { transform: scale(1.06); border-color: rgba(var(--game-accent-rgb),.65); box-shadow: 0 0 18px rgba(var(--game-accent-rgb),.25); } }
+@keyframes bingo-active { 0% { transform: rotate(-3deg) scale(.98); } 100% { transform: rotate(3deg) scale(1.05); filter: brightness(1.16); } }
 
 @media (max-width: 980px) { .game-leaderboard { border-right: 0; border-bottom: 1px solid rgba(255,255,255,.07); } }
 @media (max-width: 680px) { .slot-reels span { width: 70px; height: 82px; font-size: 33px; }.wheel-disc { width: 190px; height: 190px; }.keno-picker { grid-template-columns: repeat(8, minmax(22px,1fr)); } }

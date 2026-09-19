@@ -798,7 +798,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       <div className="game-layout">
         {selectedVisible ? <article className="game-machine">
           <header><div><span>{activeGame.icon}</span><div><h3>{activeGame.title}{activeGame.minimumProgress && <small className="game-requirement">Ab {activeGame.minimumProgress}</small>}</h3><p>{activeGame.description}</p></div></div><b>Server Fair Play</b></header>
-          <div className="stage-shell" key={`stage-${selectedGame}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-energy" aria-hidden="true"><i /><i /><i /><i /></div><div className="stage-particles" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div></div>
+          <div className="stage-shell" key={`stage-${selectedGame}-${animationKey}`}><div className="stage-lights" aria-hidden="true"><i /><i /><i /></div>{renderStage()}<div className="stage-energy" aria-hidden="true"><i /><i /><i /><i /></div><div className="stage-particles" aria-hidden="true">{Array.from({ length: 16 }, (_, index) => <i key={index} />)}</div></div>
           {won && <div className="win-confetti" aria-hidden="true">{Array.from({ length: 22 }, (_, index) => <i key={index} />)}</div>}
 
           <div className={`game-controls ${gameBreakActive ? "game-controls-locked" : ""}`}>
