@@ -51,6 +51,38 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .stack { display: grid; gap: 18px; }
 .card { border: 1px solid var(--line); border-radius: 20px; background: linear-gradient(145deg, rgba(21,29,26,.92), rgba(13,19,17,.96)); overflow: hidden; }
 .card-pad { padding: 24px; }
+
+.keyboard-help { display: flex; justify-content: flex-end; margin: 12px 0; position: relative; z-index: 2; }
+.keyboard-help kbd { border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; color: var(--text); background: var(--panel-2); font: inherit; font-size: .8em; }
+.keyboard-help-content { position: absolute; right: 0; top: calc(100% + 8px); width: min(360px, calc(100vw - 32px)); padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel); box-shadow: 0 18px 45px rgba(0,0,0,.35); }
+.keyboard-help-content p { margin: 8px 0 0; color: var(--muted); font-size: .88rem; }
+.keyboard-shortcuts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 12px; }
+.keyboard-shortcuts button { display: flex; align-items: center; gap: 8px; justify-content: flex-start; border: 1px solid var(--line); border-radius: 8px; padding: 8px; color: var(--muted); background: transparent; text-align: left; }
+.keyboard-shortcuts button.active, .keyboard-shortcuts button:hover, .keyboard-shortcuts button:focus-visible { color: var(--text); border-color: rgba(124,245,157,.45); background: rgba(124,245,157,.08); }
+.onboarding-guide { margin: 18px 0; }
+.onboarding-guide-intro { color: var(--muted); margin: 0 0 16px; }
+.onboarding-guide-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.onboarding-guide-grid button { display: grid; gap: 5px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; color: var(--text); background: rgba(255,255,255,.02); text-align: left; }
+.onboarding-guide-grid button:hover, .onboarding-guide-grid button:focus-visible { border-color: rgba(124,245,157,.45); background: rgba(124,245,157,.06); }
+.onboarding-guide-grid button > span { color: var(--green); font-size: .78rem; letter-spacing: .08em; }
+.onboarding-guide-grid small, .onboarding-guide-note { color: var(--muted); }
+.onboarding-guide-note { margin: 16px 0 0; font-size: .88rem; }
+.activity-summary { margin-bottom: 18px; }
+.summary-source { color: var(--muted); font-size: .82rem; }
+.activity-summary-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.activity-summary-grid > div { display: grid; gap: 4px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255,255,255,.02); }
+.activity-summary-grid span, .activity-summary-grid small { color: var(--muted); }
+.activity-summary-grid strong { font-size: 1.1rem; }
+.recovery-page { padding: 24px; }
+.recovery-page .card { max-width: 520px; }
+
+@media (max-width: 760px) {
+  .onboarding-guide-grid, .activity-summary-grid { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 500px) {
+  .onboarding-guide-grid, .activity-summary-grid { grid-template-columns: 1fr; }
+}
 .balance-card { position: relative; min-height: 238px; display: flex; flex-direction: column; justify-content: space-between; }
 .balance-card::after { content: "G"; position: absolute; right: 25px; bottom: -28px; font-size: 180px; line-height: 1; font-weight: 900; color: rgba(117,245,154,.035); }
 .card-label { color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }

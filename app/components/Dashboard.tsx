@@ -8,6 +8,7 @@ import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
 import { AbuseReports } from "./AbuseReports";
 import { AccountEssentials } from "./AccountEssentials";
 import { AccountReadiness } from "./AccountReadiness";
+import { ActivitySummary } from "./ActivitySummary";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainOverview } from "./BlockchainOverview";
@@ -15,7 +16,9 @@ import { BrowserMinerCard } from "./BrowserMinerCard";
 import { LocalMinerCard } from "./LocalMinerCard";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
+import { KeyboardHelp } from "./KeyboardHelp";
 import { NotificationCenter } from "./NotificationCenter";
+import { OnboardingGuide } from "./OnboardingGuide";
 import { PaymentsHub } from "./PaymentsHub";
 import { PwaInstallCard } from "./PwaInstallCard";
 import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
@@ -556,8 +559,10 @@ export function Dashboard({ user }: Props) {
           {dashboardViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
           {profile?.role !== "user" && <button className={activeView === "admin" ? "active" : ""} aria-current={activeView === "admin" ? "page" : undefined} type="button" onClick={() => openView("admin")}><span aria-hidden="true">⚙</span>Admin</button>}
         </nav>
+        <KeyboardHelp activeView={activeView} onNavigate={openView} />
 
         <div className="dashboard-view" hidden={activeView !== "home"} aria-label="Home">
+        <OnboardingGuide onNavigate={openView} />
         <section className="hero">
           <div className="hero-copy"><div className="hero-kicker"><span>Persönliches Campus-Wallet</span><b>{roleLabel}</b>{visualRoleLabel && <em className="visual-role-badge">{visualRoleLabel}</em>}</div><h1>Bereit, {firstName}?</h1><p>Sende GIBB Coins in Sekunden, behalte jede Bewegung im Blick und entscheide selbst über deine Benachrichtigungen.</p><div className="hero-actions"><a className="primary-link" href="#send-coins">Coins senden</a><a className="secondary-link" href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Guthaben kaufen" : "Coins anfordern"}</a></div></div>
           <div className="status-stack"><div className={`chain-status ${chainValid === false ? "invalid" : ""}`}><i aria-hidden="true" />{chainValid === null ? "Prüfung läuft" : chainValid ? "Hash-Kette verifiziert" : "Hash-Kette prüfen"}</div><div className="sync-status"><i className={refreshing ? "syncing" : ""} aria-hidden="true" />{refreshing ? "Wird aktualisiert …" : lastUpdated ? `Aktuell · ${lastUpdated.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}` : "Live verbunden"}</div></div>
@@ -633,6 +638,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">
         <div className="view-heading"><span>DEIN VERLAUF</span><h1>Aktivität</h1><p>Transaktionen und Benachrichtigungen starten übersichtlich minimiert.</p></div>
+        <ActivitySummary transactions={transactions} userId={user.id} offline={offlineMode} />
         <section className={`card card-pad transactions ${transactionsCollapsed ? "collapsed" : ""}`} id="transactions">
           <div className="section-heading transaction-heading"><div><span className="section-number">04</span><h2>Transaktionen</h2></div><div className="transaction-heading-actions"><span>{filteredTransactions.length} Ergebnisse</span><button className="transaction-collapse" type="button" aria-expanded={!transactionsCollapsed} aria-controls="transaction-content" onClick={() => setTransactionsCollapsed((collapsed) => !collapsed)}><span>{transactionsCollapsed ? "Öffnen" : "Minimieren"}</span><b aria-hidden="true">{transactionsCollapsed ? "+" : "−"}</b></button></div></div>
           <div id="transaction-content" hidden={transactionsCollapsed}>
