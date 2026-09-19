@@ -705,6 +705,17 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .danger-text { color: #ff9d9d; }
 .admin-panel { scroll-margin-top: 100px; }
 .admin-panel { padding: 28px; background: radial-gradient(circle at 95% 0%, rgba(124,245,157,.07), transparent 28%), linear-gradient(145deg, rgba(16,24,20,.98), rgba(9,14,11,.99)); }
+.admin-quick-nav { position: sticky; top: 84px; z-index: 8; display: flex; flex-wrap: wrap; gap: 7px; margin: 18px 0 22px; padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: rgba(9,14,11,.94); backdrop-filter: blur(14px); }
+.admin-quick-nav a { padding: 8px 12px; border-radius: 9px; color: var(--muted); font-size: 11px; font-weight: 750; text-decoration: none; }
+.admin-quick-nav a:hover, .admin-quick-nav a:focus-visible { color: var(--green); background: rgba(117,245,154,.1); outline: none; }
+.admin-panel-section { scroll-margin-top: 145px; margin-top: 22px; padding-top: 22px; border-top: 1px solid var(--line); }
+.admin-section-kicker { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.admin-section-kicker > span { display: grid; place-items: center; width: 25px; height: 25px; border: 1px solid rgba(117,245,154,.35); border-radius: 8px; color: var(--green); font-size: 10px; font-weight: 850; }
+.admin-section-kicker strong, .admin-section-kicker small { display: block; }
+.admin-section-kicker strong { font-size: 15px; }
+.admin-section-kicker small { margin-top: 2px; color: var(--muted); font-size: 11px; }
+.admin-panel-section > .admin-audit { margin-top: 0; padding-top: 0; border-top: 0; }
+.admin-user-list { max-height: 560px; overflow: auto; padding-right: 4px; scrollbar-color: #35453c transparent; }
 .admin-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: -4px 0 22px; }
 .admin-stats > div { display: grid; gap: 5px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: rgba(255,255,255,.014); }
 .admin-stats span { color: var(--muted); text-transform: uppercase; letter-spacing: .08em; font-size: 8px; font-weight: 800; }
@@ -1123,6 +1134,71 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @media (prefers-reduced-motion: reduce) {
   .roulette-wheel.spinning, .game-coin.flipping, .dice-stage b.rolling, .playing-card, .win-confetti i { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .game-switches button > i em { transition: none; }
+}
+
+.game-break-lock {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 18px;
+  align-items: center;
+  margin: 18px 0;
+  padding: 16px 18px;
+  border: 1px solid rgba(246, 200, 95, .38);
+  border-radius: 14px;
+  color: #f6c85f;
+  background: rgba(246, 200, 95, .1);
+}
+
+.game-break-lock strong,
+.game-break-lock span {
+  grid-column: 1;
+}
+
+.game-break-lock strong {
+  font-size: 15px;
+}
+
+.game-break-lock span {
+  color: #d8d0b8;
+  font-size: 12px;
+}
+
+.game-break-lock b {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.game-tabs-locked {
+  opacity: .62;
+}
+
+.game-tabs-locked button {
+  cursor: not-allowed;
+}
+
+.game-controls-locked {
+  position: relative;
+}
+
+.game-break-inline {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 14px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  color: #f6c85f;
+  background: rgba(246, 200, 95, .1);
+}
+
+.game-break-inline strong {
+  font-size: 13px;
+}
+
+.game-break-inline span {
+  color: #d8d0b8;
+  font-size: 11px;
 }
 
 /* Game Center arena */
