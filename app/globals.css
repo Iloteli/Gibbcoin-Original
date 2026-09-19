@@ -2436,6 +2436,14 @@ body {
 .input { background: rgba(5,10,8,.72); border-color: rgba(255,255,255,.1); }
 .input:hover:not(:focus) { border-color: rgba(117,245,154,.28); }
 .global-alert, .offline-banner { border-color: rgba(246,200,95,.32); box-shadow: 0 12px 32px rgba(0,0,0,.18); }
+.account-essentials { border-color: rgba(117,245,154,.18); background: linear-gradient(140deg, rgba(117,245,154,.045), rgba(13,19,17,.96)); }
+.account-essentials-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
+.account-essentials-grid button { min-width: 0; display: grid; gap: 5px; padding: 13px; border: 1px solid rgba(255,255,255,.08); border-radius: 12px; color: var(--text); background: rgba(255,255,255,.018); text-align: left; transition: transform .2s ease, border-color .2s ease, background .2s ease; }
+.account-essentials-grid button:hover:not(:disabled) { transform: translateY(-2px); border-color: rgba(117,245,154,.38); background: rgba(117,245,154,.07); }
+.account-essentials-grid button strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.account-essentials-grid button span { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 900px) { .account-essentials-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .account-essentials-grid { grid-template-columns: 1fr; } }
 
 @media (max-width: 1000px) {
   .desktop-nav { display: none; }
