@@ -26,6 +26,8 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
   const [center, setCenter] = useState<{ settings?: Record<string, Record<string, unknown>>; classes?: Array<Record<string, string | string[]>>; tickets?: Array<Record<string, string>>; exports?: Array<Record<string, string>>; privacy?: Array<Record<string, string>>; shop?: Array<Record<string, string | boolean>>; tasks?: Array<Record<string, string | boolean>>; seasons?: Array<Record<string, string | boolean>> }>({});
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
   const [announcement, setAnnouncement] = useState({ title: "", message: "" });
+  const [approvalThreshold, setApprovalThreshold] = useState("");
+  const [approvalSummary, setApprovalSummary] = useState("");
   const [className, setClassName] = useState("");
   const [classYear, setClassYear] = useState("");
   const [memberIds, setMemberIds] = useState<Record<string, string>>({});
@@ -57,7 +59,13 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
       setAnnouncement({ title: String(notice.title ?? ""), message: String(notice.message ?? "") });
       setCenterHasMore((next.classes?.length ?? 0) === 12 || (next.tickets?.length ?? 0) === 12 || (next.shop?.length ?? 0) === 12);
     }
-  }, [active, centerPage]);
+    if (pin) {
+      const { data: approvalData } = await supabase.rpc("admin_list_transfer_approvals", { p_pin: pin });
+      const threshold = (approvalData as { data?: { threshold?: number } } | null)?.data?.threshold;
+      if (typeof threshold === "number") setApprovalThreshold(String(threshold));
+      setApprovalSummary(String((approvalData as { data?: { pending?: unknown[] } } | null)?.data?.pending?.length ?? 0));
+    }
+  }, [active, centerPage, pin]);
   useEffect(() => {
     const timer = window.setTimeout(() => void load(), 0);
     return () => window.clearTimeout(timer);
@@ -146,6 +154,26 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
     setMessage("Systemprüfung abgeschlossen."); await load();
   }
 
+  async function saveApprovalThreshold() {
+    const supabase = getSupabase();
+    const value = Number(approvalThreshold);
+    if (!supabase || !pin || !Number.isInteger(value) || value < 1 || value > 100000) {
+      setError("Der Freigabe-Schwellenwert muss eine ganze Zahl zwischen 1 und 100’000 sein.");
+      return;
+    }
+    setBusy("approval-threshold"); setError(""); setMessage("");
+    const { data, error: rpcError } = await supabase.rpc("admin_set_transfer_threshold", {
+      p_school_key: "default", p_threshold: value, p_pin: pin,
+    });
+    setBusy("");
+    if (rpcError || !(data as { ok?: boolean } | null)?.ok) {
+      setError("Der Freigabe-Schwellenwert konnte nicht gespeichert werden.");
+      return;
+    }
+    setMessage("Freigabe-Schwellenwert gespeichert.");
+    await load();
+  }
+
   if (!active) return null;
   const ticketCount = center.tickets?.length ?? 0;
   const exportCount = center.exports?.length ?? 0;
@@ -177,6 +205,7 @@ export function AdminOperations({ pin, active }: { pin: string; active: boolean 
             <button className="secondary compact" type="button" disabled={busy !== ""} onClick={() => void saveControl("maintenance", { enabled: false, message: maintenanceMessage, until: null })}>Wartung beenden</button>
           </article>
           <article className="admin-operation"><h3>Systemstatus</h3><p>Prüft Datenbank, Wallets, Buchungen und den Campus-Shop.</p><button className="primary compact" type="button" disabled={busy !== ""} onClick={() => void runHealthCheck()}>System jetzt prüfen</button></article>
+          <article className="admin-operation"><h3>Schulfreigaben</h3><p>Nur Schüler-Transfers ab diesem Betrag benötigen die Guardian-Freigabe. Transfers darunter bleiben unverändert serverautoritativ.</p><label htmlFor="approval-threshold">Schwellenwert (GIBB)</label><input id="approval-threshold" className="input" type="number" min="1" max="100000" step="1" value={approvalThreshold} onChange={(event) => setApprovalThreshold(event.target.value)} /><button className="primary compact" type="button" disabled={busy !== ""} onClick={() => void saveApprovalThreshold()}>Schwellenwert speichern</button><p>{approvalSummary || "0"} wartende Freigaben</p></article>
           <article className="admin-operation"><h3>Globale Ankündigung</h3>
             <input className="input" value={announcement.title} onChange={(event) => setAnnouncement({ ...announcement, title: event.target.value })} placeholder="Titel" />
             <textarea className="input" rows={2} value={announcement.message} onChange={(event) => setAnnouncement({ ...announcement, message: event.target.value })} placeholder="Nachricht" />

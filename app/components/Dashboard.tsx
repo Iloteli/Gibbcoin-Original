@@ -25,6 +25,7 @@ import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
 import { ProfileEditor } from "./ProfileEditor";
 import { SupportPrivacyCenter } from "./SupportPrivacyCenter";
 import { TransactionDetails } from "./TransactionDetails";
+import { TransferApprovalCenter } from "./TransferApprovalCenter";
 import { QrWallet } from "./QrWallet";
 import { RewardsHub } from "./RewardsHub";
 import { SecurityOverview } from "./SecurityOverview";
@@ -84,6 +85,7 @@ function safeMessage(message?: string) {
   if (message?.includes("transaction_limit_exceeded")) return "Pro Transaktion sind maximal 100’000 GIBB möglich.";
   if (message?.includes("wallet_locked")) return "Dein Konto ist gesperrt. Die Zahlung wurde nicht ausgeführt.";
   if (message?.includes("recipient_wallet_locked")) return "Das Empfängerkonto ist aktuell gesperrt.";
+  if (message?.includes("guardian_required")) return "Für Transfers ab dem Schul-Schwellenwert muss zuerst eine erziehungsberechtigte Person eingeladen werden.";
   return "Die Transaktion konnte nicht abgeschlossen werden. Versuche es gleich nochmals.";
 }
 
@@ -483,14 +485,19 @@ export function Dashboard({ user }: Props) {
     const supabase = getSupabase();
     if (!supabase) return;
     setSending(true);
-    const { error: transferError } = await supabase.rpc("transfer_coins", {
+    const { data: transferResult, error: transferError } = await supabase.rpc("transfer_coins_with_guardian_approval", {
       p_receiver_user_id: selected.id,
       p_amount: parsedAmount,
       p_note: note.trim() || null,
     });
     setSending(false);
     if (transferError) { setError(safeMessage(transferError.message)); return; }
-    setMessage(`${parsedAmount} GIBB wurden sicher an ${selected.display_name} gesendet.`);
+    const result = transferResult as { status?: string } | null;
+    if (result?.status === "pending") {
+      setMessage(`${parsedAmount} GIBB warten auf die Freigabe deiner erziehungsberechtigten Person.`);
+    } else {
+      setMessage(`${parsedAmount} GIBB wurden sicher an ${selected.display_name} gesendet.`);
+    }
     setAmount(""); setNote(""); setQuery(""); setSelected(null); setRecipients([]); setTransferReviewOpen(false);
     await loadData();
   }
@@ -660,6 +667,7 @@ export function Dashboard({ user }: Props) {
         </section>
 
         {!offlineMode && <NotificationCenter userId={user.id} onNotification={loadData} onUnreadChange={setUnreadNotifications} />}
+        {!offlineMode && <TransferApprovalCenter />}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
