@@ -315,8 +315,15 @@ export function Dashboard({ user }: Props) {
   useEffect(() => {
     if (!menuOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuOpen(false); };
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest(".menu-wrap")) setMenuOpen(false);
+    };
     window.addEventListener("keydown", closeOnEscape);
-    return () => window.removeEventListener("keydown", closeOnEscape);
+    window.addEventListener("click", closeOnOutsideClick);
+    return () => {
+      window.removeEventListener("keydown", closeOnEscape);
+      window.removeEventListener("click", closeOnOutsideClick);
+    };
   }, [menuOpen]);
 
   useEffect(() => {
@@ -520,7 +527,7 @@ export function Dashboard({ user }: Props) {
             <span className="brand-copy"><strong>GIBB Coin</strong><span>Campus Wallet</span></span>
           </a>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
-            {dashboardViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
+            {dashboardViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
           </nav>
           <div className="header-actions">
             <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
@@ -541,8 +548,8 @@ export function Dashboard({ user }: Props) {
         {offlineMode && <div className="offline-banner" role="status"><strong>Offline-Modus</strong><span>Du siehst den zuletzt gespeicherten Stand. Schreibende Aktionen sind pausiert.</span><button type="button" onClick={() => void loadData()}>Neu verbinden</button></div>}
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
-          {dashboardViews.map((view) => <button className={activeView === view.key ? "active" : ""} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
-          {profile?.role !== "user" && <button className={activeView === "admin" ? "active" : ""} type="button" onClick={() => openView("admin")}><span aria-hidden="true">⚙</span>Admin</button>}
+          {dashboardViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
+          {profile?.role !== "user" && <button className={activeView === "admin" ? "active" : ""} aria-current={activeView === "admin" ? "page" : undefined} type="button" onClick={() => openView("admin")}><span aria-hidden="true">⚙</span>Admin</button>}
         </nav>
 
         <div className="dashboard-view" hidden={activeView !== "home"} aria-label="Home">
