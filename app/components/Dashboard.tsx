@@ -162,6 +162,7 @@ export function Dashboard({ user }: Props) {
   const [purchaseError, setPurchaseError] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [transactionFilter, setTransactionFilter] = useState<TransactionFilter>("all");
+  const [transactionTypeFilter, setTransactionTypeFilter] = useState("all");
   const [transactionQuery, setTransactionQuery] = useState("");
   const [showAllTransactions, setShowAllTransactions] = useState(false);
   const [transactionsCollapsed, setTransactionsCollapsed] = useState(true);
@@ -178,6 +179,7 @@ export function Dashboard({ user }: Props) {
   const [statsMessage, setStatsMessage] = useState("");
   const [statsError, setStatsError] = useState("");
   const [statsServerBacked, setStatsServerBacked] = useState(true);
+  const [transferReviewOpen, setTransferReviewOpen] = useState(false);
   const [adminNotice, setAdminNotice] = useState<{ maintenance?: { enabled?: boolean; message?: string }; announcement?: { enabled?: boolean; title?: string; message?: string } } | null>(null);
 
   const loadData = useCallback(async () => {
@@ -450,6 +452,7 @@ export function Dashboard({ user }: Props) {
       const sent = tx.sender_user_id === user.id;
       if (transactionFilter === "sent" && !sent) return false;
       if (transactionFilter === "received" && sent) return false;
+      if (transactionTypeFilter !== "all" && tx.type !== transactionTypeFilter) return false;
       const created = new Date(tx.created_at).getTime();
       if (dateFrom && created < new Date(`${dateFrom}T00:00:00`).getTime()) return false;
       if (dateTo && created > new Date(`${dateTo}T23:59:59.999`).getTime()) return false;
@@ -458,19 +461,24 @@ export function Dashboard({ user }: Props) {
       if (!needle) return true;
       return `${tx.sender_label} ${tx.receiver_label} ${tx.hash} ${tx.type} ${tx.note ?? ""}`.toLocaleLowerCase("de-CH").includes(needle);
     });
-  }, [dateFrom, dateTo, maxAmount, minAmount, transactionFilter, transactionQuery, transactions, user.id]);
+  }, [dateFrom, dateTo, maxAmount, minAmount, transactionFilter, transactionQuery, transactionTypeFilter, transactions, user.id]);
 
   const visibleTransactions = showAllTransactions ? filteredTransactions : filteredTransactions.slice(0, 8);
   const parsedAmount = Number(amount);
   const accountLocked = wallet?.status === "locked";
   const amountValid = Number.isInteger(parsedAmount) && parsedAmount > 0 && parsedAmount <= MAX_TRANSFER_AMOUNT;
-  const canSend = Boolean(selected && amountValid && !sending && !accountLocked && !offlineMode && parsedAmount <= (wallet?.balance ?? 0));
+  const canPrepareTransfer = Boolean(selected && amountValid && !sending && !accountLocked && !offlineMode);
+  const canSend = Boolean(canPrepareTransfer && parsedAmount <= (wallet?.balance ?? 0));
 
   async function sendCoins(event: React.FormEvent) {
     event.preventDefault();
     setMessage(""); setError("");
     if (!selected) { setError("Wähle zuerst einen Empfänger aus."); return; }
     if (!amountValid) { setError("Gib einen ganzen Betrag zwischen 1 und 100’000 GIBB ein."); return; }
+    if (!transferReviewOpen) {
+      setTransferReviewOpen(true);
+      return;
+    }
     if (parsedAmount > (wallet?.balance ?? 0)) { setError("Dein Guthaben reicht für diese Zahlung nicht aus."); return; }
     const supabase = getSupabase();
     if (!supabase) return;
@@ -483,7 +491,7 @@ export function Dashboard({ user }: Props) {
     setSending(false);
     if (transferError) { setError(safeMessage(transferError.message)); return; }
     setMessage(`${parsedAmount} GIBB wurden sicher an ${selected.display_name} gesendet.`);
-    setAmount(""); setNote(""); setQuery(""); setSelected(null); setRecipients([]);
+    setAmount(""); setNote(""); setQuery(""); setSelected(null); setRecipients([]); setTransferReviewOpen(false);
     await loadData();
   }
 
@@ -602,7 +610,8 @@ export function Dashboard({ user }: Props) {
               <div className="field"><label htmlFor="amount">Betrag</label><div className="amount-control"><input className="input" id="amount" value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" min="1" max={MAX_TRANSFER_AMOUNT} step="1" type="number" placeholder="0" /><span>GIBB</span></div><div className="quick-amounts" aria-label="Schnellbeträge">{quickAmounts.map((value) => <button type="button" key={value} className={parsedAmount === value ? "active" : ""} onClick={() => setAmount(String(value))}>+{value}</button>)}</div></div>
               <div className="field"><label htmlFor="transfer-note">Nachricht <span>optional</span></label><input className="input" id="transfer-note" value={note} onChange={(event) => setNote(event.target.value)} maxLength={160} placeholder="z. B. Danke fürs Mittagessen" /></div>
               <div className="transfer-summary"><span>Du sendest</span><strong>{amountValid ? parsedAmount : 0} GIBB</strong><small>{selected ? `an ${selected.display_name}` : "Empfänger auswählen"}</small></div>
-              <button className="primary send-button" disabled={!canSend} type="submit">{sending ? "Wird sicher übertragen …" : canSend ? `${parsedAmount} GIBB senden` : "Transfer vorbereiten"}</button>
+              {transferReviewOpen && canPrepareTransfer && <div className="transfer-review" role="status"><strong>Transfer prüfen</strong><p><b>{parsedAmount} GIBB</b> an <b>{selected?.display_name}</b>{note.trim() ? ` · „${note.trim()}“` : ""}.</p><small>Limit: maximal {MAX_TRANSFER_AMOUNT.toLocaleString("de-CH")} GIBB pro Transfer. Nach der Bestätigung prüft der Server Empfänger, Kontostatus und Guthaben atomar. Dein Restguthaben beträgt danach ungefähr {new Intl.NumberFormat("de-CH").format((wallet?.balance ?? 0) - parsedAmount)} GIBB.</small>{parsedAmount > (wallet?.balance ?? 0) && <p className="message error" role="alert">Dein Guthaben reicht für diesen Transfer nicht aus. Es wird nichts gesendet.</p>}{accountLocked && <p className="message error" role="alert">Dein Wallet ist gesperrt. Es wird nichts gesendet.</p>}<button className="secondary compact" type="button" onClick={() => setTransferReviewOpen(false)}>Ändern</button></div>}
+              <button className="primary send-button" disabled={!canPrepareTransfer || (transferReviewOpen && !canSend)} type="submit">{sending ? "Wird sicher übertragen …" : transferReviewOpen ? "Transfer bestätigen" : canPrepareTransfer ? "Transfer prüfen" : "Transfer vorbereiten"}</button>
               {message && <p className="message success-message" role="status">✓ {message}</p>}{error && <p className="message error" role="alert">{error}</p>}
             </form>
           </section>
@@ -642,8 +651,8 @@ export function Dashboard({ user }: Props) {
         <section className={`card card-pad transactions ${transactionsCollapsed ? "collapsed" : ""}`} id="transactions">
           <div className="section-heading transaction-heading"><div><span className="section-number">04</span><h2>Transaktionen</h2></div><div className="transaction-heading-actions"><span>{filteredTransactions.length} Ergebnisse</span><button className="transaction-collapse" type="button" aria-expanded={!transactionsCollapsed} aria-controls="transaction-content" onClick={() => setTransactionsCollapsed((collapsed) => !collapsed)}><span>{transactionsCollapsed ? "Öffnen" : "Minimieren"}</span><b aria-hidden="true">{transactionsCollapsed ? "+" : "−"}</b></button></div></div>
           <div id="transaction-content" hidden={transactionsCollapsed}>
-            <div className="transaction-tools"><div className="filter-tabs" role="group" aria-label="Transaktionen filtern">{(["all", "received", "sent"] as const).map((filter) => <button type="button" key={filter} className={transactionFilter === filter ? "active" : ""} onClick={() => { setTransactionFilter(filter); setShowAllTransactions(false); }}>{filter === "all" ? "Alle" : filter === "received" ? "Eingänge" : "Ausgänge"}</button>)}</div><input className="input transaction-search" aria-label="Transaktionen durchsuchen" value={transactionQuery} onChange={(event) => { setTransactionQuery(event.target.value); setShowAllTransactions(false); }} placeholder="Name, Notiz oder Hash …" /><button className="secondary compact" type="button" disabled={!filteredTransactions.length} onClick={exportTransactions}>CSV exportieren</button></div>
-            <div className="transaction-range"><label>Von<input className="input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>Bis<input className="input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label><label>Mindestens<input className="input" type="number" min={0} value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0 GIBB" /></label><label>Höchstens<input className="input" type="number" min={0} value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} placeholder="beliebig" /></label><button className="secondary compact" type="button" onClick={() => { setDateFrom(""); setDateTo(""); setMinAmount(""); setMaxAmount(""); setTransactionQuery(""); }}>Filter löschen</button></div>
+            <div className="transaction-tools"><div className="filter-tabs" role="group" aria-label="Transaktionen filtern">{(["all", "received", "sent"] as const).map((filter) => <button type="button" key={filter} className={transactionFilter === filter ? "active" : ""} onClick={() => { setTransactionFilter(filter); setShowAllTransactions(false); }}>{filter === "all" ? "Alle" : filter === "received" ? "Eingänge" : "Ausgänge"}</button>)}</div><select className="input transaction-type-filter" aria-label="Transaktionstyp filtern" value={transactionTypeFilter} onChange={(event) => { setTransactionTypeFilter(event.target.value); setShowAllTransactions(false); }}><option value="all">Alle Typen</option>{Array.from(new Set(transactions.map((tx) => tx.type))).sort().map((type) => <option value={type} key={type}>{transactionTypeLabel(type)}</option>)}</select><input className="input transaction-search" aria-label="Transaktionen durchsuchen" value={transactionQuery} onChange={(event) => { setTransactionQuery(event.target.value); setShowAllTransactions(false); }} placeholder="Name, Notiz oder Hash …" /><button className="secondary compact" type="button" onClick={() => void loadData()} disabled={refreshing}>{refreshing ? "Aktualisiert …" : "Aktualisieren"}</button><button className="secondary compact" type="button" disabled={!filteredTransactions.length} onClick={exportTransactions}>CSV exportieren</button></div>
+            <div className="transaction-range"><label>Von<input className="input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>Bis<input className="input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label><label>Mindestens<input className="input" type="number" min={0} value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0 GIBB" /></label><label>Höchstens<input className="input" type="number" min={0} value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} placeholder="beliebig" /></label><button className="secondary compact" type="button" onClick={() => { setDateFrom(""); setDateTo(""); setMinAmount(""); setMaxAmount(""); setTransactionQuery(""); setTransactionTypeFilter("all"); }}>Filter löschen</button></div>
             <div className="transaction-list">{visibleTransactions.length === 0 && <div className="empty">Keine passenden Transaktionen gefunden.</div>}{visibleTransactions.map((tx) => { const sent = tx.sender_user_id === user.id; const date = new Date(tx.created_at); return <article className={`tx ${sent ? "sent" : "received"}`} key={tx.id}><div className="tx-icon" aria-hidden="true">{sent ? "↗" : "↙"}</div><div className="tx-main"><div><strong>{sent ? tx.receiver_label : tx.sender_label}</strong><span className="tx-type">{transactionTypeLabel(tx.type)}</span></div><span title={tx.hash}>#{tx.hash.slice(0, 12)}</span>{tx.note && <small>{tx.note}</small>}</div><div className="tx-value"><strong>{sent ? "−" : "+"}{tx.amount} GIBB</strong><span>{date.toLocaleDateString("de-CH", { day: "2-digit", month: "short" })} · {date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</span><button className="receipt-button" type="button" onClick={() => setSelectedTransaction(tx)}>Details</button></div></article>; })}</div>
             {filteredTransactions.length > 8 && <button className="show-more" type="button" onClick={() => setShowAllTransactions((current) => !current)}>{showAllTransactions ? "Weniger anzeigen" : `Alle ${filteredTransactions.length} anzeigen`}</button>}
             {showAllTransactions && transactionHasMore && <button className="show-more" type="button" disabled={transactionLoadingMore} onClick={() => void loadMoreTransactions()}>{transactionLoadingMore ? "Weitere werden geladen …" : "Weitere Transaktionen laden"}</button>}

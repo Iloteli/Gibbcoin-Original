@@ -49,6 +49,7 @@ export function NotificationCenter({ userId, onNotification, onUnreadChange }: P
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [collapsed, setCollapsed] = useState(true);
+  const [unreadOnly, setUnreadOnly] = useState(false);
   const preferencesRef = useRef(preferences);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -130,6 +131,7 @@ export function NotificationCenter({ userId, onNotification, onUnreadChange }: P
   }, [onNotification, userId]);
 
   const unreadCount = useMemo(() => items.filter((item) => !item.is_read).length, [items]);
+  const visibleItems = useMemo(() => unreadOnly ? items.filter((item) => !item.is_read) : items, [items, unreadOnly]);
 
   useEffect(() => {
     onUnreadChange?.(unreadCount);
@@ -202,12 +204,12 @@ export function NotificationCenter({ userId, onNotification, onUnreadChange }: P
 
         <div className="notification-list-head">
           <strong>Letzte Nachrichten</strong>
-          {unreadCount > 0 && <button className="secondary compact" type="button" onClick={() => void markAllRead()}>Alle gelesen</button>}
+          <div className="notification-list-actions"><button className="secondary compact" type="button" aria-pressed={unreadOnly} onClick={() => setUnreadOnly((current) => !current)}>{unreadOnly ? "Alle anzeigen" : "Nur ungelesene"}</button>{unreadCount > 0 && <button className="secondary compact" type="button" onClick={() => void markAllRead()}>Alle gelesen</button>}</div>
         </div>
         <div className="notification-list">
           {loading && <div className="empty">Nachrichten werden geladen …</div>}
-          {!loading && items.length === 0 && <div className="empty">Noch keine Benachrichtigungen vorhanden.</div>}
-          {items.map((item) => <button className={`notification-item ${item.is_read ? "read" : "unread"}`} type="button" key={item.id} onClick={() => void markRead(item.id)}>
+          {!loading && visibleItems.length === 0 && <div className="empty">{unreadOnly ? "Keine ungelesenen Nachrichten." : "Noch keine Benachrichtigungen vorhanden."}</div>}
+          {visibleItems.map((item) => <button className={`notification-item ${item.is_read ? "read" : "unread"}`} type="button" key={item.id} onClick={() => void markRead(item.id)}>
             <span className="notification-icon" aria-hidden="true">{iconFor(item.kind)}</span>
             <span className="notification-copy"><strong>{item.title}</strong><span>{item.message}</span></span>
             <time dateTime={item.created_at}>{new Date(item.created_at).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit" })}</time>
