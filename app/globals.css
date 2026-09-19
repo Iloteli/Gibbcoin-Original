@@ -2467,6 +2467,14 @@ body {
 .transaction-detail-list code { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .readiness-grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
 @media (max-width: 560px) { .onboarding-banner, .transaction-detail-summary { align-items: flex-start; flex-direction: column; } .readiness-grid { grid-template-columns: 1fr; } .transaction-detail-list > div { grid-template-columns: 1fr; } .transaction-detail-list dd { justify-content: flex-start; text-align: left; } }
+.security-overview { margin-top: 1rem; }
+.security-overview-grid { display: grid; gap: .7rem; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.security-overview-grid article { background: rgba(255,255,255,.025); border: 1px solid rgba(255,255,255,.08); border-radius: .85rem; display: grid; gap: .35rem; padding: .85rem; }
+.security-overview-grid article strong { font-size: .85rem; }
+.security-overview-grid article span { color: var(--muted); font-size: .76rem; line-height: 1.35; }
+.security-overview-grid button { min-height: 2.8rem; }
+@media (max-width: 900px) { .security-overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .security-overview-grid { grid-template-columns: 1fr; } }
 
 @media (max-width: 1000px) {
   .desktop-nav { display: none; }
