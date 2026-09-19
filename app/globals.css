@@ -2384,6 +2384,76 @@ body {
 @media (prefers-reduced-motion: reduce) { .chain-live i.on, .chain-block.fresh { animation: none; } }
 @media (max-width: 560px) { .chain-block { grid-template-columns: 42px minmax(0, 1fr); } .chain-block-meta { grid-column: 2; text-align: left; } }
 
+/* Product polish: consistent surfaces, hierarchy and interaction states.
+   This layer is intentionally presentation-only; wallet and blockchain flows
+   remain untouched. */
+:root {
+  --surface-raised: #141e19;
+  --surface-soft: rgba(255,255,255,.026);
+  --shadow-card: 0 22px 70px rgba(0,0,0,.2);
+  --shadow-hover: 0 28px 90px rgba(0,0,0,.3), 0 0 0 1px rgba(117,245,154,.08);
+}
+
+body {
+  background:
+    radial-gradient(circle at 12% -8%, rgba(117,245,154,.08), transparent 28%),
+    radial-gradient(circle at 92% 35%, rgba(36,111,69,.08), transparent 30%),
+    var(--bg);
+}
+
+.header {
+  border-bottom-color: rgba(117,245,154,.12);
+  background: rgba(7,11,10,.78);
+  box-shadow: 0 12px 40px rgba(0,0,0,.16);
+}
+.brand { transition: transform .2s ease, opacity .2s ease; }
+.brand:hover { opacity: .9; transform: translateY(-1px); }
+.desktop-nav { display: flex; align-items: center; gap: 3px; padding: 4px; border: 1px solid rgba(255,255,255,.07); border-radius: 13px; background: rgba(255,255,255,.025); }
+.desktop-nav button { position: relative; border: 0; border-radius: 9px; padding: 9px 11px; color: var(--muted); background: transparent; font-size: 11px; font-weight: 750; transition: color .2s ease, background .2s ease; }
+.desktop-nav button:hover { color: var(--text); background: rgba(255,255,255,.06); }
+.desktop-nav button.active { color: #07100a; background: var(--green); box-shadow: 0 5px 18px rgba(117,245,154,.15); }
+.profile-button { border-color: rgba(117,245,154,.14); background: rgba(16,22,20,.8); transition: border-color .2s ease, background .2s ease, transform .2s ease; }
+.profile-button:hover, .profile-button[aria-expanded="true"] { border-color: rgba(117,245,154,.4); background: rgba(117,245,154,.06); transform: translateY(-1px); }
+.menu { border-color: rgba(117,245,154,.18); background: rgba(15,23,19,.98); box-shadow: 0 28px 80px rgba(0,0,0,.56); }
+
+.main { padding-top: 54px; }
+.view-heading { position: relative; margin-bottom: 26px; padding-bottom: 20px; border-bottom: 1px solid rgba(117,245,154,.12); }
+.view-heading::after { content: ""; position: absolute; left: 0; bottom: -1px; width: 76px; height: 2px; border-radius: 99px; background: var(--green); box-shadow: 0 0 18px rgba(117,245,154,.45); }
+.view-heading > span { color: var(--green); font-size: 10px; font-weight: 900; letter-spacing: .17em; }
+.view-heading h1 { margin: 7px 0 8px; font-size: clamp(32px, 4vw, 48px); letter-spacing: -.055em; }
+.view-heading p { max-width: 680px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.55; }
+.card { box-shadow: var(--shadow-card); }
+.card:hover { border-color: rgba(117,245,154,.15); }
+.overview-grid, .workspace-grid, .home-launchpad, .transactions, .notification-center, .profile-card, .payments-hub, .group-wallets, .abuse-center, .admin-panel, .admin-security, .pwa-card { scroll-margin-top: 112px; }
+.home-launchpad { border-color: rgba(117,245,154,.18); background: linear-gradient(135deg, rgba(117,245,154,.075), rgba(18,28,22,.92) 45%, rgba(13,19,17,.96)); }
+.home-shortcuts button { border-color: rgba(255,255,255,.1); background: rgba(4,10,7,.3); transition: transform .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease; }
+.home-shortcuts button:hover { border-color: rgba(117,245,154,.42); background: rgba(117,245,154,.08); box-shadow: 0 14px 35px rgba(0,0,0,.2); transform: translateY(-3px); }
+.section-heading { margin-bottom: 18px; }
+.section-heading h2 { letter-spacing: -.025em; }
+.primary, .secondary, .primary-link, .secondary-link { transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease, background .2s ease; }
+.primary:hover:not(:disabled), .primary-link:hover, .secondary-link:hover { transform: translateY(-2px); box-shadow: 0 14px 32px rgba(0,0,0,.2); }
+.secondary:hover:not(:disabled) { transform: translateY(-1px); }
+.input { background: rgba(5,10,8,.72); border-color: rgba(255,255,255,.1); }
+.input:hover:not(:focus) { border-color: rgba(117,245,154,.28); }
+.global-alert, .offline-banner { border-color: rgba(246,200,95,.32); box-shadow: 0 12px 32px rgba(0,0,0,.18); }
+
+@media (max-width: 1000px) {
+  .desktop-nav { display: none; }
+  .main { padding-top: 42px; }
+}
+
+@media (max-width: 560px) {
+  .container { width: min(100% - 24px, 480px); }
+  .main { padding-top: 32px; }
+  .view-heading { margin-bottom: 20px; padding-bottom: 16px; }
+  .view-heading h1 { font-size: 36px; }
+  .home-launchpad { padding: 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand, .profile-button, .desktop-nav button, .home-shortcuts button, .primary, .secondary, .primary-link, .secondary-link { transition: none; }
+}
+
 /* ============================================================
    Design v2 — mehr Übersicht, satisfying casino, extra Bewegung
    Visuell/additiv: nur transform, filter, box-shadow, opacity.
