@@ -986,12 +986,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .roulette-wheel { position: relative; width: 176px; height: 176px; display: grid; place-items: center; border: 9px solid #a87c32; border-radius: 50%; background: repeating-conic-gradient(#d94f4f 0deg 9.72deg, #151b18 9.72deg 19.44deg); box-shadow: 0 17px 46px rgba(0,0,0,.4), inset 0 0 0 8px #e3c278, inset 0 0 35px rgba(0,0,0,.8); }
 .roulette-wheel::before { content: ""; position: absolute; top: -18px; left: calc(50% - 7px); z-index: 2; border-left: 7px solid transparent; border-right: 7px solid transparent; border-top: 15px solid var(--green); filter: drop-shadow(0 0 6px rgba(117,245,154,.8)); }
 .roulette-wheel span { width: 68px; height: 68px; display: grid; place-items: center; border: 5px solid #cfab57; border-radius: 50%; color: #f3d58c; background: #0c120f; font-size: 28px; font-weight: 900; box-shadow: 0 0 30px rgba(0,0,0,.7); }
-.roulette-wheel.spinning { animation: roulette-spin 1.25s cubic-bezier(.1,.75,.16,1) both; }
+.roulette-wheel.spinning { animation: roulette-spin 1.35s cubic-bezier(.12,.72,.18,1) both; transform-origin: 50% 50%; }
 .game-outcome { min-height: 30px; display: flex; align-items: center; gap: 8px; color: var(--muted); text-transform: capitalize; font-size: 10px; }
 .game-outcome strong { color: var(--text); font-size: 18px; }
 .game-outcome strong.red-result { color: #ff8585; }
 .coin-stage { flex-direction: column; }
-.game-coin { width: 150px; height: 150px; display: grid; place-items: center; border: 8px double #6d5724; border-radius: 50%; color: #241903; background: linear-gradient(145deg, #fff0a8, #dba72f 65%, #8e6412); box-shadow: 0 18px 40px rgba(0,0,0,.38), inset 0 0 0 9px rgba(255,255,255,.2); transform-style: preserve-3d; }
+.game-coin { width: 150px; height: 150px; display: grid; place-items: center; border: 8px double #6d5724; border-radius: 50%; color: #241903; background: linear-gradient(145deg, #fff0a8, #dba72f 65%, #8e6412); box-shadow: 0 18px 40px rgba(0,0,0,.38), inset 0 0 0 9px rgba(255,255,255,.2); transform-style: preserve-3d; perspective: 800px; }
 .game-coin span { font-size: 56px; font-weight: 950; text-shadow: 0 2px 0 rgba(255,255,255,.25); }
 .game-coin.flipping { animation: coin-flip 1.05s cubic-bezier(.2,.7,.2,1) both; }
 .dice-stage > div { display: grid; justify-items: center; gap: 10px; }
@@ -1125,9 +1125,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .dino-admin-tuning > label input { grid-column: 1 / -1; accent-color: var(--green); }
 .game-admin > .message { grid-column: 1 / -1; margin: -8px 0 0; }
 
-@keyframes roulette-spin { from { transform: rotate(0deg) scale(.96); } to { transform: rotate(1440deg) scale(1); } }
-@keyframes coin-flip { 0% { transform: rotateY(0) translateY(0); } 45% { transform: rotateY(900deg) translateY(-42px) scale(1.08); } 100% { transform: rotateY(1800deg) translateY(0); } }
-@keyframes dice-roll { 0% { transform: rotate(0) scale(.65); filter: blur(3px); } 60% { transform: rotate(390deg) scale(1.12); filter: blur(0); } 100% { transform: rotate(360deg) scale(1); } }
+@keyframes roulette-spin { 0% { transform: rotate(0deg) scale(.96); filter: brightness(.8); } 72% { transform: rotate(1180deg) scale(1.02); filter: brightness(1.18); } 92% { transform: rotate(1410deg) scale(1); } 100% { transform: rotate(1440deg) scale(1); filter: brightness(1); } }
+@keyframes coin-flip { 0% { transform: rotateY(0) translateY(0) scale(.94); } 38% { transform: rotateY(720deg) translateY(-50px) scale(1.08); } 72% { transform: rotateY(1440deg) translateY(-13px) scale(1.03); } 100% { transform: rotateY(1800deg) translateY(0) scale(1); } }
+@keyframes dice-roll { 0% { transform: rotate(0) scale(.65); filter: blur(3px) brightness(.8); } 36% { transform: rotate(215deg) scale(1.12); filter: blur(1px) brightness(1.12); } 68% { transform: rotate(405deg) scale(1.04); filter: blur(0) brightness(1.05); } 100% { transform: rotate(360deg) scale(1); filter: blur(0) brightness(1); } }
 @keyframes card-deal { from { opacity: 0; transform: translateY(-25px) rotate(-8deg) scale(.85); } to { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
 @keyframes confetti-fall { 0% { opacity: 0; transform: translateY(-10px) rotate(0); } 10% { opacity: 1; } 100% { opacity: 0; transform: translateY(270px) rotate(540deg); } }
 
@@ -1476,7 +1476,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes plinko-launch-pulse { to { opacity: .3; transform: scaleY(.55); } }
 @keyframes plinko-ready { 50% { transform: translateY(5px); filter: brightness(1.25); } }
 @keyframes plinko-launch-hover { from { transform: translateY(0) scale(.96); filter: brightness(1); } to { transform: translateY(6px) scale(1.04); filter: brightness(1.25); } }
-@keyframes plinko-drop { 0% { transform: translate(0,0) rotate(0); } 18% { transform: translate(-13px,42px) rotate(135deg); } 36% { transform: translate(16px,84px) rotate(270deg); } 54% { transform: translate(-11px,126px) rotate(420deg); } 73% { transform: translate(var(--plinko-mid),166px) rotate(570deg); } 92% { transform: translate(var(--plinko-x),207px) rotate(700deg); } 100% { transform: translate(var(--plinko-x),202px) rotate(720deg); } }
+@keyframes plinko-drop { 0% { transform: translate(0,0) rotate(0); } 18% { transform: translate(-13px,42px) rotate(135deg); } 36% { transform: translate(16px,84px) rotate(270deg); } 54% { transform: translate(-11px,126px) rotate(420deg); } 73% { transform: translate(var(--plinko-mid),166px) rotate(570deg); } 92% { transform: translate(var(--plinko-x),207px) rotate(700deg); } 97% { transform: translate(var(--plinko-x),199px) rotate(718deg); } 100% { transform: translate(var(--plinko-x),202px) rotate(720deg); } }
 @keyframes plinko-slot-hit { 0% { transform: scaleY(1); } 45% { transform: scaleY(.72) scaleX(1.13); } 100% { transform: scale(1.05); } }
 @keyframes plinko-slot-flash { 0% { opacity: 0; transform: scale(.3); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(2); } }
 @keyframes dino-arena-breathe { to { filter: drop-shadow(0 0 18px rgba(var(--game-accent-rgb),.08)); } }
