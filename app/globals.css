@@ -433,6 +433,10 @@ button:disabled { cursor: not-allowed; opacity: .55; }
 .group-summary > div:first-child > span { color: var(--green); font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em; }
 .group-summary h3 { margin: 5px 0 5px; font-size: 23px; letter-spacing: -.035em; }
 .group-summary p { margin: 0; color: var(--muted); font-size: 11px; }
+.group-rename-form { display: grid; gap: 6px; padding: 13px 15px; border: 1px solid rgba(124,245,157,.14); border-radius: 13px; background: rgba(124,245,157,.025); }
+.group-rename-form label { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.group-rename-form > div { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; }
+.group-rename-form small { color: var(--muted); font-size: 8px; }
 .group-balance { display: grid; justify-items: end; align-content: center; gap: 2px; }
 .group-balance > span { color: var(--muted); font-size: 9px; }
 .group-balance > strong { font-size: 24px; }
@@ -2816,3 +2820,35 @@ textarea:focus-visible {
     animation: none !important;
   }
 }
+
+/*
+ * Game feedback is an explicit product interaction, not decorative page motion.
+ * Keep the round result visible even when a browser's global reduced-motion
+ * rule uses !important to collapse every animation to a single frame.
+ */
+.game-motion-enabled .roulette-wheel.spinning { animation: roulette-spin 1.25s cubic-bezier(.1,.75,.16,1) both !important; }
+.game-motion-enabled .roulette-ball-track.orbiting { animation: roulette-ball 1.15s cubic-bezier(.15,.65,.22,1) both !important; }
+.game-motion-enabled .game-coin.flipping { animation: coin-flip 1.05s cubic-bezier(.2,.7,.2,1) both !important; }
+.game-motion-enabled .dice-stage b.rolling { animation: dice-roll .9s cubic-bezier(.2,.8,.3,1) both !important; }
+.game-motion-enabled .playing-card { animation: card-deal-active .45s cubic-bezier(.2,.8,.2,1) both !important; }
+.game-motion-enabled .win-confetti i { animation: confetti-fall 1.8s ease-out both !important; }
+.game-motion-enabled .stage-shell { animation: stage-enter .45s cubic-bezier(.2,.8,.2,1) both !important; }
+.game-motion-enabled .stage-shell .game-stage { animation: stage-enter .45s cubic-bezier(.2,.8,.2,1) both !important; }
+.game-motion-enabled .stage-shell .game-stage::before { animation: stage-sweep 5.5s ease-in-out infinite !important; }
+.game-motion-enabled .stage-lights i:nth-child(2),
+.game-motion-enabled .stage-lights i:nth-child(3) { animation: game-live-pulse 1s ease-in-out infinite alternate !important; }
+.game-motion-enabled .stage-energy i { animation: stage-charge .85s ease-out infinite !important; }
+.game-motion-enabled .stage-particles i { animation: particle-rise 1.1s calc(var(--particle) * -.045s) ease-out infinite !important; }
+.game-motion-enabled .coin-energy i { animation: coin-ring 2.4s ease-out infinite !important; }
+.game-motion-enabled .game-play::before { animation: play-shimmer 2.7s ease-in-out infinite !important; }
+.game-motion-enabled .plinko-launch i { animation: plinko-launch-pulse .8s ease-in-out infinite alternate !important; }
+.game-motion-enabled .plinko-ball.ready { animation: plinko-ready 1.5s ease-in-out infinite !important; }
+.game-motion-enabled .plinko-ball.searching { animation: plinko-search .95s cubic-bezier(.35,.05,.65,.95) infinite !important; }
+.game-motion-enabled .plinko-ball.landed { animation: plinko-drop 1.15s cubic-bezier(.28,.1,.28,1) both !important; }
+.game-motion-enabled .slot-reels span.rolling { animation: casino-reel-active .72s ease-in-out infinite alternate !important; }
+.game-motion-enabled .keno-balls span.rolling { animation: casino-ball-active .72s ease-in-out infinite alternate !important; }
+.game-motion-enabled .wheel-disc.spinning { animation: roulette-spin 1.15s cubic-bezier(.1,.75,.16,1) both !important; }
+.game-motion-enabled .bingo-ball.rolling { animation: bingo-active .8s ease-in-out infinite alternate !important; }
+.game-motion-enabled .crash-meter.rising strong { animation: crash-rise .62s ease-in-out infinite alternate !important; }
+.game-motion-enabled .mine-grid span.safe { animation: win-pop .45s var(--ease-spring) both !important; }
+.game-motion-enabled .mine-grid span.mine { animation: loss-reveal .45s ease-out both !important; }
