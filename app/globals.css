@@ -2444,7 +2444,6 @@ body {
 .account-essentials-grid button span { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 900px) { .account-essentials-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 520px) { .account-essentials-grid { grid-template-columns: 1fr; } }
-
 .account-readiness { margin-top: 1rem; }
 .readiness-status { color: var(--muted); font-size: .78rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
 .readiness-status.ready { color: #39d98a; }
