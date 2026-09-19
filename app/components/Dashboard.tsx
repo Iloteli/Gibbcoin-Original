@@ -7,6 +7,7 @@ import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabas
 import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
 import { AbuseReports } from "./AbuseReports";
 import { AccountEssentials } from "./AccountEssentials";
+import { AccountReadiness } from "./AccountReadiness";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainOverview } from "./BlockchainOverview";
@@ -20,6 +21,7 @@ import { PwaInstallCard } from "./PwaInstallCard";
 import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
 import { ProfileEditor } from "./ProfileEditor";
 import { SupportPrivacyCenter } from "./SupportPrivacyCenter";
+import { TransactionDetails } from "./TransactionDetails";
 import { QrWallet } from "./QrWallet";
 import { RewardsHub } from "./RewardsHub";
 import { UserProfileModal } from "./UserProfileModal";
@@ -136,6 +138,7 @@ export function Dashboard({ user }: Props) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [transactionHasMore, setTransactionHasMore] = useState(false);
   const [transactionLoadingMore, setTransactionLoadingMore] = useState(false);
   const [chainValid, setChainValid] = useState<boolean | null>(null);
@@ -634,7 +637,7 @@ export function Dashboard({ user }: Props) {
           <div id="transaction-content" hidden={transactionsCollapsed}>
             <div className="transaction-tools"><div className="filter-tabs" role="group" aria-label="Transaktionen filtern">{(["all", "received", "sent"] as const).map((filter) => <button type="button" key={filter} className={transactionFilter === filter ? "active" : ""} onClick={() => { setTransactionFilter(filter); setShowAllTransactions(false); }}>{filter === "all" ? "Alle" : filter === "received" ? "Eingänge" : "Ausgänge"}</button>)}</div><input className="input transaction-search" aria-label="Transaktionen durchsuchen" value={transactionQuery} onChange={(event) => { setTransactionQuery(event.target.value); setShowAllTransactions(false); }} placeholder="Name, Notiz oder Hash …" /><button className="secondary compact" type="button" disabled={!filteredTransactions.length} onClick={exportTransactions}>CSV exportieren</button></div>
             <div className="transaction-range"><label>Von<input className="input" type="date" value={dateFrom} onChange={(event) => setDateFrom(event.target.value)} /></label><label>Bis<input className="input" type="date" value={dateTo} onChange={(event) => setDateTo(event.target.value)} /></label><label>Mindestens<input className="input" type="number" min={0} value={minAmount} onChange={(event) => setMinAmount(event.target.value)} placeholder="0 GIBB" /></label><label>Höchstens<input className="input" type="number" min={0} value={maxAmount} onChange={(event) => setMaxAmount(event.target.value)} placeholder="beliebig" /></label><button className="secondary compact" type="button" onClick={() => { setDateFrom(""); setDateTo(""); setMinAmount(""); setMaxAmount(""); setTransactionQuery(""); }}>Filter löschen</button></div>
-            <div className="transaction-list">{visibleTransactions.length === 0 && <div className="empty">Keine passenden Transaktionen gefunden.</div>}{visibleTransactions.map((tx) => { const sent = tx.sender_user_id === user.id; const date = new Date(tx.created_at); return <article className={`tx ${sent ? "sent" : "received"}`} key={tx.id}><div className="tx-icon" aria-hidden="true">{sent ? "↗" : "↙"}</div><div className="tx-main"><div><strong>{sent ? tx.receiver_label : tx.sender_label}</strong><span className="tx-type">{transactionTypeLabel(tx.type)}</span></div><span title={tx.hash}>#{tx.hash.slice(0, 12)}</span>{tx.note && <small>{tx.note}</small>}</div><div className="tx-value"><strong>{sent ? "−" : "+"}{tx.amount} GIBB</strong><span>{date.toLocaleDateString("de-CH", { day: "2-digit", month: "short" })} · {date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</span><button className="receipt-button" type="button" onClick={() => downloadReceipt(tx)}>Beleg ↓</button></div></article>; })}</div>
+            <div className="transaction-list">{visibleTransactions.length === 0 && <div className="empty">Keine passenden Transaktionen gefunden.</div>}{visibleTransactions.map((tx) => { const sent = tx.sender_user_id === user.id; const date = new Date(tx.created_at); return <article className={`tx ${sent ? "sent" : "received"}`} key={tx.id}><div className="tx-icon" aria-hidden="true">{sent ? "↗" : "↙"}</div><div className="tx-main"><div><strong>{sent ? tx.receiver_label : tx.sender_label}</strong><span className="tx-type">{transactionTypeLabel(tx.type)}</span></div><span title={tx.hash}>#{tx.hash.slice(0, 12)}</span>{tx.note && <small>{tx.note}</small>}</div><div className="tx-value"><strong>{sent ? "−" : "+"}{tx.amount} GIBB</strong><span>{date.toLocaleDateString("de-CH", { day: "2-digit", month: "short" })} · {date.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}</span><button className="receipt-button" type="button" onClick={() => setSelectedTransaction(tx)}>Details</button></div></article>; })}</div>
             {filteredTransactions.length > 8 && <button className="show-more" type="button" onClick={() => setShowAllTransactions((current) => !current)}>{showAllTransactions ? "Weniger anzeigen" : `Alle ${filteredTransactions.length} anzeigen`}</button>}
             {showAllTransactions && transactionHasMore && <button className="show-more" type="button" disabled={transactionLoadingMore} onClick={() => void loadMoreTransactions()}>{transactionLoadingMore ? "Weitere werden geladen …" : "Weitere Transaktionen laden"}</button>}
           </div>
@@ -646,9 +649,10 @@ export function Dashboard({ user }: Props) {
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
         <div className="view-heading"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
         <section className="card card-pad profile-card" id="profile" style={{ borderColor: profile?.profile_color }}><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="profile-avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.bio || "Dein persönliches GIBB Coin Profil"}</p></div></div><div className="profile-facts"><div><span>Rolle / Titel</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Fun-Rang</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? wallet?.locked_until ? `Gesperrt bis ${new Date(wallet.locked_until).toLocaleString("de-CH")}` : "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
+        {profile && <AccountReadiness profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && <AccountEssentials user={user} profile={profile} wallet={wallet} transactions={transactions} onRefresh={loadData} onNavigate={openView} />}
         {profile && !offlineMode && <ProfileEditor userId={user.id} profile={profile} onChanged={loadData} />}
-        {!offlineMode && <SupportPrivacyCenter />}
+        {!offlineMode && <div id="support-privacy"><SupportPrivacyCenter /></div>}
         <PwaInstallCard />
         </div>
 
@@ -657,6 +661,7 @@ export function Dashboard({ user }: Props) {
         <a className="creator-credit" href="https://robyn-projektportal.pxfyvkgcs6.chatgpt.site" target="_blank" rel="noopener noreferrer" aria-label="Alle Projekte von Robyn Rüfenacht öffnen">Diese Seite wurde von <strong>Robyn Rüfenacht</strong> erstellt.</a>
       </main>
       <UserProfileModal />
+      {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}
     </div>
   );
 }
