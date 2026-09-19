@@ -1356,7 +1356,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .plinko-peg-row > i { width: 8px; height: 8px; flex: 0 0 8px; border: 1px solid rgba(255,255,255,.7); border-radius: 50%; background: rgba(var(--game-accent-rgb),.52); box-shadow: 0 0 9px rgba(var(--game-accent-rgb),.42); }
 .plinko-ball { --plinko-x: 0px; --plinko-mid: 0px; position: absolute !important; left: 50%; top: 8px; z-index: 4 !important; width: 27px; height: 27px; display: grid; place-items: center; margin-left: -13.5px; border: 2px solid #eaffff; border-radius: 50%; color: #062128; background: radial-gradient(circle at 34% 28%, #fff, var(--game-accent) 55%, #198aa0); box-shadow: 0 0 18px rgba(var(--game-accent-rgb),.8), 0 8px 18px rgba(0,0,0,.4); font-size: 10px; font-weight: 950; }
 .plinko-ball.ready { animation: plinko-ready 1.5s ease-in-out infinite; }
-.plinko-ball.searching { animation: plinko-search .95s cubic-bezier(.35,.05,.65,.95) infinite; }
+.plinko-ball.searching { animation: plinko-launch-hover .7s ease-in-out infinite alternate; }
 .plinko-ball.landed { animation: plinko-drop 1.15s cubic-bezier(.28,.1,.28,1) both; }
 .plinko-slot-0 { --plinko-x: -160px; --plinko-mid: -76px; }.plinko-slot-1 { --plinko-x: -120px; --plinko-mid: -64px; }.plinko-slot-2 { --plinko-x: -80px; --plinko-mid: -46px; }.plinko-slot-3 { --plinko-x: -40px; --plinko-mid: -24px; }.plinko-slot-4 { --plinko-x: 0px; --plinko-mid: 17px; }.plinko-slot-5 { --plinko-x: 40px; --plinko-mid: 25px; }.plinko-slot-6 { --plinko-x: 80px; --plinko-mid: 47px; }.plinko-slot-7 { --plinko-x: 120px; --plinko-mid: 65px; }.plinko-slot-8 { --plinko-x: 160px; --plinko-mid: 77px; }
 .plinko-slots { width: 100%; display: grid; grid-template-columns: repeat(9, minmax(0,1fr)); gap: 3px; }
@@ -1475,7 +1475,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 @keyframes peg-glow { to { filter: brightness(1.7); box-shadow: 0 0 17px rgba(var(--game-accent-rgb),.8); } }
 @keyframes plinko-launch-pulse { to { opacity: .3; transform: scaleY(.55); } }
 @keyframes plinko-ready { 50% { transform: translateY(5px); filter: brightness(1.25); } }
-@keyframes plinko-search { 0% { transform: translate(0,0); } 24% { transform: translate(-22px,48px) rotate(150deg); } 48% { transform: translate(24px,101px) rotate(330deg); } 72% { transform: translate(-17px,157px) rotate(510deg); } 100% { transform: translate(0,0) rotate(720deg); } }
+@keyframes plinko-launch-hover { from { transform: translateY(0) scale(.96); filter: brightness(1); } to { transform: translateY(6px) scale(1.04); filter: brightness(1.25); } }
 @keyframes plinko-drop { 0% { transform: translate(0,0) rotate(0); } 18% { transform: translate(-13px,42px) rotate(135deg); } 36% { transform: translate(16px,84px) rotate(270deg); } 54% { transform: translate(-11px,126px) rotate(420deg); } 73% { transform: translate(var(--plinko-mid),166px) rotate(570deg); } 92% { transform: translate(var(--plinko-x),207px) rotate(700deg); } 100% { transform: translate(var(--plinko-x),202px) rotate(720deg); } }
 @keyframes plinko-slot-hit { 0% { transform: scaleY(1); } 45% { transform: scaleY(.72) scaleX(1.13); } 100% { transform: scale(1.05); } }
 @keyframes plinko-slot-flash { 0% { opacity: 0; transform: scale(.3); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(2); } }
@@ -2843,7 +2843,7 @@ textarea:focus-visible {
 .game-motion-enabled .game-play::before { animation: play-shimmer 2.7s ease-in-out infinite !important; }
 .game-motion-enabled .plinko-launch i { animation: plinko-launch-pulse .8s ease-in-out infinite alternate !important; }
 .game-motion-enabled .plinko-ball.ready { animation: plinko-ready 1.5s ease-in-out infinite !important; }
-.game-motion-enabled .plinko-ball.searching { animation: plinko-search .95s cubic-bezier(.35,.05,.65,.95) infinite !important; }
+.game-motion-enabled .plinko-ball.searching { animation: plinko-launch-hover .7s ease-in-out infinite alternate !important; }
 .game-motion-enabled .plinko-ball.landed { animation: plinko-drop 1.15s cubic-bezier(.28,.1,.28,1) both !important; }
 .game-motion-enabled .slot-reels span.rolling { animation: casino-reel-active .72s ease-in-out infinite alternate !important; }
 .game-motion-enabled .keno-balls span.rolling { animation: casino-ball-active .72s ease-in-out infinite alternate !important; }
