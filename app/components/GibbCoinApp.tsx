@@ -3,6 +3,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
+import { recordVisit } from "../lib/visitor-tracking";
 import { Dashboard } from "./Dashboard";
 import { AppErrorBoundary } from "./AppErrorBoundary";
 import { LoginPage } from "./LoginPage";
@@ -30,6 +31,9 @@ export function GibbCoinApp() {
   // Keep the server render and the browser's first render identical. The
   // Supabase client is initialized only after hydration below.
   const [loading, setLoading] = useState(true);
+
+  // Zaehlt genau einen Besuch pro Browser und Seitenaufruf, unabhaengig vom Login.
+  useEffect(() => { void recordVisit(); }, []);
 
   useEffect(() => {
     const maybeSupabase = getSupabase();
