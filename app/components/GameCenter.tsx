@@ -240,8 +240,8 @@ function PlinkoBoard({ slot, dropping, animationKey }: { slot: number | null; dr
 const SLOT_FACES = ["🍒", "⭐", "💎", "🔔", "7️⃣", "🍀"];
 
 // Echte Walzen: drehen unscharf und rasten dann gestaffelt (links → rechts) mit
-// leichtem Überschwingen ein. Der Füll-Streifen ist deterministisch (kein Math.random
-// im Render – der React-Compiler verbietet unreine Render-Ausgaben).
+// leichtem Überschwingen ein. Der Füll-Streifen ist deterministisch (ohne
+// Zufallszahlen im Render – der React-Compiler verbietet unreine Ausgaben).
 function SlotReels({ symbols, busy, animationKey }: { symbols: string[]; busy: boolean; animationKey: number }) {
   return <div className="slot-reels" aria-label="Slot-Walzen">{symbols.map((symbol, index) => {
     if (busy || symbol === "?") {

@@ -72,6 +72,33 @@ export class Blockchain {
       if (typeof a.lockedCash !== "number") a.lockedCash = 0;
     }
     if (this.blocks.length === 0) this.createGenesis();
+    this.ensureOwner();
+  }
+
+  // Name des garantierten Owners (Standard: ilja). Überschreibbar via GIBB_OWNER.
+  get ownerKey() {
+    return String(process.env.GIBB_OWNER || "ilja").trim().toLowerCase();
+  }
+
+  // Stellt sicher, dass es genau EINEN Owner gibt: den konfigurierten Nutzer
+  // (ilja). Existiert er, wird er super_admin; jeder andere super_admin wird
+  // auf "user" zurückgestuft. Es wird nie jemand anderes zum Owner gemacht.
+  ensureOwner() {
+    const owner = this.users?.[this.ownerKey];
+    let changed = false;
+    for (const [key, u] of Object.entries(this.users || {})) {
+      const shouldBeOwner = key === this.ownerKey;
+      const target = shouldBeOwner ? "super_admin" : (u.role === "super_admin" ? "user" : u.role);
+      if (u.role !== target) { u.role = target; changed = true; }
+    }
+    // Solange ilja noch nicht existiert, bleibt (falls vorhanden) der erste
+    // super_admin bestehen – aber sobald ilja sich registriert, wird er Owner.
+    if (!owner) {
+      const anyOwner = Object.values(this.users || {}).some((u) => u.role === "super_admin");
+      if (!anyOwner && changed) { /* alle wurden herabgestuft, keiner ist Owner – ok, ilja folgt */ }
+    }
+    if (changed && this.file) this.save();
+    return changed;
   }
 
   save() {
@@ -203,8 +230,11 @@ export class Blockchain {
     if (this.users[key]) throw new Error("username_taken");
     const { address } = this.createWallet(name);
     const salt = randomBytes(16).toString("hex");
-    const hasOwner = Object.values(this.users).some((u) => u.role === "super_admin");
-    this.users[key] = { address, salt, hash: this.hashPassword(password, salt), role: hasOwner ? "user" : "super_admin", username: name, createdAt: Date.now() };
+    // Owner-Rolle bekommt ausschließlich der konfigurierte Owner (ilja),
+    // egal in welcher Reihenfolge registriert wird. Alle anderen sind Nutzer.
+    const role = key === this.ownerKey ? "super_admin" : "user";
+    this.users[key] = { address, salt, hash: this.hashPassword(password, salt), role, username: name, createdAt: Date.now() };
+    this.ensureOwner(); // stellt sicher, dass es keinen zweiten Owner gibt
     this.save();
     return { address, username: name, role: this.users[key].role };
   }
