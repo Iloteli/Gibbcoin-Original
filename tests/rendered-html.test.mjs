@@ -388,11 +388,11 @@ test("ships premium layout-preserving motion with reduced-motion support", async
   assert.match(styles, /\.overview-grid > \.stat-card:nth-of-type\(3\) \{ animation-delay: 165ms; \}/);
 
   // Die zuletzt ergaenzten Bedienelemente bewegen sich wie der Rest.
-  assert.match(styles, /\.home-stats-reset,\n\.admin-access-actions,\n\.mfa-skip \{/);
-  assert.match(styles, /\.home-stats-note \{\s*\n\s*animation: premium-success-in/);
-  assert.match(styles, /\.home-stats-note\.error \{\s*\n\s*animation: premium-error-shake/);
-  assert.match(styles, /\.field-hint \{\s*\n\s*animation: premium-row-enter/);
-  assert.match(styles, /\.home-shortcuts button:hover,\n\s*\.home-stats-reset:hover \{/);
+  assert.match(styles, /\.home-stats-reset,\r?\n\.admin-access-actions,\r?\n\.mfa-skip \{/);
+  assert.match(styles, /\.home-stats-note \{\s*\r?\n\s*animation: premium-success-in/);
+  assert.match(styles, /\.home-stats-note\.error \{\s*\r?\n\s*animation: premium-error-shake/);
+  assert.match(styles, /\.field-hint \{\s*\r?\n\s*animation: premium-row-enter/);
+  assert.match(styles, /\.home-shortcuts button:hover,\r?\n\s*\.home-stats-reset:hover \{/);
 });
 
 test("unlocks the Admin panel once per visit without persisting the PIN", async () => {
