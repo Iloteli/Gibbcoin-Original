@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 import { AdminAuditLog } from "./AdminAuditLog";
 import { AdminOperations } from "./AdminOperations";
+import { AdminReports } from "./AdminReports";
 import { GameAdminControls } from "./GameAdminControls";
 import { openUserProfile } from "./UserProfileModal";
 import { VisitorStats } from "./VisitorStats";
@@ -601,6 +602,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
         <a href="#admin-users">Konten</a>
         <a href="#admin-audit">Protokoll</a>
         <a href="#admin-visitors">Besucher</a>
+        <a href="#admin-reports">Berichte</a>
       </nav>
 
       <div className="admin-coin-stats" aria-label="Deine Coin-Statistik">
@@ -700,6 +702,11 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
       <details id="admin-visitors" className="admin-panel-section admin-collapsible">
         <summary className="admin-section-kicker"><span>06</span><div><strong>Besucher</strong><small>Seitenaufrufe beider Webadressen mit Zeitverlauf</small></div><b aria-hidden="true">⌄</b></summary>
         <VisitorStats active={adminAccessGranted} />
+      </details>
+
+      <details id="admin-reports" className="admin-panel-section admin-collapsible">
+        <summary className="admin-section-kicker"><span>07</span><div><strong>Berichte &amp; Export</strong><small>Kennzahlen und CSV-Listen für Admins, Team-Übersicht für Owner</small></div><b aria-hidden="true">⌄</b></summary>
+        <AdminReports active={adminAccessGranted} users={users} currentRole={currentRole} />
       </details>
 
       {message && <p className="message" role="status">{message}</p>}
