@@ -49,7 +49,8 @@
     { "version": "20260908181647", "name": "community_rewards_safety_upgrade" },
     { "version": "20260915083925", "name": "lock_profile_roles_to_supabase_only" },
     { "version": "20260915084053", "name": "owner_only_admin_role_management" },
-    { "version": "20260915084149", "name": "owner_only_admin_role_management_hardening" }
+    { "version": "20260915084149", "name": "owner_only_admin_role_management_hardening" },
+    { "version": "20260920170053", "name": "add_site_visitor_analytics" }
   ],
   "schema_baselines": [
     {
@@ -72,6 +73,7 @@
   "aliases": {
     "gibb_coin": "create_gibb_coin_core",
     "paid_coin_purchases": "add_paid_coin_purchases",
-    "allow_admin_account_deletion": "secure_account_deletion"
+    "allow_admin_account_deletion": "secure_account_deletion",
+    "add_visitor_analytics": "add_site_visitor_analytics"
   }
 }
