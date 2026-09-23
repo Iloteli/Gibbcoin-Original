@@ -20,7 +20,7 @@ test("does not offer an MFA bypass", async () => {
 });
 
 test("reserves session wagers and checks immediate game loss before payout", async () => {
-  const migration = await source("supabase/migrations/20260915090000_repair_admin_limits_and_mfa.sql");
+  const migration = await source("supabase/migrations/20260915090100_repair_admin_limits_and_mfa.sql");
   assert.match(migration, /create table if not exists private\.game_loss_reservations/);
   assert.match(migration, /v_daily_loss \+ v_reserved_loss \+ new\.wager/);
   assert.match(migration, /v_loss_increment bigint := greatest\(new\.wager, 0\)/);
