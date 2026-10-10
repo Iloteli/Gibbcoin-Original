@@ -66,6 +66,32 @@ chmod -R a+rX "$REPO_DIR" || true
 systemctl daemon-reload
 systemctl enable gibb-node.service
 systemctl restart gibb-node.service
+
+# Auto-Update: alle 5 Minuten neue Version von GitHub holen (kein SSH-Login mehr nötig).
+if [ "${AUTO_UPDATE:-1}" = "1" ]; then
+  cat > /etc/systemd/system/gibb-update.service <<UNIT
+[Unit]
+Description=GIBB Coin Auto-Update von GitHub
+
+[Service]
+Type=oneshot
+WorkingDirectory=$REPO_DIR
+ExecStart=/bin/bash -c 'git config --global --add safe.directory $REPO_DIR; git fetch -q origin && [ "\$(git rev-parse HEAD)" != "\$(git rev-parse @{u})" ] && git merge -q --ff-only @{u} && systemctl restart gibb-node.service || true'
+UNIT
+  cat > /etc/systemd/system/gibb-update.timer <<UNIT
+[Unit]
+Description=GIBB Coin Auto-Update (alle 5 Minuten)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=5min
+
+[Install]
+WantedBy=timers.target
+UNIT
+  systemctl daemon-reload
+  systemctl enable --now gibb-update.timer
+fi
 # Alte Supabase-basierte Website-Dienste (falls früher installiert) abschalten.
 systemctl disable --now gibb-website.service 2>/dev/null || true
 
@@ -73,5 +99,5 @@ if [ "$OPEN_FIREWALL" = "1" ] && command -v ufw >/dev/null 2>&1; then ufw allow 
 IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
 echo; echo "GIBB Coin läuft:  http://${IP:-DEIN_SERVER}$([ "$PORT" = 80 ] || echo ":$PORT")"
 echo "Status: systemctl status gibb-node   Logs: journalctl -u gibb-node -f"
-echo "Update: git pull && sudo bash deploy/install-server.sh"
+echo "Updates: automatisch alle 5 Min. von GitHub (Timer gibb-update)"
 echo "Daten:  $DATA_DIR/chain.json  (Backup: diese Datei kopieren)"
