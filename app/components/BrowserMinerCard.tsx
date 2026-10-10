@@ -7,13 +7,11 @@
 // Gerät des Nutzers wird nichts installiert.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { defaultNodeUrl } from "../lib/node-url";
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "../lib/blockchain-core";
 
-// Standard-Node-Adresse: gleiche Domain wie die Website, Port 8787. So funktioniert
-// es lokal (localhost) und auf einem echten Server automatisch für alle Besucher.
-const DEFAULT_NODE = typeof window !== "undefined" && window.location?.hostname
-  ? `${window.location.protocol}//${window.location.hostname}:8787`
-  : "http://localhost:8787";
+// Standard-Node-Adresse: siehe defaultNodeUrl (Port 8787 oder Pfad /node).
+const DEFAULT_NODE = defaultNodeUrl();
 const NODE_KEY = "gibb-node-url";
 const TEMPLATE_REFRESH_MS = 45_000;
 

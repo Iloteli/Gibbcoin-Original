@@ -1,6 +1,7 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
+import { defaultNodeUrl } from "../lib/node-url";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
@@ -349,7 +350,7 @@ export function Dashboard({ user }: Props) {
   // Nutzer der Website automatisch auch auf der Blockchain erscheint (still, best effort).
   useEffect(() => {
     if (!profile) return;
-    let node = typeof window !== "undefined" && window.location?.hostname ? `${window.location.protocol}//${window.location.hostname}:8787` : "http://localhost:8787";
+    let node = defaultNodeUrl();
     try { node = localStorage.getItem("gibb-node-url") || node; } catch { /* ignore */ }
     const controller = new AbortController();
     fetch(`${node}/api/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ supabaseId: user.id, name: profile.username || profile.display_name || "Konto", balance: wallet?.balance ?? 0 }), signal: controller.signal }).catch(() => {});

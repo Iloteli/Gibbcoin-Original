@@ -47,7 +47,28 @@ RestartSec=5
 WantedBy=multi-user.target
 UNIT
 }
-make_unit website http://localhost:3000 gibb-website.service
+# Gateway: Website + Node (unter /node) auf einem Port, damit die Website den Node findet.
+cat > /etc/systemd/system/gibb-gateway.service <<UNIT
+[Unit]
+Description=GIBB Coin Gateway (Website + /node)
+After=network-online.target gibb-website.service gibb-node.service
+
+[Service]
+Type=simple
+User=$RUN_USER
+Environment=GATEWAY_PORT=8080
+ExecStart=$(command -v node) $APP_DIR/deploy/gateway.mjs
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload
+systemctl enable gibb-gateway.service
+systemctl restart gibb-gateway.service
+
+make_unit website http://localhost:8080 gibb-gateway.service
 make_unit chain http://localhost:80 gibb-node.service
 systemctl daemon-reload
 systemctl enable gibb-tunnel-website.service gibb-tunnel-chain.service
