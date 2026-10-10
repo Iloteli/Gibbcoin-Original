@@ -9,7 +9,6 @@ import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Blockchain } from "./chain.mjs";
-import { loadSupabaseConfig, syncSupabaseAccounts } from "./supabase-sync.mjs";
 import { startFallbackMiner } from "./fallback-miner.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -30,30 +29,6 @@ if (!chain.accounts[FALLBACK_ADDRESS]) {
   chain.save();
 }
 const fallbackMiner = startFallbackMiner(chain, { getAddress: () => FALLBACK_ADDRESS, note: (m) => note("block", m) });
-
-// Automatische Spiegelung der Supabase-Konten.
-const supabaseSync = { configured: loadSupabaseConfig().configured, lastRun: null, lastResult: null, lastError: null, running: false };
-async function runSupabaseSync() {
-  if (supabaseSync.running) return supabaseSync.lastResult;
-  supabaseSync.running = true;
-  try {
-    const result = await syncSupabaseAccounts(chain);
-    supabaseSync.lastResult = result; supabaseSync.lastRun = Date.now(); supabaseSync.lastError = null;
-    if (result.added || result.updated) note("sync", `Supabase-Konten synchronisiert: ${result.added} neu, ${result.updated} aktualisiert (${result.total} gesamt)`);
-    return result;
-  } catch (error) {
-    supabaseSync.lastError = error.message;
-    if (error.message !== "supabase_not_configured") note("error", `Supabase-Sync: ${error.message}`);
-    throw error;
-  } finally {
-    supabaseSync.running = false;
-  }
-}
-// Beim Start und danach alle 60 s automatisch spiegeln, sofern konfiguriert.
-if (supabaseSync.configured) {
-  runSupabaseSync().catch(() => {});
-  setInterval(() => { if (loadSupabaseConfig().configured) runSupabaseSync().catch(() => {}); }, 60_000).unref();
-}
 
 const localMiner = {
   process: null, address: null, threads: 0, startedAt: null,
@@ -106,11 +81,22 @@ function note(kind, message) {
 // Anmelde-Sitzungen: token -> { address, username, role }. Nur im Speicher.
 import { randomBytes as _rnd } from "node:crypto";
 const sessions = new Map();
-const sessionOf = (body) => (body && body.token && sessions.get(body.token)) || null;
+// NO_AUTH=1: keine Anmeldung nötig – jeder Aufruf läuft als lokaler "Gast" mit Owner-Rechten.
+const NO_AUTH = process.env.NO_AUTH === "1";
+let guestSession = null;
+const getGuest = () => {
+  if (!guestSession) {
+    const existing = Object.entries(chain.accounts).find(([, a]) => a.name === "Gast");
+    const address = existing ? existing[0] : chain.createWallet("Gast").address;
+    guestSession = { address, username: "Gast", role: "super_admin" };
+  }
+  return guestSession;
+};
+const sessionOf = (body) => (body && body.token && sessions.get(body.token)) || (NO_AUTH ? getGuest() : null);
 const requireOwner = (body) => { const sess = sessionOf(body); if (!sess || sess.role !== "super_admin") throw new Error("not_owner"); return sess; };
 
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), supabaseSync: { ...supabaseSync, configured: loadSupabaseConfig().configured }, fallbackMiner: fallbackMiner.status() }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
     const u = chain.registerUser(body.username, body.password);
@@ -130,11 +116,6 @@ const routes = {
     if (!sess) return { ok: false };
     const acc = chain.accounts[sess.address] || {};
     return { ok: true, ...sess, balance: acc.balance ?? 0, cash: acc.cash ?? 0 };
-  },
-  "POST /api/sync-supabase": async (_, body) => {
-    try { requireOwner(body); } catch { return { ok: false, error: "not_owner" }; }
-    try { return { ok: true, ...(await runSupabaseSync()) }; }
-    catch (error) { return { ok: false, error: error.message }; }
   },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
   "POST /api/local-miner": (_, body) => { requireOwner(body); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },

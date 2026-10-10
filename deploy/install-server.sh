@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+#
+# GIBB Coin – Server-Installation OHNE Supabase / Cloud.
+# Installiert nur den eigenen Node (Blockchain + Konten + Wallets + Handel + Website)
+# als systemd-Dienst. Alle Daten liegen lokal auf dem Server in $DATA_DIR/chain.json.
+#
+# Verwendung (auf dem Server, im geklonten Repository, als root bzw. mit sudo):
+#   git clone https://github.com/Iloteli/Gibbcoin-Original.git && cd Gibbcoin-Original
+#   sudo bash deploy/install-server.sh
+#
+# Optionen: PORT=80  RUN_USER=gibb  DATA_DIR=/var/lib/gibbcoin  NODE_MAJOR=22  OPEN_FIREWALL=1
+
+set -euo pipefail
+PORT="${PORT:-80}"
+RUN_USER="${RUN_USER:-gibb}"
+DATA_DIR="${DATA_DIR:-/var/lib/gibbcoin}"
+NODE_MAJOR="${NODE_MAJOR:-22}"
+OPEN_FIREWALL="${OPEN_FIREWALL:-1}"
+
+if [ "$(id -u)" -ne 0 ]; then echo "Bitte mit sudo ausführen: sudo bash deploy/install-server.sh" >&2; exit 1; fi
+REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -y
+apt-get install -y ca-certificates curl gnupg libcap2-bin
+
+if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d v)" -lt "$NODE_MAJOR" ]; then
+  mkdir -p /etc/apt/keyrings
+  curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+  echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
+  apt-get update -y && apt-get install -y nodejs
+fi
+NODE_BIN="$(command -v node)"
+
+id "$RUN_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$RUN_USER"
+mkdir -p "$DATA_DIR"; chown -R "$RUN_USER":"$RUN_USER" "$DATA_DIR"
+# Bestehende Kette beim Update nicht überschreiben; alte Daten aus dem Repo einmalig übernehmen.
+if [ ! -f "$DATA_DIR/chain.json" ] && [ -f "$REPO_DIR/blockchain-node/data/chain.json" ]; then
+  cp "$REPO_DIR/blockchain-node/data/chain.json" "$DATA_DIR/chain.json"; chown "$RUN_USER":"$RUN_USER" "$DATA_DIR/chain.json"
+fi
+
+cat > /etc/systemd/system/gibb-node.service <<UNIT
+[Unit]
+Description=GIBB Coin (Blockchain + Website, ohne Supabase)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$RUN_USER
+WorkingDirectory=$REPO_DIR
+Environment=PORT=$PORT
+Environment=CHAIN_FILE=$DATA_DIR/chain.json
+Environment=FALLBACK_MINER=1
+ExecStart=$NODE_BIN blockchain-node/server.mjs
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+# Der Dienst-Benutzer muss das Repo lesen können.
+chmod -R a+rX "$REPO_DIR" || true
+systemctl daemon-reload
+systemctl enable gibb-node.service
+systemctl restart gibb-node.service
+# Alte Supabase-basierte Website-Dienste (falls früher installiert) abschalten.
+systemctl disable --now gibb-website.service 2>/dev/null || true
+
+if [ "$OPEN_FIREWALL" = "1" ] && command -v ufw >/dev/null 2>&1; then ufw allow "$PORT"/tcp || true; fi
+IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+echo; echo "GIBB Coin läuft:  http://${IP:-DEIN_SERVER}$([ "$PORT" = 80 ] || echo ":$PORT")"
+echo "Status: systemctl status gibb-node   Logs: journalctl -u gibb-node -f"
+echo "Update: git pull && sudo bash deploy/install-server.sh"
+echo "Daten:  $DATA_DIR/chain.json  (Backup: diese Datei kopieren)"
