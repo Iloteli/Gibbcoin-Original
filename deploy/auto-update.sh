@@ -11,7 +11,7 @@ if [ "$(git rev-parse HEAD)" != "$(git rev-parse '@{u}')" ]; then
   if systemctl list-unit-files gibb-website.service >/dev/null 2>&1 && [ -f /etc/systemd/system/gibb-website.service ]; then
     PNPM_BIN="$(command -v pnpm)"
     chown -R "$RUN_USER":"$RUN_USER" "$PWD"
-    sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "cd '$PWD' && '$PNPM_BIN' install --frozen-lockfile && NODE_OPTIONS=--max-old-space-size=3072 '$PNPM_BIN' run build"
+    sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "[ -f /var/lib/gibbcoin/website.env ] && { set -a; . /var/lib/gibbcoin/website.env; set +a; }; cd '$PWD' && '$PNPM_BIN' install --frozen-lockfile && NODE_OPTIONS=--max-old-space-size=3072 '$PNPM_BIN' run build"
     chmod -R a+rX "$PWD"
     systemctl restart gibb-website.service
   fi

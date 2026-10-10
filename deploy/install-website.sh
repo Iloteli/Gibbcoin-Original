@@ -25,7 +25,7 @@ PNPM_BIN="$(command -v pnpm)"
 # Der Build schreibt ins Repo: kurzzeitig dem Dienst-Benutzer gehören lassen.
 chown -R "$RUN_USER":"$RUN_USER" "$APP_DIR"
 echo "==> Abhängigkeiten installieren und bauen (kann einige Minuten dauern)"
-sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "cd '$APP_DIR' && '$PNPM_BIN' install --frozen-lockfile && NODE_OPTIONS=--max-old-space-size=3072 '$PNPM_BIN' run build"
+sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "[ -f /var/lib/gibbcoin/website.env ] && { set -a; . /var/lib/gibbcoin/website.env; set +a; }; cd '$APP_DIR' && '$PNPM_BIN' install --frozen-lockfile && NODE_OPTIONS=--max-old-space-size=3072 '$PNPM_BIN' run build"
 chmod -R a+rX "$APP_DIR"
 
 cat > /etc/systemd/system/gibb-website.service <<UNIT

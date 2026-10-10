@@ -17,9 +17,17 @@ const DEFAULT_SUPABASE_URL = "https://laduzigqgvvnrqcgfgab.supabase.co";
 const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bdH33RHJl23SY6qNkUwvhQ_IzQOArAb";
 const AUTH_STORAGE_KEY = "gibb-coin-auth-v2";
 
+// Eine relative Adresse (z. B. "/sb") meint die eigene, selbst gehostete Instanz
+// hinter dem Server-Gateway – unter derselben Adresse wie die Website.
+function resolveSupabaseUrl(configured: string) {
+  if (!configured.startsWith("/")) return configured;
+  const origin = typeof window !== "undefined" && window.location?.origin ? window.location.origin : "http://localhost";
+  return `${origin}${configured}`;
+}
+
 function getSupabaseConfig() {
   return {
-    url: process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL,
+    url: resolveSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL || DEFAULT_SUPABASE_URL),
     publishableKey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       || DEFAULT_SUPABASE_PUBLISHABLE_KEY,
