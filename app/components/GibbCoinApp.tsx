@@ -3,7 +3,9 @@
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
+import { recordVisit } from "../lib/visitor-tracking";
 import { Dashboard } from "./Dashboard";
+import { AppErrorBoundary } from "./AppErrorBoundary";
 import { LoginPage } from "./LoginPage";
 import { MfaChallengePage } from "./MfaChallengePage";
 import { PasswordResetPage } from "./PasswordResetPage";
@@ -29,6 +31,9 @@ export function GibbCoinApp() {
   // Keep the server render and the browser's first render identical. The
   // Supabase client is initialized only after hydration below.
   const [loading, setLoading] = useState(true);
+
+  // Zaehlt genau einen Besuch pro Browser und Seitenaufruf, unabhaengig vom Login.
+  useEffect(() => { void recordVisit(); }, []);
 
   useEffect(() => {
     const maybeSupabase = getSupabase();
@@ -190,8 +195,8 @@ export function GibbCoinApp() {
   }
 
   if (loading) return <main className="loading-page"><div><div className="loader" /><p>GIBB Coin wird geladen …</p></div></main>;
-  if (passwordRecovery) return <PasswordResetPage recoveryAvailable={Boolean(recoverySession)} onComplete={finishPasswordRecovery} />;
-  if (!session) return <LoginPage />;
-  if (mfaRequired) return <MfaChallengePage onVerified={(verifiedSession) => { setSession(verifiedSession); setMfaRequired(false); }} onLogout={logoutFromMfa} />;
-  return <Dashboard user={session.user} />;
+  if (passwordRecovery) return <AppErrorBoundary><PasswordResetPage recoveryAvailable={Boolean(recoverySession)} onComplete={finishPasswordRecovery} /></AppErrorBoundary>;
+  if (!session) return <AppErrorBoundary><LoginPage /></AppErrorBoundary>;
+  if (mfaRequired) return <AppErrorBoundary><MfaChallengePage onVerified={(verifiedSession) => { setSession(verifiedSession); setMfaRequired(false); }} onLogout={logoutFromMfa} /></AppErrorBoundary>;
+  return <AppErrorBoundary><Dashboard user={session.user} /></AppErrorBoundary>;
 }

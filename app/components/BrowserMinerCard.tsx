@@ -172,16 +172,15 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
     void startRound();
   }, [startRound]);
 
-  // Beim Verlassen der Seite den Worker sauber beenden (ohne State-Updates).
+  // Beim Verlassen der Seite alle Worker sauber beenden (ohne State-Updates).
   useEffect(() => {
     const state = m.current;
     return () => {
       state.want = false;
-      state.worker?.postMessage({ type: "stop" });
-      state.worker?.terminate();
-      state.worker = null;
-      if (state.workerUrl) URL.revokeObjectURL(state.workerUrl);
-      if (state.timer) window.clearTimeout(state.timer);
+      for (const w of state.workers) { w.postMessage({ type: "stop" }); w.terminate(); }
+      state.workers = [];
+      if (state.workerUrl) { URL.revokeObjectURL(state.workerUrl); state.workerUrl = null; }
+      if (state.timer) { window.clearTimeout(state.timer); state.timer = 0; }
     };
   }, []);
 
