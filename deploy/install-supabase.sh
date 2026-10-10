@@ -133,19 +133,38 @@ psql_db() { docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -q -U supabase_ad
 
 echo "==> Migrationen einspielen"
 psql_db -c "create schema if not exists gibb_meta; create table if not exists gibb_meta.applied_migrations (name text primary key, applied_at timestamptz not null default now());"
-for f in "$APP_DIR"/supabase/migrations/*.sql; do
-  name="$(basename "$f")"
+apply_sql() { # name datei  – einmalig, in einer Transaktion
+  local name="$1" f="$2"
   if [ "$(psql_db -tA -c "select 1 from gibb_meta.applied_migrations where name = '$name'")" = "1" ]; then
-    continue
+    return 0
   fi
   echo "    -> $name"
-  if ! { echo "begin;"; cat "$f"; echo; echo "insert into gibb_meta.applied_migrations(name) values ('$name');"; echo "commit;"; } | psql_db; then
+  if ! { echo "begin;"; sed '1s/^ï»¿//' "$f"; echo; echo "insert into gibb_meta.applied_migrations(name) values ('$name');"; echo "commit;"; } | psql_db; then
     echo >&2
-    echo "FEHLER in Migration $name – Installation angehalten. Bitte diese Ausgabe an Claude schicken." >&2
+    echo "FEHLER in $name – Installation angehalten. Bitte diese Ausgabe an Claude schicken." >&2
     exit 1
   fi
+}
+first=1
+for f in "$APP_DIR"/supabase/migrations/*.sql; do
+  apply_sql "$(basename "$f")" "$f"
+  # Nach der Kern-Migration: Objekte nachbilden, die nur in der Cloud angelegt wurden.
+  if [ "$first" = 1 ]; then apply_sql "selfhost-baseline" "$APP_DIR/deploy/selfhost-baseline.sql"; first=0; fi
 done
+# Abschluss immer neu einspielen (idempotent; enthält App-Funktionen und Mining-Gutschrift).
+psql_db < "$APP_DIR/deploy/selfhost-final.sql"
 docker compose restart rest >/dev/null 2>&1 || true
+
+echo "==> Blockchain-Node mit der eigenen Datenbank verbinden (Mining-Belohnung aufs Website-Wallet)"
+mkdir -p /etc/systemd/system/gibb-node.service.d
+cat > /etc/systemd/system/gibb-node.service.d/supabase.conf <<NODE_EOF
+[Service]
+Environment=SUPABASE_URL=http://127.0.0.1:8000
+Environment=SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY
+NODE_EOF
+chmod 600 /etc/systemd/system/gibb-node.service.d/supabase.conf
+systemctl daemon-reload
+systemctl restart gibb-node.service
 
 echo "==> Website auf die eigene Instanz umstellen und neu bauen"
 cat > "$WEBSITE_ENV" <<WEB_EOF

@@ -11,6 +11,8 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Blockchain } from "./chain.mjs";
 import { startFallbackMiner } from "./fallback-miner.mjs";
+import { createWalletCredit } from "./wallet-credit.mjs";
+import { createWebsiteOwnerCheck } from "./website-owner.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -29,6 +31,7 @@ if (!chain.accounts[FALLBACK_ADDRESS]) {
   chain.accounts[FALLBACK_ADDRESS] = { name: "Server (Reserve-Miner)", balance: 0, cash: chain.settings.startingCash, lockedGibb: 0, lockedCash: 0, createdAt: Date.now(), source: "server" };
   chain.save();
 }
+const walletCredit = createWalletCredit({ note: (kind, msg) => note(kind, msg) });
 const fallbackMiner = startFallbackMiner(chain, { getAddress: () => FALLBACK_ADDRESS, note: (m) => note("block", m) });
 
 const localMiner = {
@@ -94,10 +97,18 @@ const getGuest = () => {
   return guestSession;
 };
 const sessionOf = (body) => (body && body.token && sessions.get(body.token)) || (NO_AUTH ? getGuest() : null);
-const requireOwner = (body) => { const sess = sessionOf(body); if (!sess || sess.role !== "super_admin") throw new Error("not_owner"); return sess; };
+const websiteOwnerSession = createWebsiteOwnerCheck();
+// Owner: Node-Login (token) ODER Owner der GibbCoin-Website (supabaseToken, geprüft bei der eigenen Datenbank).
+const requireOwner = async (body) => {
+  const sess = sessionOf(body);
+  if (sess && sess.role === "super_admin") return sess;
+  const web = await websiteOwnerSession(body?.supabaseToken);
+  if (web) return web;
+  throw new Error("not_owner");
+};
 
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), fallbackMiner: fallbackMiner.status() }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
     const u = chain.registerUser(body.username, body.password);
@@ -119,7 +130,7 @@ const routes = {
     return { ok: true, ...sess, balance: acc.balance ?? 0, cash: acc.cash ?? 0 };
   },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
-  "POST /api/local-miner": (_, body) => { requireOwner(body); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
+  "POST /api/local-miner": async (_, body) => { await requireOwner(body); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
   // Von der echten Website: aktuelles Konto anmelden, damit es hier erscheint.
   "POST /api/register": (_, body) => {
     const acc = chain.upsertWebsiteAccount(body.supabaseId, body.name, Number(body.balance));
@@ -127,8 +138,8 @@ const routes = {
     return { address: acc.address, name: acc.name, balance: acc.balance, cash: acc.cash };
   },
   // Von einem Admin der Website: alle Nutzer auf einmal übernehmen.
-  "POST /api/register-many": (_, body) => {
-    requireOwner(body);
+  "POST /api/register-many": async (_, body) => {
+    await requireOwner(body);
     const list = Array.isArray(body.users) ? body.users : [];
     let added = 0;
     let updated = 0;
@@ -193,6 +204,7 @@ const routes = {
       const block = chain.submit(body.template_id, body.nonce, body.hash, { attempts: Number(body.attempts), ms: Number(body.ms), hashrate: Number(body.hashrate) });
       recentBlocks.unshift({ height: block.height, hash: block.hash, miner_label: block.miner_label, attempts: block.attempts, ms: block.mining_ms, hashrate: block.hashrate, at: Date.now() });
       recentBlocks.length = Math.min(recentBlocks.length, 12);
+      walletCredit.onBlock(block);
       note("block", `Block #${block.height} von ${block.miner_label} gefunden (${block.attempts ?? "?"} Versuche, ${block.mining_ms ?? "?"} ms, ${block.difficulty_bits} Bit)`);
       return summarize(block);
     } catch (error) {
@@ -200,9 +212,9 @@ const routes = {
       throw error;
     }
   },
-  "POST /api/settings": (_, body) => { requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
-  "POST /api/tamper": (_, body) => { requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
-  "POST /api/reset": (_, body) => { requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
+  "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
+  "POST /api/tamper": async (_, body) => { await requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
+  "POST /api/reset": async (_, body) => { await requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
 
 function summarize(block) {

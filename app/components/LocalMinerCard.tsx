@@ -43,7 +43,13 @@ export function LocalMinerCard({ userId, name, balance }: { userId: string; name
   const autoSyncedRef = useRef(false);
 
   const call = useCallback(async (path: string, body?: unknown) => {
-    const res = await fetch(node + path, body ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : undefined);
+    // Owner-Aktionen (Einstellungen, Sync, Server-Miner) prüft der Node über das Website-Login.
+    let payload = body;
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      const { data } = await getSupabase()?.auth.getSession() ?? { data: { session: null } };
+      if (data.session?.access_token) payload = { ...(body as Record<string, unknown>), supabaseToken: data.session.access_token };
+    }
+    const res = await fetch(node + path, payload ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) } : undefined);
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error((data as { error?: string }).error || `http_${res.status}`);
     return data;

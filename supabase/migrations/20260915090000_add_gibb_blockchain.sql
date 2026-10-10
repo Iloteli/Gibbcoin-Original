@@ -184,7 +184,7 @@ declare
   v_nibble integer;
 begin
   while v_i <= pg_catalog.length(p_hex) loop
-    v_nibble := pg_catalog.position(pg_catalog.substr(p_hex, v_i, 1) in '0123456789abcdef') - 1;
+    v_nibble := pg_catalog.strpos('0123456789abcdef', pg_catalog.substr(p_hex, v_i, 1)) - 1;
     if v_nibble < 0 then raise exception 'invalid_hex'; end if;
     if v_nibble = 0 then
       v_bits := v_bits + 4;
@@ -242,14 +242,14 @@ begin
   select min(w.mined_at), count(*) into v_window_start, v_window_count
   from (select mined_at from public.blocks where height > 0 order by height desc limit 10) w;
   if v_window_count >= 2 then
-    v_average := pg_catalog.extract(epoch from (v_tip.mined_at - v_window_start)) / (v_window_count - 1);
+    v_average := pg_catalog.date_part('epoch', (v_tip.mined_at - v_window_start)) / (v_window_count - 1);
     if v_average < v_target / 2.0 then v_bits := v_bits + 1;
     elsif v_average > v_target * 2.0 then v_bits := v_bits - 1;
     end if;
   end if;
 
   -- Notbremse: steht die Kette lange still, sinkt die Schwierigkeit schrittweise.
-  v_stalled_periods := floor(pg_catalog.extract(epoch from (pg_catalog.now() - v_tip.mined_at)) / (v_target * 4.0))::integer;
+  v_stalled_periods := floor(pg_catalog.date_part('epoch', (pg_catalog.now() - v_tip.mined_at)) / (v_target * 4.0))::integer;
   if v_stalled_periods > 0 then v_bits := v_bits - v_stalled_periods; end if;
 
   return greatest(v_min, least(v_max, v_bits));
@@ -289,7 +289,7 @@ begin
   from public.transactions where block_height is null;
   select count(*), coalesce(sum(reward), 0) into v_block_count, v_minted from public.blocks;
 
-  select case when count(*) >= 2 then pg_catalog.extract(epoch from (max(mined_at) - min(mined_at))) / (count(*) - 1) end
+  select case when count(*) >= 2 then pg_catalog.date_part('epoch', (max(mined_at) - min(mined_at))) / (count(*) - 1) end
   into v_average
   from (select mined_at from public.blocks where height > 0 order by height desc limit 10) w;
 
@@ -353,7 +353,7 @@ declare
   v_height bigint;
   v_previous text;
   v_bits integer;
-  v_timestamp bigint := floor(pg_catalog.extract(epoch from pg_catalog.now()))::bigint;
+  v_timestamp bigint := floor(pg_catalog.date_part('epoch', pg_catalog.now()))::bigint;
   v_my_last timestamptz;
 begin
   if not (v_settings ->> 'enabled')::boolean then raise exception 'mining_disabled'; end if;
@@ -448,9 +448,9 @@ begin
 
   -- Zeitstempel: nicht vor dem Vorgänger, nicht älter als 10 Minuten, höchstens 2 Minuten in der Zukunft.
   if p_timestamp is null
-     or (v_tip.mined_at is not null and p_timestamp < floor(pg_catalog.extract(epoch from v_tip.mined_at))::bigint)
-     or p_timestamp < floor(pg_catalog.extract(epoch from v_now))::bigint - 600
-     or p_timestamp > floor(pg_catalog.extract(epoch from v_now))::bigint + 120 then
+     or (v_tip.mined_at is not null and p_timestamp < floor(pg_catalog.date_part('epoch', v_tip.mined_at))::bigint)
+     or p_timestamp < floor(pg_catalog.date_part('epoch', v_now))::bigint - 600
+     or p_timestamp > floor(pg_catalog.date_part('epoch', v_now))::bigint + 120 then
     raise exception 'invalid_timestamp';
   end if;
 
@@ -547,7 +547,7 @@ begin
       if coalesce(pg_catalog.array_length(v_hashes, 1), 0) <> v_block.tx_count then v_reason := 'transaction_count_mismatch';
       elsif private.merkle_root(v_hashes) <> v_block.merkle_root then v_reason := 'merkle_root_mismatch';
       elsif private.block_hash(v_block.height, v_block.previous_hash, v_block.merkle_root,
-              floor(pg_catalog.extract(epoch from v_block.mined_at))::bigint, v_block.difficulty_bits,
+              floor(pg_catalog.date_part('epoch', v_block.mined_at))::bigint, v_block.difficulty_bits,
               v_block.miner_user_id, v_block.nonce) <> v_block.hash then v_reason := 'block_hash_mismatch';
       elsif private.leading_zero_bits(v_block.hash) < v_block.difficulty_bits then v_reason := 'insufficient_work';
       end if;
