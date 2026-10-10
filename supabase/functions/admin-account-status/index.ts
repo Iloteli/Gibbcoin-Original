@@ -45,7 +45,8 @@ Deno.serve(async (request) => {
     }
     const { data: assurance, error: assuranceError } = await admin.auth.mfa.getAuthenticatorAssuranceLevel(accessToken);
     if (assuranceError) return jsonResponse({ error: "authentication_required" }, 401);
-    if (assurance.currentLevel !== "aal2") {
+    // 2FA nur verlangen, wenn das Konto einen bestätigten Faktor hat (wie private.assert_mfa_if_enrolled).
+    if (assurance.nextLevel === "aal2" && assurance.currentLevel !== "aal2") {
       return jsonResponse({ error: "mfa_required" }, 403);
     }
 
