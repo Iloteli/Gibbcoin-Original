@@ -76,7 +76,7 @@ Description=GIBB Coin Auto-Update von GitHub
 [Service]
 Type=oneshot
 WorkingDirectory=$REPO_DIR
-ExecStart=/bin/bash -c 'git config --global --add safe.directory $REPO_DIR; git fetch -q origin && [ "\$(git rev-parse HEAD)" != "\$(git rev-parse @{u})" ] && git merge -q --ff-only @{u} && systemctl restart gibb-node.service || true'
+ExecStart=/bin/bash $REPO_DIR/deploy/auto-update.sh
 UNIT
   cat > /etc/systemd/system/gibb-update.timer <<UNIT
 [Unit]
