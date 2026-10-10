@@ -24,10 +24,14 @@ if ! command -v cloudflared >/dev/null 2>&1; then
 fi
 echo "==> $(cloudflared --version)"
 
-cat > /etc/systemd/system/gibb-tunnel.service <<UNIT
+# Zwei Tunnel: einer für die GibbCoin-Website (Port 3000), einer für die Chain-Seite (Port 80).
+systemctl disable --now gibb-tunnel.service 2>/dev/null || true
+rm -f /etc/systemd/system/gibb-tunnel.service "$DATA_DIR/public-url.txt"
+make_unit() { # name target after
+  cat > "/etc/systemd/system/gibb-tunnel-$1.service" <<UNIT
 [Unit]
-Description=GIBB Coin öffentlicher Tunnel (Cloudflare Quick Tunnel)
-After=network-online.target gibb-node.service
+Description=GIBB Coin öffentlicher Tunnel: $1
+After=network-online.target $3
 Wants=network-online.target
 
 [Service]
@@ -35,25 +39,26 @@ Type=simple
 User=$RUN_USER
 Environment=DATA_DIR=$DATA_DIR
 Environment=HOME=/home/$RUN_USER
-ExecStart=/bin/bash $APP_DIR/deploy/tunnel-run.sh
+ExecStart=/bin/bash $APP_DIR/deploy/tunnel-run.sh $1 $2
 Restart=always
 RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
 UNIT
+}
+make_unit website http://localhost:3000 gibb-website.service
+make_unit chain http://localhost:80 gibb-node.service
 systemctl daemon-reload
-systemctl enable gibb-tunnel.service
-systemctl restart gibb-tunnel.service
+systemctl enable gibb-tunnel-website.service gibb-tunnel-chain.service
+systemctl restart gibb-tunnel-website.service gibb-tunnel-chain.service
 
-echo "==> Warte auf die öffentliche Adresse ..."
+echo "==> Warte auf die öffentlichen Adressen ..."
 for i in $(seq 1 30); do
-  [ -s "$DATA_DIR/public-url.txt" ] && break; sleep 2
+  [ -s "$DATA_DIR/public-url-website.txt" ] && [ -s "$DATA_DIR/public-url-chain.txt" ] && break; sleep 2
 done
 echo
-if [ -s "$DATA_DIR/public-url.txt" ]; then
-  echo "Öffentliche Adresse:  $(cat "$DATA_DIR/public-url.txt")"
-else
-  echo "Noch keine Adresse. Logs ansehen:  journalctl -u gibb-tunnel -n 30 --no-pager"
-fi
-echo "Adresse später abrufen:  cat $DATA_DIR/public-url.txt"
+echo "GibbCoin-Website (Supabase):  $(cat "$DATA_DIR/public-url-website.txt" 2>/dev/null || echo '– noch keine, siehe journalctl -u gibb-tunnel-website')"
+echo "Chain-Seite:                  $(cat "$DATA_DIR/public-url-chain.txt" 2>/dev/null || echo '– noch keine, siehe journalctl -u gibb-tunnel-chain')"
+echo "Später abrufen:  cat $DATA_DIR/public-url-website.txt $DATA_DIR/public-url-chain.txt"
+echo "Hinweis: Die Adressen ändern sich, wenn ein Tunnel neu startet (z. B. nach einem Server-Neustart)."

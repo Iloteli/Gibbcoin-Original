@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
-# Startet den Cloudflare Quick Tunnel und schreibt die öffentliche Adresse in $DATA_DIR/public-url.txt.
+# Startet einen Cloudflare Quick Tunnel für ein Ziel und schreibt die öffentliche Adresse
+# nach $DATA_DIR/public-url-<NAME>.txt.   Aufruf: tunnel-run.sh <name> <ziel-url>
 set -uo pipefail
+NAME="${1:-chain}"; TARGET="${2:-http://localhost:80}"
 DATA_DIR="${DATA_DIR:-/var/lib/gibbcoin}"
-TARGET="${TUNNEL_TARGET:-http://localhost:80}"
-rm -f "$DATA_DIR/public-url.txt"
+OUT="$DATA_DIR/public-url-$NAME.txt"
+rm -f "$OUT"
 cloudflared tunnel --no-autoupdate --url "$TARGET" 2>&1 | while IFS= read -r line; do
   echo "$line"
   url="$(grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' <<<"$line" | head -1 || true)"
-  [ -n "$url" ] && echo "$url" > "$DATA_DIR/public-url.txt"
+  [ -n "$url" ] && echo "$url" > "$OUT"
 done
