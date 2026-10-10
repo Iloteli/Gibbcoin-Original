@@ -18,7 +18,9 @@ NODE_MAJOR="${NODE_MAJOR:-22}"
 OPEN_FIREWALL="${OPEN_FIREWALL:-1}"
 
 if [ "$(id -u)" -ne 0 ]; then echo "Bitte mit sudo ausführen: sudo bash deploy/install-server.sh" >&2; exit 1; fi
-REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Der Dienst läuft aus /opt/gibbcoin (lesbar für alle), nicht aus einem privaten Home-Ordner.
+REPO_DIR="${APP_DIR:-/opt/gibbcoin}"
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y
@@ -31,6 +33,15 @@ if ! command -v node >/dev/null 2>&1 || [ "$(node -v | cut -d. -f1 | tr -d v)" -
   apt-get update -y && apt-get install -y nodejs
 fi
 NODE_BIN="$(command -v node)"
+
+ORIGIN_URL="$(git -C "$SRC_DIR" remote get-url origin 2>/dev/null || echo https://github.com/Iloteli/Gibbcoin-Original.git)"
+git config --global --add safe.directory "$REPO_DIR" 2>/dev/null || true
+if [ -d "$REPO_DIR/.git" ]; then
+  git -C "$REPO_DIR" fetch -q origin && git -C "$REPO_DIR" merge -q --ff-only '@{u}' || true
+else
+  git clone -q "$ORIGIN_URL" "$REPO_DIR"
+fi
+chmod -R a+rX "$REPO_DIR"
 
 id "$RUN_USER" >/dev/null 2>&1 || useradd --system --create-home --shell /usr/sbin/nologin "$RUN_USER"
 mkdir -p "$DATA_DIR"; chown -R "$RUN_USER":"$RUN_USER" "$DATA_DIR"
@@ -61,8 +72,6 @@ RestartSec=3
 WantedBy=multi-user.target
 UNIT
 
-# Der Dienst-Benutzer muss das Repo lesen können.
-chmod -R a+rX "$REPO_DIR" || true
 systemctl daemon-reload
 systemctl enable gibb-node.service
 systemctl restart gibb-node.service
