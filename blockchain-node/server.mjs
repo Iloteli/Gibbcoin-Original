@@ -3,6 +3,7 @@
 
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
+import { createServer as createHttpsServer } from "node:https";
 import { readFile } from "node:fs/promises";
 import { availableParallelism } from "node:os";
 import { createInterface } from "node:readline";
@@ -210,7 +211,7 @@ function summarize(block) {
 
 const staticTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
 
-const server = createServer(async (req, res) => {
+const requestHandler = async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
   const key = `${req.method} ${url.pathname}`;
   // Die echte Website (anderer Port) darf den lokalen Node aufrufen.
@@ -244,7 +245,8 @@ const server = createServer(async (req, res) => {
     if (error.code === "ENOENT") return json(res, 404, { error: "not_found" });
     return json(res, 400, { error: error.message });
   }
-});
+};
+const server = createServer(requestHandler);
 
 function json(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
@@ -254,3 +256,11 @@ function json(res, status, data) {
 server.listen(PORT, () => {
   console.log(`GIBB Blockchain-Node läuft auf http://localhost:${PORT}  (Blöcke: ${chain.blocks.length}, Konten: ${Object.keys(chain.accounts).length})`);
 });
+
+// Optional HTTPS (selbst signiertes oder echtes Zertifikat): HTTPS_PORT + TLS_KEY + TLS_CERT setzen.
+if (process.env.HTTPS_PORT && process.env.TLS_KEY && process.env.TLS_CERT) {
+  try {
+    const tlsServer = createHttpsServer({ key: await readFile(process.env.TLS_KEY), cert: await readFile(process.env.TLS_CERT) }, requestHandler);
+    tlsServer.listen(Number(process.env.HTTPS_PORT), () => console.log(`HTTPS läuft auf Port ${process.env.HTTPS_PORT}`));
+  } catch (error) { console.error("HTTPS nicht gestartet:", error.message); }
+}
