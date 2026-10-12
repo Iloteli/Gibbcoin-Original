@@ -120,6 +120,11 @@ done
 echo "==> Supabase starten (der erste Start lädt Docker-Images, das dauert einige Minuten)"
 cd "$SB_DIR"
 docker compose pull -q
+if [ "${RESET_DB:-0}" = "1" ]; then
+  echo "==> RESET_DB=1: Datenbank wird komplett neu aufgesetzt (alle Konten darin werden gelöscht)"
+  docker compose down -v
+  rm -rf "$SB_DIR/volumes/db/data"
+fi
 docker compose up -d
 
 echo "==> Warte auf die Datenbank"
@@ -133,13 +138,17 @@ psql_db() { docker exec -i supabase-db psql -v ON_ERROR_STOP=1 -q -U supabase_ad
 
 echo "==> Migrationen einspielen"
 psql_db -c "create schema if not exists gibb_meta; create table if not exists gibb_meta.applied_migrations (name text primary key, applied_at timestamptz not null default now());"
+# Datei für psql vorbereiten: BOM am Anfang und Windows-Zeilenenden (CRLF) entfernen.
+# Wichtig: Einige Migrationen ersetzen Text in früheren Funktionen – das klappt nur mit einheitlichen Zeilenenden.
+clean_sql() { LC_ALL=C sed -e $'1s/^\xEF\xBB\xBF//' -e $'s/\r$//' "$1"; }
+
 apply_sql() { # name datei  – einmalig, in einer Transaktion
   local name="$1" f="$2"
   if [ "$(psql_db -tA -c "select 1 from gibb_meta.applied_migrations where name = '$name'")" = "1" ]; then
     return 0
   fi
   echo "    -> $name"
-  if ! { echo "begin;"; sed '1s/^ï»¿//' "$f"; echo; echo "insert into gibb_meta.applied_migrations(name) values ('$name');"; echo "commit;"; } | psql_db; then
+  if ! { echo "begin;"; clean_sql "$f"; echo; echo "insert into gibb_meta.applied_migrations(name) values ('$name');"; echo "commit;"; } | psql_db; then
     echo >&2
     echo "FEHLER in $name – Installation angehalten. Bitte diese Ausgabe an Claude schicken." >&2
     exit 1
@@ -152,7 +161,7 @@ for f in "$APP_DIR"/supabase/migrations/*.sql; do
   if [ "$first" = 1 ]; then apply_sql "selfhost-baseline" "$APP_DIR/deploy/selfhost-baseline.sql"; first=0; fi
 done
 # Abschluss immer neu einspielen (idempotent; enthält App-Funktionen und Mining-Gutschrift).
-psql_db < "$APP_DIR/deploy/selfhost-final.sql"
+clean_sql "$APP_DIR/deploy/selfhost-final.sql" | psql_db
 docker compose restart rest >/dev/null 2>&1 || true
 
 echo "==> Blockchain-Node mit der eigenen Datenbank verbinden (Mining-Belohnung aufs Website-Wallet)"
@@ -179,6 +188,16 @@ sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "set -a; . '$WEBSITE_ENV
 chmod -R a+rX "$APP_DIR"
 systemctl restart gibb-website.service
 systemctl restart gibb-gateway.service 2>/dev/null || true
+
+echo "==> Selbstprüfung"
+sleep 5
+check() { printf '    %-34s %s
+' "$1" "$(curl -s -m 10 -o /dev/null -w '%{http_code}' "${@:2}")"; }
+check "Website (Gateway /)" http://localhost:8080/
+check "Node (Gateway /node/api/stats)" http://localhost:8080/node/api/stats
+check "Supabase Auth (Gateway /sb)" -H "apikey: $ANON_KEY" http://localhost:8080/sb/auth/v1/health
+check "Supabase Auth (direkt :8000)" -H "apikey: $ANON_KEY" http://localhost:8000/auth/v1/health
+echo "    (200 = in Ordnung)"
 
 echo
 echo "============================================================"
