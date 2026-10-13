@@ -118,7 +118,7 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
     catch (e) {
       const code = e instanceof Error ? e.message : "";
       if (retryable.has(code) && m.current.want) { setMessage(code === "no_pending_transactions" ? "Warte auf Transaktionen, die in einen Block kommen …" : code === "mining_cooldown" ? "Kurze Pause nach deinem letzten Block …" : "Kette hat sich geändert – neue Vorlage …"); m.current.timer = window.setTimeout(() => void startRoundRef.current(), 4000); return; }
-      stop(); setError(code === "mining_disabled" ? "Mining ist zurzeit ausgeschaltet." : code === "mining_daily_limit" ? "Du hast dein Tageslimit an Blöcken erreicht – morgen geht es weiter." : "Node nicht erreichbar. Läuft ein Blockchain-Node?"); return;
+      stop(); setError(code === "mining_disabled" ? "Mining ist zurzeit ausgeschaltet." : code === "mining_daily_limit" ? "Du hast dein Tageslimit an Blöcken erreicht – morgen geht es weiter." : "Mining ist gerade nicht erreichbar. Bitte versuche es später nochmals."); return;
     }
     if (!m.current.want) return;
     // Lokale Gegenprüfung: Merkle-Root und Header müssen mit dem Server übereinstimmen.
@@ -221,7 +221,7 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
       <p className="local-miner-intro">Mint GIBB für <strong>{name}</strong> direkt im Browser – <strong>ohne Installation</strong>. Dein Rechner löst echte Blöcke, der Node prüft sie und schreibt die Belohnung gut.</p>
 
       {online === false ? (
-        <div className="local-miner-offline"><p>Es ist gerade kein Blockchain-Node erreichbar. Sobald einer läuft (lokal mit <code>pnpm chain</code> oder gehostet), kannst du hier ohne Installation minen.</p></div>
+        <div className="local-miner-offline"><p>Mining ist gerade nicht erreichbar. Bitte versuche es in ein paar Minuten nochmals.</p></div>
       ) : (
         <>
           <div className="browser-miner-stage">

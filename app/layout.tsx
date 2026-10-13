@@ -4,7 +4,7 @@ import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistratio
 import { MaintenanceWatch } from "./components/MaintenanceWatch";
 import "./globals.css";
 
-const title = "GIBB Coin – Dein Campus Wallet";
+const title = "GIBB Coin";
 const description = "GIBB Coins sicher senden, empfangen, kaufen und mit persönlichen Benachrichtigungen verwalten.";
 const metadataBase = new URL("https://gibbcoin.netlify.app");
 
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
       type: "website",
       siteName: "GIBB Coin",
       url: metadataBase,
-      images: [{ url: "/og.png", width: 1672, height: 941, alt: "GIBB Coin – Dein Campus Wallet" }],
+      images: [{ url: "/og.png", width: 1672, height: 941, alt: "GIBB Coin" }],
     },
     twitter: {
       card: "summary_large_image",

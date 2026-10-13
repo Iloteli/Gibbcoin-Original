@@ -151,7 +151,7 @@ export function LoginPage() {
     <main className="auth-page">
       <div className="auth-layout">
         <section className="auth-showcase" aria-label="GIBB Coin Vorteile">
-          <div className="auth-brand"><span className="coin-mark auth-logo" aria-hidden="true">G</span><span><strong>GIBB Coin</strong><small>Campus Wallet</small></span></div>
+          <div className="auth-brand"><span className="coin-mark auth-logo" aria-hidden="true">G</span><span><strong>GIBB Coin</strong><small>Wallet</small></span></div>
           <div className="auth-pitch"><span>Deine Schulwährung. Neu gedacht.</span><h1>Senden. Empfangen. Überblick behalten.</h1><p>Ein persönliches Wallet für den GIBB-Campus – schnell, transparent und serverseitig geschützt.</p></div>
           <div className="auth-benefits"><div><b>01</b><span><strong>Sofort startklar</strong><small>Einmalig 10 GIBB Startguthaben</small></span></div><div><b>02</b><span><strong>Jede Bewegung sichtbar</strong><small>Nachvollziehbarer Transaktionsverlauf</small></span></div><div><b>03</b><span><strong>Du entscheidest</strong><small>Persönliche Benachrichtigungen</small></span></div></div>
           <p className="auth-security">Geschützt durch Supabase Auth, Row Level Security und serverseitige Transaktionen.</p>
@@ -173,7 +173,7 @@ export function LoginPage() {
           {mode === "forgot" && <button className="back-to-login" type="button" onClick={() => changeMode("login")}>← Zurück zur Anmeldung</button>}
           {message && <p className="message success-message" role="status">✓ {message}</p>}
           {error && <p className="message error" role="alert">{error}</p>}
-          <p className="auth-note">Mit der Anmeldung akzeptierst du die Nutzung als internes Schulprojekt. GIBB Coins sind kein gesetzliches Zahlungsmittel.</p>
+          <p className="auth-note">Mit der Anmeldung akzeptierst du die Nutzungsbedingungen von GIBB Coin.</p>
         </section>
       </div>
     </main>

@@ -555,7 +555,7 @@ export function Dashboard({ user }: Props) {
         <div className="container header-inner">
           <a className="brand" href="#top" aria-label="GIBB Coin Startseite">
             <span className="coin-mark">G</span>
-            <span className="brand-copy"><strong>GIBB Coin</strong><span>Campus Wallet</span></span>
+            <span className="brand-copy"><strong>GIBB Coin</strong><span>Wallet</span></span>
           </a>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
             {dashboardViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
@@ -674,7 +674,7 @@ export function Dashboard({ user }: Props) {
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
-        <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Mine GIBB direkt im Browser – die Belohnung landet sofort in deinem Wallet.</p></div>
+        <div className="view-heading"><span>BLOCKCHAIN</span><h1>Blockchain</h1><p>Mine GIBB direkt im Browser – die Belohnung landet sofort in deinem Wallet.</p></div>
         {chainVisited && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} />}
         </div>
 

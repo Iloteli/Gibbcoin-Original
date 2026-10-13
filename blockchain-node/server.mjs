@@ -313,7 +313,6 @@ const routes = {
     return serverMining.disable(address);
   },
   "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
-  "POST /api/tamper": async (_, body) => { await requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
   // Coins der Website-Benutzer geben/abziehen (nur Owner der Chain-Seite)
   "POST /api/website/users": async (_, body) => { await requireOwner(body); return { users: await settingsSync.listWebsiteUsers() }; },
   "POST /api/website/adjust": async (_, body) => {

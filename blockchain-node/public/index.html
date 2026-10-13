@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>GIBB Blockchain-Node</title>
+<title>GIBB Coin · Chain</title>
 <style>
   :root { --bg: #070b0a; --card: #10171400; --line: #25302c; --text: #f4f7f5; --muted: #91a099; --green: #75f59a; --red: #ff7878; --amber: #f6c85f; }
   * { box-sizing: border-box; }
@@ -176,7 +176,7 @@
 <div id="authGate">
   <div class="box">
     <h2>GIBB Chain</h2>
-    <p id="authIntro">Melde dich an oder erstelle ein Konto – alles lokal, ohne Cloud.</p>
+    <p id="authIntro">Melde dich mit deinem Konto an.</p>
     <div class="tabs"><button id="tabLogin" class="active" type="button">Anmelden</button><button id="tabReg" type="button">Registrieren</button></div>
     <label for="authUser">Benutzername</label>
     <input id="authUser" autocomplete="username" placeholder="z. B. ilja">
@@ -189,7 +189,7 @@
   </div>
 </div>
 <header>
-  <h1>⛓ GIBB Chain <small>lokal · Proof of Work</small></h1>
+  <h1>⛓ GIBB Coin <small>Chain</small></h1>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span class="whoami" id="whoami" hidden><span>Konto:</span> <b id="whoName">—</b> <button id="logout" type="button">Abmelden</button></span>
     <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>
@@ -200,8 +200,8 @@
 
   <div class="grid">
     <section class="card">
-      <h2>Miner auf diesem PC <span id="localState">bereit</span></h2>
-      <p class="muted" style="margin:0 0 6px">„Mining starten" startet auf dem Rechner, auf dem dieser Node läuft, das Programm <code>miner.mjs</code> mit <b>allen Prozessorkernen</b> und mint so viele Blöcke wie möglich, bis du stoppst. Der Server prüft jeden Block nach.</p>
+      <h2>Server-Miner <span id="localState">bereit</span></h2>
+      <p class="muted" style="margin:0 0 6px">Mint mit allen Prozessorkernen des Servers Blöcke, bis du stoppst. Jeder Block wird geprüft.</p>
       <label>Miner-Wallet (bekommt die Belohnung)</label>
       <select id="minerAddress"></select>
       <div class="row">
@@ -286,15 +286,13 @@
           <div class="list" id="trades" style="max-height:220px"></div>
         </div>
       </div>
-      <div class="disclaimer" style="margin-top:16px">Interner Markt: der Kurs entsteht ausschliesslich aus echten Aufträgen (kein simulierter Kurs). 1 GIBB startet bei 1 Rappen (0.01 CHF) als interne Recheneinheit – kein auszahlbares Geld. Jedes Wallet bekommt dasselbe Startguthaben; GIBB kommen aus dem Mining.</div>
-    </section>
+          </section>
 
     <section class="card">
-      <h2>Prüfung &amp; Demo</h2>
-      <p class="muted" style="margin:0 0 8px">Die Prüfung rechnet jeden Block nach: Vorgänger-Hash, Block-Hash, Proof of Work, Merkle-Root, Transaktions-Hashes und alle Kontostände.</p>
+      <h2>Prüfung &amp; Verwaltung</h2>
+      <p class="muted" style="margin:0 0 8px">Die Prüfung rechnet jeden Block und alle Kontostände nach.</p>
       <div class="actions">
         <button class="primary" id="verify">Kette prüfen</button>
-        <button class="danger owner-only" id="tamper">Block manipulieren (Demo)</button>
         <button class="danger owner-only" id="resetPrices">Kurse zurücksetzen</button>
         <button class="danger owner-only" id="reset">Alles zurücksetzen</button>
       </div>
@@ -407,7 +405,6 @@
     <div class="log" id="log"></div>
   </section>
 
-  <footer>Lokale Testumgebung der GIBB-Blockchain. Keine echte Kryptowährung, kein öffentliches Netzwerk – Konten, Mempool und Blöcke liegen in <code>blockchain-node/data/chain.json</code>.</footer>
 </main>
 
 <script type="module">
@@ -436,7 +433,7 @@ const errors = {
   same_account: "Absender und Empfänger sind gleich.", invalid_amount: "Betrag muss eine positive ganze Zahl sein.", miner_busy: "Es wird gerade gemint.",
   unknown_miner: "Bitte zuerst ein Wallet anlegen und als Miner wählen.", miner_already_running: "Der PC-Miner läuft bereits.", unknown_block: "Block nicht gefunden.", block_has_no_transactions: "Der Block hat keine Transaktionen.",
   stale_block: "Jemand war schneller – neue Vorlage wird geladen.", unknown_template: "Vorlage abgelaufen – neue Vorlage wird geladen.", difficulty_too_low: "Schwierigkeit ist gestiegen – neue Vorlage.",
-  insufficient_work: "Proof of Work reicht nicht – neue Vorlage.", hash_mismatch: "Hash stimmt nicht mit dem Server überein.",
+  insufficient_work: "Block noch nicht gültig – neue Vorlage.", hash_mismatch: "Hash stimmt nicht mit dem Server überein.",
   market_disabled: "Der Markt ist zurzeit deaktiviert.", insufficient_cash: "Nicht genug Guthaben (Rappen) für diesen Kauf.", invalid_price: "Ungültiger Preis.", unknown_order: "Auftrag nicht gefunden.", not_your_order: "Das ist nicht dein Auftrag.", unknown_account: "Wallet unbekannt.",
 };
 const retryable = new Set(["stale_block", "unknown_template", "difficulty_too_low", "insufficient_work"]);
@@ -683,7 +680,6 @@ $("localToggle").onclick = async () => {
 $("minerAddress").addEventListener("change", () => { if (miner.want) restartRound("Miner-Wallet gewechselt – neue Vorlage."); });
 window.addEventListener("beforeunload", () => stopWorker());
 $("verify").onclick = async () => { try { const r = await api("/api/verify"); say("verifyMsg", r.valid ? `✔ Kette gültig – ${r.blocks} Blöcke und alle Kontostände stimmen.` : `✖ Ungültig ab Block #${r.height}: ${r.reason}`, !r.valid); $("chainStatus").className = "status" + (r.valid ? "" : " bad"); $("chainStatus").querySelector("span").textContent = r.valid ? "Kette verifiziert" : "Kette beschädigt"; } catch (e) { fail("verifyMsg", e); } };
-$("tamper").onclick = async () => { const h = prompt("Welchen Block manipulieren? (Höhe)", String(Math.max(1, (stats?.height ?? 1) - 1))); if (h === null) return; try { const r = await api("/api/tamper", { height: Number(h) }); say("verifyMsg", `Block #${r.height} wurde verändert (Betrag +1000). Jetzt „Kette prüfen“ klicken.`, true); await refresh(); } catch (e) { fail("verifyMsg", e); } };
 ["orderSide", "orderAmount", "orderPrice", "orderAddress"].forEach((id) => $(id).addEventListener("input", updateOrderHint));
 $("placeOrder").onclick = async () => {
   try {

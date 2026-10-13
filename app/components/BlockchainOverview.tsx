@@ -72,7 +72,7 @@ export function BlockchainOverview({ userId }: { userId: string }) {
     return (
       <section className="card card-pad chain-overview-offline">
         <div className="chain-dot bad" aria-hidden="true" />
-        <div><strong>Blockchain-Node offline</strong><p>Sobald der Node läuft, siehst du hier die Live-Kette. Deine Miner-Karte bleibt darunter nutzbar, sobald er verbunden ist.</p></div>
+        <div><strong>Blockchain gerade nicht erreichbar</strong><p>Die Live-Kette erscheint hier, sobald die Verbindung wieder steht.</p></div>
       </section>
     );
   }

@@ -63,7 +63,7 @@ const errorMessages: Record<string, string> = {
   stale_block: "Jemand war schneller: Die Kette hat sich verändert. Neue Vorlage wird geladen …",
   invalid_timestamp: "Die Blockvorlage war zu alt. Neue Vorlage wird geladen …",
   difficulty_too_low: "Die Schwierigkeit ist inzwischen gestiegen. Neue Vorlage wird geladen …",
-  insufficient_work: "Der Proof of Work reicht nicht aus. Neue Vorlage wird geladen …",
+  insufficient_work: "Der Block war noch nicht gültig. Neue Vorlage wird geladen …",
   hash_mismatch: "Der Block-Hash stimmt nicht mit dem Server überein.",
   invalid_transaction_range: "Die Transaktionsauswahl ist nicht mehr gültig. Neue Vorlage wird geladen …",
   wallet_locked: "Dein Wallet ist gesperrt. Mining ist nicht möglich.",
@@ -355,8 +355,8 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
       <section className="card card-pad blockchain-hero">
         <div className="blockchain-hero-copy">
           <span className="eyebrow">GIBB BLOCKCHAIN</span>
-          <h2>Proof of Work, der in der Schule läuft</h2>
-          <p>Jede Coin-Bewegung landet in der Transaktions-Hash-Kette. Miner bündeln unbestätigte Transaktionen in Blöcke (Merkle-Root), verketten sie mit dem Vorgänger und suchen mit dem Prozessor eine Nonce, deren SHA-256-Hash genug führende Nullbits hat. Der Server prüft jeden Block nach und zahlt die Belohnung aus.</p>
+          <h2>Jede Bewegung nachprüfbar</h2>
+          <p>Jede Coin-Bewegung wird in Blöcken festgehalten und mit dem vorherigen Block verkettet. Wer einen Block findet, erhält eine Belohnung in GIBB.</p>
         </div>
         <div className="admin-stats blockchain-stats">
           <div><span>Blockhöhe</span><strong>{overview?.height ?? "–"}</strong></div>
@@ -408,7 +408,7 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
             <button className="secondary compact" type="button" disabled={verifying || !!loadError} onClick={verify}>{verifying ? "Prüft …" : "Kette vollständig prüfen"}</button>
             {verification && <div className={`chain-status ${verification.valid ? "" : "invalid"}`}><i aria-hidden="true" />{verification.valid ? `${verification.blocks_checked} Blöcke verifiziert` : `Fehler bei Block #${verification.invalid_height}: ${verification.reason}`}</div>}
           </div>
-          <small className="field-hint">Die Prüfung rechnet serverseitig alle Merkle-Roots, Block-Hashes und den Proof of Work jedes Blocks nach.</small>
+          <small className="field-hint">Die Prüfung rechnet alle Blöcke der Kette nach.</small>
         </section>
       </div>
 

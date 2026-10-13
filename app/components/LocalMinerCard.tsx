@@ -120,7 +120,7 @@ export function LocalMinerCard({ userId, name, balance }: { userId: string; name
 
       {online === false ? (
         <div className="local-miner-offline">
-          <p>Der Blockchain-Node ist nicht erreichbar. Starte ihn mit <code>pnpm chain</code>, dann synchronisieren sich die Konten und du kannst die Blockchain hier steuern.</p>
+          <p>Die Blockchain ist gerade nicht erreichbar. Bitte versuche es später nochmals.</p>
           <label className="field">Node-Adresse
             <input className="input" value={node} onChange={(e) => setNode(e.target.value)} onBlur={() => { try { localStorage.setItem(NODE_KEY, node); } catch { /* ignore */ } }} placeholder={DEFAULT_NODE} />
           </label>
