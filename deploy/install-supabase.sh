@@ -175,6 +175,18 @@ chmod 600 /etc/systemd/system/gibb-node.service.d/supabase.conf
 systemctl daemon-reload
 systemctl restart gibb-node.service
 
+echo "==> Auslagerungsspeicher (Swap) sicherstellen – der Website-Build braucht neben Supabase viel RAM"
+if [ "$(awk '/SwapTotal/ {print $2}' /proc/meminfo)" -lt 2000000 ]; then
+  if [ ! -f /swapfile ]; then
+    fallocate -l 4G /swapfile 2>/dev/null || dd if=/dev/zero of=/swapfile bs=1M count=4096 status=none
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+  fi
+  swapon /swapfile 2>/dev/null || true
+  grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+fi
+free -m | sed 's/^/    /'
+
 echo "==> Website auf die eigene Instanz umstellen und neu bauen"
 cat > "$WEBSITE_ENV" <<WEB_EOF
 NEXT_PUBLIC_SUPABASE_URL=/sb
@@ -184,7 +196,7 @@ WEB_EOF
 chmod 644 "$WEBSITE_ENV"
 PNPM_BIN="$(command -v pnpm)"
 chown -R "$RUN_USER":"$RUN_USER" "$APP_DIR"
-sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "set -a; . '$WEBSITE_ENV'; set +a; cd '$APP_DIR' && '$PNPM_BIN' install --frozen-lockfile && NODE_OPTIONS=--max-old-space-size=3072 '$PNPM_BIN' run build"
+sudo -u "$RUN_USER" env HOME="/home/$RUN_USER" bash -lc "set -a; . '$WEBSITE_ENV'; set +a; cd '$APP_DIR' && '$PNPM_BIN' install --frozen-lockfile && NODE_OPTIONS=--max-old-space-size=2048 '$PNPM_BIN' run build"
 chmod -R a+rX "$APP_DIR"
 systemctl restart gibb-website.service
 systemctl restart gibb-gateway.service 2>/dev/null || true
