@@ -3039,3 +3039,22 @@ textarea:focus-visible {
 .support-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .support-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 560px) { .support-controls { grid-template-columns: 1fr; } }
+
+/* Gemeinsamer Support-Bereich */
+.support-hub-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; margin-top: 12px; }
+.support-new, .support-mine { display: grid; gap: 10px; align-content: start; border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+.support-kind { display: flex; gap: 6px; flex-wrap: wrap; }
+.support-kind button { border: 1px solid var(--line); border-radius: 999px; padding: 7px 12px; background: transparent; color: var(--muted); font-weight: 700; cursor: pointer; }
+.support-kind button.active { background: var(--green); color: #07100a; border-color: transparent; }
+.support-mine-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; border-top: 1px solid var(--line); padding-top: 8px; }
+.support-mine-row small { display: block; color: var(--muted); font-size: 11px; }
+.support-mine-row > span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.support-mine-row.open > span, .support-mine-row.reviewing > span, .support-mine-row.in_progress > span { color: var(--amber, #f6c85f); }
+.support-mine-row.resolved > span, .support-mine-row.closed > span { color: var(--green); }
+.support-privacy { margin-top: 14px; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; }
+.support-privacy summary { cursor: pointer; font-weight: 700; }
+.support-privacy-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 10px; }
+.support-privacy-grid form, .support-privacy-grid > div { display: grid; gap: 8px; align-content: start; }
+.support-privacy-grid p { margin: 0; }
+.support-desk { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
+@media (max-width: 760px) { .support-hub-grid, .support-privacy-grid { grid-template-columns: 1fr; } }

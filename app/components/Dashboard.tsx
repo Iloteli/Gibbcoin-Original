@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
 import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
-import { AbuseReports } from "./AbuseReports";
+import { SupportHub } from "./SupportHub";
 import { AccountEssentials } from "./AccountEssentials";
 import { AccountReadiness } from "./AccountReadiness";
 import { ActivitySummary } from "./ActivitySummary";
@@ -22,8 +22,6 @@ import { PaymentsHub } from "./PaymentsHub";
 import { PwaInstallCard } from "./PwaInstallCard";
 import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
 import { ProfileEditor } from "./ProfileEditor";
-import { SupportPrivacyCenter } from "./SupportPrivacyCenter";
-import { SupportDesk } from "./SupportDesk";
 import { TransactionDetails } from "./TransactionDetails";
 import { TransferApprovalCenter } from "./TransferApprovalCenter";
 import { QrWallet } from "./QrWallet";
@@ -56,7 +54,7 @@ function viewFromHash(hash: string): DashboardView {
   if (["#chain", "#blockchain", "#mining"].includes(hash)) return "chain";
   if (["#market", "#kaufen", "#buy"].includes(hash)) return "market";
   if (hash === "#account") return "account";
-  if (hash === "#admin" || hash === "#support") return "admin";
+  if (hash === "#admin" || hash === "#support") return "community";
   if (["#send-coins", "#qr-code", "#requests", "#buy-coins"].includes(hash)) return "send";
   if (hash === "#game-center") return "games";
   if (["#group-wallets", "#reports"].includes(hash)) return "community";
@@ -188,7 +186,7 @@ export function Dashboard({ user }: Props) {
   }, []);
   const visibleViews = dashboardViews.filter((view) => !disabledTabs.includes(view.key));
   if (activeView !== "home" && activeView !== "admin" && disabledTabs.includes(activeView)) setActiveView("home");
-  if (activeView === "admin" && profile && profile.role !== "super_admin") setActiveView("home");
+  if (activeView === "admin") setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -205,6 +203,7 @@ export function Dashboard({ user }: Props) {
   // Der Blockchain-Miner bleibt nach dem ersten Besuch aktiv, auch wenn man in eine andere Ansicht wechselt.
   const [chainVisited, setChainVisited] = useState(false);
   const [communityTab, setCommunityTab] = useState<"rewards" | "ranking" | "groups" | "reports">("rewards");
+  if (communityTab === "reports" && disabledTabs.includes("support")) setCommunityTab("rewards");
   if (activeView === "chain" && !chainVisited) setChainVisited(true);
 
   const loadData = useCallback(async () => {
@@ -595,7 +594,6 @@ export function Dashboard({ user }: Props) {
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
           {visibleViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
-          {profile?.role === "super_admin" && <button className={activeView === "admin" ? "active" : ""} aria-current={activeView === "admin" ? "page" : undefined} type="button" onClick={() => openView("admin")}><span aria-hidden="true">🎧</span>Support</button>}
         </nav>
         <KeyboardHelp activeView={activeView} onNavigate={openView} />
 
@@ -671,15 +669,15 @@ export function Dashboard({ user }: Props) {
               ["rewards", "🎁", "Belohnungen & Shop"],
               ["ranking", "🏆", "Rangliste"],
               ["groups", "👥", "Gruppen"],
-              ["reports", "🛡", "Melden"],
-            ] as const).map(([key, icon, label]) => (
+              ["reports", "🛟", "Support"],
+            ] as const).filter(([key]) => key !== "reports" || !disabledTabs.includes("support")).map(([key, icon, label]) => (
               <button key={key} type="button" role="tab" aria-selected={communityTab === key} className={communityTab === key ? "active" : ""} onClick={() => setCommunityTab(key)}><span aria-hidden="true">{icon}</span>{label}</button>
             ))}
           </div>
           <div hidden={communityTab !== "rewards"}><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></div>
           {communityTab === "ranking" && <CommunityLeaderboard userId={user.id} />}
           <div hidden={communityTab !== "groups"}><GroupWallets onChanged={loadData} /></div>
-          <div hidden={communityTab !== "reports"}><AbuseReports transactions={transactions} isAdmin={profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com"} /></div>
+          <div hidden={communityTab !== "reports"}><SupportHub transactions={transactions} isOwner={profile?.role === "super_admin"} /></div>
         </>}
         </div>
 
@@ -718,10 +716,8 @@ export function Dashboard({ user }: Props) {
         {profile && <AccountEssentials user={user} profile={profile} wallet={wallet} transactions={transactions} onRefresh={loadData} onNavigate={openView} />}
         {profile && <SecurityOverview user={user} profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && !offlineMode && <ProfileEditor userId={user.id} profile={profile} onChanged={loadData} />}
-        {!offlineMode && <div id="support-privacy"><SupportPrivacyCenter /></div>}
         <PwaInstallCard />
         </div>
-        {profile?.role === "super_admin" && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Support"><div className="view-heading"><span>OWNER</span><h1>Support</h1><p>Tickets der Nutzer beantworten und abschliessen.</p></div>{activeView === "admin" && !offlineMode && <SupportDesk />}</div>}
 
       </main>
       <UserProfileModal />

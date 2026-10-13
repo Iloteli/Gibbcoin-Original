@@ -332,7 +332,7 @@ test("organizes every feature into a Home-first dashboard without removing secti
   assert.match(dashboard, /<QrWallet/);
   assert.match(dashboard, /<PaymentsHub/);
   assert.match(dashboard, /<GroupWallets/);
-  assert.match(dashboard, /<AbuseReports/);
+  assert.match(dashboard, /<SupportHub/); // Support, Meldungen und Datenschutz in einem Bereich
   assert.match(dashboard, /<NotificationCenter/);
   assert.match(dashboard, /<PwaInstallCard/);
 });

@@ -60,7 +60,7 @@ function sanitizeWebsite(current, patch) {
   num("maxTrade", 1, 100_000); num("dailySellLimit", 0, 10_000_000);
   for (const key of ["cooldownSeconds", "halvingBlocks", "maxBlocksPerDay", "maxTrade", "dailySellLimit"]) next[key] = Math.round(next[key]);
   if (patch.disabledTabs !== undefined) {
-    const allowed = ["send", "games", "community", "activity", "chain", "market", "account"];
+    const allowed = ["send", "games", "community", "activity", "chain", "market", "account", "support"];
     next.disabledTabs = Array.isArray(patch.disabledTabs) ? [...new Set(patch.disabledTabs.map(String).filter((t) => allowed.includes(t)))] : [];
   }
   if (patch.bankIban !== undefined) next.bankIban = String(patch.bankIban).toUpperCase().replace(/\s+/g, "").slice(0, 40);
