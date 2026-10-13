@@ -82,6 +82,8 @@ systemctl restart gibb-gateway.service 2>/dev/null || true
 systemctl restart gibb-tunnel-chain.service 2>/dev/null || true
 
 echo "==> Caddy konfigurieren"
+CHAIN_AUTH=""
+[ -f /etc/caddy/chain-auth.caddy ] && CHAIN_AUTH="import /etc/caddy/chain-auth.caddy"  # Schutz aus deploy/protect-chain.sh behalten
 cat > /etc/caddy/Caddyfile <<CADDY
 {
 	${EMAIL:+email $EMAIL}
@@ -95,6 +97,7 @@ $DOMAIN {
 
 # Chain-Seite
 chain.$DOMAIN {
+	$CHAIN_AUTH
 	encode zstd gzip
 	reverse_proxy 127.0.0.1:$NODE_INTERNAL_PORT
 }
