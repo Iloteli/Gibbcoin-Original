@@ -16,12 +16,12 @@ type AuthorizationResult = {
 
 type FinalizeResult = { ok?: boolean; error?: string };
 
-const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea";
+// Haupt-Owner ist nur noch Ilja (siehe Migration 20261013120000).
 // Ilja hat dieselben Haupt-Owner-Rechte wie Robyn und wird über die Login-E-Mail erkannt.
 const PRIMARY_OWNER_EMAIL = "ilja.podorieszach@icloud.com";
 
 function isPrimaryOwnerUser(user: { id: string; email?: string | null }, role: string) {
-  return role === "super_admin" && (user.id === PRIMARY_OWNER_USER_ID || (user.email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL);
+  return role === "super_admin" && (user.email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL;
 }
 
 function jsonResponse(body: Record<string, unknown>, status: number) {

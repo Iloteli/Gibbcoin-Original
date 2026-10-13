@@ -239,7 +239,7 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
   assert.match(deletionFunction, /admin_authorize_account_deletion/);
 });
 
-test("reserves account bans and Owner deletion for Robyn and Ilja as primary Owners", async () => {
+test("reserves account bans and Owner deletion for Ilja as the only primary Owner", async () => {
   const [adminPanel, dashboard, migration, ownerMigration, promoteMigration, statusFunction, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
@@ -254,7 +254,7 @@ test("reserves account bans and Owner deletion for Robyn and Ilja as primary Own
   assert.match(migration, /primary_owner_required/);
   assert.match(migration, /target_role in \('user', 'admin', 'super_admin'\)/);
   assert.match(migration, /v_target_role = 'super_admin' and not v_actor_is_primary_owner/);
-  // Ilja hat dieselben Haupt-Owner-Rechte wie Robyn: Datenbank, Edge Functions und UI.
+  // Haupt-Owner ist nur noch Ilja (Migration 20261013120000): Datenbank, Edge Functions und UI.
   assert.match(ownerMigration, /create or replace function private\.is_primary_owner/);
   assert.match(ownerMigration, /d465d88f-0acb-4bff-ad55-945761acaeea/);
   assert.match(ownerMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
@@ -266,11 +266,11 @@ test("reserves account bans and Owner deletion for Robyn and Ilja as primary Own
   assert.match(deletionFunction, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
   assert.match(deletionFunction, /const actorIsPrimaryOwner = isPrimaryOwnerUser\(authData\.user, actorProfile\.role\)/);
   assert.match(deletionFunction, /actorProfile\.role === "super_admin" && !actorIsPrimaryOwner/);
-  assert.match(adminPanel, /const PRIMARY_OWNER_USER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea"/);
   assert.match(adminPanel, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
-  assert.match(adminPanel, /currentRole === "super_admin" && \(currentUserId === PRIMARY_OWNER_USER_ID \|\| \(currentUserEmail \?\? ""\)\.toLowerCase\(\) === PRIMARY_OWNER_EMAIL\)/);
+  assert.match(adminPanel, /currentRole === "super_admin" && \(currentUserEmail \?\? ""\)\.toLowerCase\(\) === PRIMARY_OWNER_EMAIL/);
+  assert.doesNotMatch(adminPanel, /d465d88f-0acb-4bff-ad55-945761acaeea/);
   assert.doesNotMatch(adminPanel, /get_my_admin_account_capabilities/);
-  assert.match(adminPanel, /Nur die Haupt-Owner Robyn und Ilja dürfen Konten bannen/);
+  assert.match(adminPanel, /Nur der Haupt-Owner Ilja darf Konten bannen/);
   assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
   assert.match(adminPanel, /Haupt-Owner aktiv/);
   assert.match(dashboard, /currentUserEmail=\{user\.email\}/);
