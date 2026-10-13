@@ -50,7 +50,13 @@ test("sending and trading need a login and only work for the own account", async
 
 test("no free coins: wallets and website accounts need authorization", async () => {
   assert.equal((await post("/api/wallets", { name: "Spam" })).data.error, "not_owner");
-  assert.equal((await post("/api/register", { supabaseId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "x", balance: 999999 })).data.error, "login_required");
+  // Ohne Supabase-Verbindung entsteht höchstens ein leeres Konto – nie das gewünschte Guthaben.
+  const reg = (await post("/api/register", { supabaseId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "x", balance: 999999 })).data;
+  assert.equal(reg.balance, 0);
+  const again = (await post("/api/register", { supabaseId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", name: "umbenannt", balance: 5 })).data;
+  assert.equal(again.name, "x", "bestehendes Konto wird nicht umbenannt");
+  assert.equal(again.balance, 0);
+  assert.equal((await post("/api/register", { supabaseId: "kein-uuid", name: "x" })).data.error, "invalid_supabase_id");
 });
 
 test("brute force is blocked after 5 wrong passwords", async () => {

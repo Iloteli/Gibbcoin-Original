@@ -11,7 +11,7 @@ export function createWebsiteUserCheck({ fetchImpl = globalThis.fetch, env = pro
   const enabled = Boolean(url && apiKey);
   const cache = new Map(); // token -> { user, until }
 
-  return async function websiteUser(token) {
+  async function websiteUser(token) {
     if (!enabled || typeof token !== "string" || token.length < 20) return null;
     const cached = cache.get(token);
     if (cached && cached.until > Date.now()) return cached.user;
@@ -32,7 +32,9 @@ export function createWebsiteUserCheck({ fetchImpl = globalThis.fetch, env = pro
     cache.set(token, { user: result, until: Date.now() + 60_000 });
     if (cache.size > 500) cache.delete(cache.keys().next().value);
     return result;
-  };
+  }
+  websiteUser.enabled = enabled; // false = Node kennt keine Supabase-Verbindung
+  return websiteUser;
 }
 
 // Owner-Bereich des Nodes: nur der konfigurierte Owner (Standard: Ilja), und nur mit Rolle super_admin.

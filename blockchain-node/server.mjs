@@ -189,9 +189,18 @@ const routes = {
   // Guthaben wird NICHT übernommen (sonst könnte sich jeder Coins geben).
   "POST /api/register": async (_, body) => {
     const user = await websiteUser(body?.supabaseToken);
-    if (!user) throw new Error("login_required");
-    if (body.supabaseId && body.supabaseId !== user.userId) throw new Error("not_your_account");
-    const acc = chain.upsertWebsiteAccount(user.userId, user.username, 0);
+    if (!user && websiteUser.enabled) throw new Error("login_required");
+    if (user && body.supabaseId && body.supabaseId !== user.userId) throw new Error("not_your_account");
+    let acc;
+    if (user) {
+      acc = chain.upsertWebsiteAccount(user.userId, user.username, 0);
+    } else {
+      // Node ohne Supabase-Verbindung: nur ein LEERES Konto anlegen (Guthaben 0), nichts umbenennen.
+      const id = String(body.supabaseId ?? "");
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) throw new Error("invalid_supabase_id");
+      const existing = chain.accounts[`sb_${id}`];
+      acc = existing ? { address: `sb_${id}`, ...existing } : chain.upsertWebsiteAccount(id, String(body.name ?? "Nutzer").slice(0, 40), 0);
+    }
     note("sync", `Konto von der Website angemeldet: ${acc.name} (${acc.address})`);
     return { address: acc.address, name: acc.name, balance: acc.balance, cash: acc.cash };
   },
