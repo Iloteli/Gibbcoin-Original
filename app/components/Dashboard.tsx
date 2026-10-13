@@ -1,7 +1,7 @@
 "use client";
 
 import type { User } from "@supabase/supabase-js";
-import { defaultNodeUrl } from "../lib/node-url";
+import { defaultNodeUrl, preferredNodeUrl } from "../lib/node-url";
 import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
@@ -12,9 +12,6 @@ import { AccountReadiness } from "./AccountReadiness";
 import { ActivitySummary } from "./ActivitySummary";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
-import { BlockchainOverview } from "./BlockchainOverview";
-import { BrowserMinerCard } from "./BrowserMinerCard";
-import { LocalMinerCard } from "./LocalMinerCard";
 import { BlockchainExplorer } from "./BlockchainExplorer";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
@@ -186,6 +183,10 @@ export function Dashboard({ user }: Props) {
   const [transferReviewOpen, setTransferReviewOpen] = useState(false);
   const [adminNotice, setAdminNotice] = useState<{ maintenance?: { enabled?: boolean; message?: string }; announcement?: { enabled?: boolean; title?: string; message?: string } } | null>(null);
 
+  // Der Blockchain-Miner bleibt nach dem ersten Besuch aktiv, auch wenn man in eine andere Ansicht wechselt.
+  const [chainVisited, setChainVisited] = useState(false);
+  if (activeView === "chain" && !chainVisited) setChainVisited(true);
+
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
     if (!supabase) return;
@@ -352,7 +353,7 @@ export function Dashboard({ user }: Props) {
   useEffect(() => {
     if (!profile) return;
     let node = defaultNodeUrl();
-    try { node = localStorage.getItem("gibb-node-url") || node; } catch { /* ignore */ }
+    node = preferredNodeUrl();
     const controller = new AbortController();
     void getSupabase()?.auth.getSession().then(({ data }) => fetch(`${node}/api/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ supabaseId: user.id, name: profile.username || profile.display_name || "Konto", supabaseToken: data.session?.access_token }), signal: controller.signal })).catch(() => {});
     return () => controller.abort();
@@ -649,13 +650,7 @@ export function Dashboard({ user }: Props) {
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
         <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Mine GIBB direkt im Browser – die Belohnung landet sofort in deinem Wallet.</p></div>
-        {activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} />}
-        <details className="card card-pad chain-node-section">
-          <summary><strong>Schulserver-Mining</strong><span>Zweite Blockchain auf dem GIBB-Server – mint auch weiter, wenn der Tab geschlossen ist.</span></summary>
-          {activeView === "chain" && <BlockchainOverview userId={user.id} />}
-          <BrowserMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />
-          {profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
-        </details>
+        {chainVisited && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} />}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">

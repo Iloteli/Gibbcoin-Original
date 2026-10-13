@@ -6,7 +6,7 @@
 // BrowserMinerCard darüber – hier gibt es bewusst KEINEN zweiten Miner-Button.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { defaultNodeUrl } from "../lib/node-url";
+import { defaultNodeUrl, preferredNodeUrl } from "../lib/node-url";
 import { getSupabase } from "../lib/supabase";
 
 // Standard-Node-Adresse: siehe defaultNodeUrl (Port 8787 oder Pfad /node).
@@ -25,7 +25,7 @@ const numberFields: Array<[keyof NodeSettings, string]> = [
 ];
 
 function initialNode() {
-  try { return localStorage.getItem(NODE_KEY) || DEFAULT_NODE; } catch { return DEFAULT_NODE; }
+  return typeof window === "undefined" ? DEFAULT_NODE : preferredNodeUrl();
 }
 
 export function LocalMinerCard({ userId, name, balance }: { userId: string; name: string; balance: number; isAdmin: boolean }) {

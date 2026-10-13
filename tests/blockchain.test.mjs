@@ -102,7 +102,7 @@ test("ships the blockchain migration, explorer and dashboard wiring", async () =
   assert.match(explorer, /supabase\.rpc\("submit_mined_block"/);
   assert.match(explorer, /supabase\.rpc\("verify_blockchain"\)/);
   assert.match(explorer, /new Worker\(url\)/);
-  assert.match(dashboard, /<BrowserMinerCard/);
+  assert.match(dashboard, /<BlockchainExplorer/);
   assert.match(dashboard, /key: "chain", label: "Blockchain"/);
   assert.match(dashboard, /MINING_REWARD/);
   assert.match(types, /export type Block = \{/);

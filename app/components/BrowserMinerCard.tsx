@@ -7,13 +7,12 @@
 // Gerät des Nutzers wird nichts installiert.
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { defaultNodeUrl } from "../lib/node-url";
+import { defaultNodeUrl, preferredNodeUrl } from "../lib/node-url";
 import { getSupabase } from "../lib/supabase";
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "../lib/blockchain-core";
 
 // Standard-Node-Adresse: siehe defaultNodeUrl (Port 8787 oder Pfad /node).
 const DEFAULT_NODE = defaultNodeUrl();
-const NODE_KEY = "gibb-node-url";
 const TEMPLATE_REFRESH_MS = 45_000;
 
 type Template = {
@@ -24,7 +23,7 @@ type Template = {
 const retryable = new Set(["stale_block", "unknown_template", "difficulty_too_low", "insufficient_work", "no_pending_transactions", "mining_cooldown"]);
 
 function initialNode() {
-  try { return localStorage.getItem(NODE_KEY) || DEFAULT_NODE; } catch { return DEFAULT_NODE; }
+  return typeof window === "undefined" ? DEFAULT_NODE : preferredNodeUrl();
 }
 function fmt(v: number) { return Math.round(v || 0).toLocaleString("de-CH"); }
 

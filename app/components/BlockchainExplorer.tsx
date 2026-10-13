@@ -134,6 +134,15 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
   const refreshTimerRef = useRef<number | null>(null);
   const continuousRef = useRef(true);
   const startRoundRef = useRef<() => Promise<void>>(async () => {});
+  // Solange gemint wird, hält die Seite eine Web-Sperre. Browser frieren Tabs mit aktiver Sperre
+  // nicht ein – so läuft das Minen weiter, wenn man in einen anderen Tab oder eine andere App wechselt.
+  const keepAwakeRef = useRef<(() => void) | null>(null);
+  const holdKeepAwake = useCallback(() => {
+    if (keepAwakeRef.current || typeof navigator === "undefined" || !navigator.locks?.request) return;
+    void navigator.locks.request("gibb-mining-keep-awake", () => new Promise<void>((resolve) => { keepAwakeRef.current = resolve; })).catch(() => {});
+  }, []);
+  const releaseKeepAwake = useCallback(() => { keepAwakeRef.current?.(); keepAwakeRef.current = null; }, []);
+  useEffect(() => releaseKeepAwake, [releaseKeepAwake]);
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
@@ -174,13 +183,14 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
 
   const stopMining = useCallback((message?: string) => {
     wantMiningRef.current = false;
+    releaseKeepAwake();
     stopWorker();
     templateRef.current = null;
     setTemplate(null);
     setStatus("idle");
     setCooldownUntil(null);
     if (message) setNotice(message);
-  }, [stopWorker]);
+  }, [releaseKeepAwake, stopWorker]);
 
   const submitBlock = useCallback(async (current: Template, foundNonce: number, hash: string) => {
     const supabase = getSupabase();
@@ -301,10 +311,11 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
   const startMining = useCallback(() => {
     if (typeof Worker === "undefined") { setError("Dieser Browser unterstützt keine Web Worker."); return; }
     wantMiningRef.current = true;
+    holdKeepAwake();
     setNotice("");
     setFoundBlocks([]);
     void startRound();
-  }, [startRound]);
+  }, [holdKeepAwake, startRound]);
 
   useEffect(() => () => { wantMiningRef.current = false; stopWorker(); }, [stopWorker]);
 

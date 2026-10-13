@@ -4,11 +4,10 @@
 // direkt vom lokalen Node (kein Supabase) und zeigt sie als animiertes Dashboard.
 
 import { useEffect, useRef, useState } from "react";
-import { defaultNodeUrl } from "../lib/node-url";
+import { defaultNodeUrl, preferredNodeUrl } from "../lib/node-url";
 
 // Standard-Node-Adresse: siehe defaultNodeUrl (Port 8787 oder Pfad /node).
 const DEFAULT_NODE = defaultNodeUrl();
-const NODE_KEY = "gibb-node-url";
 
 type Stats = {
   height: number; blocks: number; difficultyBits: number; price: number; supply: number;
@@ -18,7 +17,7 @@ type Stats = {
 type Block = { height: number; hash: string; miner_label: string; tx_count: number; difficulty_bits: number; reward: number; mined_at?: string; timestamp?: number; attempts?: number | null };
 
 function initialNode() {
-  try { return localStorage.getItem(NODE_KEY) || DEFAULT_NODE; } catch { return DEFAULT_NODE; }
+  return typeof window === "undefined" ? DEFAULT_NODE : preferredNodeUrl();
 }
 function fmt(v: number) { return Math.round(v || 0).toLocaleString("de-CH"); }
 function short(h: string, n = 14) { return h ? `${h.slice(0, n)}…${h.slice(-4)}` : "–"; }

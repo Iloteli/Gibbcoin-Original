@@ -8,3 +8,21 @@ export function defaultNodeUrl(): string {
   if (port) return `${protocol}//${hostname}:8787`;
   return `${origin}/node`;
 }
+
+// Gespeicherte Node-Adresse (localStorage "gibb-node-url"), aber nur wenn sie zur Seite passt:
+// Auf einer HTTPS-Seite wird eine http://-Adresse ignoriert – der Browser würde sie als
+// "gemischte Inhalte" blockieren und die Verbindung als unsicher markieren.
+export function preferredNodeUrl(): string {
+  const fallback = defaultNodeUrl();
+  try {
+    const stored = window.localStorage.getItem("gibb-node-url");
+    if (!stored) return fallback;
+    if (window.location.protocol === "https:" && stored.startsWith("http:")) {
+      window.localStorage.removeItem("gibb-node-url");
+      return fallback;
+    }
+    return stored;
+  } catch {
+    return fallback;
+  }
+}
