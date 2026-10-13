@@ -29,6 +29,12 @@ function route(url) {
 }
 
 const server = createServer((req, res) => {
+  // Status für offene Browser-Tabs: im Wartungsmodus melden sie sich selbst ab.
+  if (req.url === "/__status" || req.url.startsWith("/__status?")) {
+    res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
+    res.end(JSON.stringify({ maintenance: existsSync(MAINTENANCE_FILE) }));
+    return;
+  }
   if (existsSync(MAINTENANCE_FILE)) {
     res.writeHead(503, { "content-type": "text/html; charset=utf-8", "retry-after": "600", "cache-control": "no-store" });
     res.end(MAINTENANCE_PAGE);
