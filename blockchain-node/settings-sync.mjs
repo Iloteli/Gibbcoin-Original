@@ -58,6 +58,18 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
         body: JSON.stringify({ p_key: secret, p_features: { coin_grants: Boolean(chain.settings.website?.adminCoinGrants) } }),
       });
       if (!features.ok) throw new Error(`admin_features_http_${features.status}`);
+      const w = chain.settings.website ?? {};
+      const bank = await fetchImpl(`${url}/rest/v1/rpc/node_set_bank_settings`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_enabled: Boolean(w.bankEnabled), p_iban: w.bankIban ?? "", p_holder: w.bankHolder ?? "" }),
+      });
+      if (bank.ok) {
+        const bankResult = await bank.json();
+        if (!bankResult?.ok) throw new Error(bankResult?.error ?? "bank_failed");
+      } else if (bank.status !== 404) {
+        throw new Error(`bank_http_${bank.status}`);
+      }
       if (state.lastError) note("settings", "Einstellungen werden wieder an die Hauptseite übertragen");
       state.lastPush = Date.now();
       state.lastError = null;
@@ -159,6 +171,8 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   }
   const listWebsiteUsers = async () => (await rpc("node_list_users", {})).users ?? [];
   const adjustWebsiteBalance = async (userId, amount, reason) => rpc("node_adjust_balance", { p_user: userId, p_amount: amount, p_reason: reason });
+  const listBankOrders = async () => (await rpc("node_list_bank_orders", {})).orders ?? [];
+  const decideBankOrder = async (id, paid) => rpc("node_decide_bank_order", { p_id: id, p_paid: Boolean(paid) });
 
   if (enabled) {
     setTimeout(() => { void push(); void syncAccounts(); }, 3000).unref();
@@ -166,5 +180,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, status: () => ({ ...state }) };
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, status: () => ({ ...state }) };
 }

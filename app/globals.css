@@ -3007,3 +3007,18 @@ textarea:focus-visible {
 .market-box.sell .market-sum { color: var(--text); }
 .market-box button { width: 100%; }
 @media (max-width: 560px) { .market-mine { min-width: 0; width: 100%; } }
+
+/* Kauf per Banküberweisung */
+.bank-transfer { margin-top: 14px; border: 1px solid rgba(117,245,154,.35); border-radius: 16px; padding: 16px 18px; background: rgba(117,245,154,.05); display: grid; gap: 10px; }
+.bank-transfer > strong { font-size: 17px; }
+.bank-transfer dl { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 14px; margin: 0; align-items: center; }
+.bank-transfer dt { color: var(--muted); font-size: 12px; }
+.bank-transfer dd { margin: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; overflow-wrap: anywhere; }
+.bank-transfer code, .bank-order-row code { font-weight: 800; letter-spacing: .03em; }
+.bank-orders { display: grid; gap: 8px; }
+.bank-order-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.bank-order-row small { display: block; color: var(--muted); font-size: 11px; margin-top: 2px; }
+.bank-order-row .bank-status { font-size: 12px; color: var(--muted); }
+.bank-order-row.pending .bank-status { color: var(--amber, #f6c85f); }
+.bank-order-row.paid .bank-status { color: var(--green); }
+@media (max-width: 560px) { .bank-transfer dl { grid-template-columns: 1fr; } .bank-order-row { grid-template-columns: 1fr auto; } .bank-order-row .bank-status { grid-column: 1; } }

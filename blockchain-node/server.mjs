@@ -314,6 +314,15 @@ const routes = {
   },
   "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
   // Coins der Website-Benutzer geben/abziehen (nur Owner der Chain-Seite)
+  // Banküberweisungen der Hauptseite (nur Owner)
+  "POST /api/bank/orders": async (_, body) => { await requireOwner(body); return { orders: await settingsSync.listBankOrders() }; },
+  "POST /api/bank/decide": async (_, body) => {
+    await requireOwner(body);
+    const result = await settingsSync.decideBankOrder(String(body.id ?? ""), body.paid === true);
+    note("wallet", `Überweisung ${String(body.reference ?? body.id).slice(0, 20)}: ${body.paid === true ? "Zahlung bestätigt, GIBB gutgeschrieben" : "abgelehnt"}`);
+    void settingsSync.syncAccounts();
+    return result;
+  },
   "POST /api/website/users": async (_, body) => { await requireOwner(body); return { users: await settingsSync.listWebsiteUsers() }; },
   "POST /api/website/adjust": async (_, body) => {
     await requireOwner(body);

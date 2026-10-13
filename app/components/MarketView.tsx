@@ -11,6 +11,8 @@ type MarketState = {
   my_gibb: number; my_credits: number;
   buy_enabled?: boolean; sell_enabled?: boolean; daily_sell_limit?: number; my_sold_24h?: number;
 };
+type BankDetails = { enabled: boolean; iban: string; holder: string };
+type BankOrder = { id: string; gibb: number; rappen: number; reference: string; status: "pending" | "paid" | "cancelled" | "rejected"; created_at: string };
 type Quote = {
   ok: boolean; error?: string; gibb?: number; price?: number; buy_rappen?: number; buy_possible?: boolean;
   sell_rappen?: number; sell_possible?: boolean; price_after_buy?: number; price_after_sell?: number; max_trade?: number;
@@ -26,6 +28,9 @@ const errors: Record<string, string> = {
   sell_disabled: "Verkaufen ist gerade pausiert.",
   daily_sell_limit: "Dein Verkaufslimit für die letzten 24 Stunden ist erreicht.",
   amount_too_small: "Mit Karte/TWINT sind mindestens CHF 0.50 nötig – bitte mehr GIBB wählen.",
+  bank_amount_too_small: "Per Überweisung sind mindestens CHF 1.00 nötig – bitte mehr GIBB wählen.",
+  bank_disabled: "Kauf per Überweisung ist gerade nicht verfügbar.",
+  too_many_open_orders: "Du hast schon 3 offene Überweisungen. Bitte warte, bis sie bestätigt sind, oder storniere eine.",
   purchases_disabled: "Kauf mit echtem Geld ist noch nicht freigeschaltet.",
   payment_not_configured: "Zahlungen sind noch nicht eingerichtet (Stripe).",
   not_authenticated: "Bitte melde dich erneut an.",
@@ -42,6 +47,9 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
+  const [bank, setBank] = useState<BankDetails | null>(null);
+  const [bankOrders, setBankOrders] = useState<BankOrder[]>([]);
+  const [newOrder, setNewOrder] = useState<BankOrder | null>(null);
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
@@ -51,7 +59,39 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
     setLoadError("");
     const next = data as MarketState;
     setState(next);
+    // Banküberweisung (falls eingerichtet)
+    const [{ data: bankData }, { data: orderData }] = await Promise.all([
+      supabase.rpc("get_bank_details"),
+      supabase.from("bank_orders").select("id,gibb,rappen,reference,status,created_at").order("created_at", { ascending: false }).limit(10),
+    ]);
+    setBank((bankData as BankDetails | null) ?? null);
+    setBankOrders((orderData ?? []) as BankOrder[]);
   }, []);
+
+  const orderBank = async () => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    setError(""); setMessage(""); setBusy("bank");
+    try {
+      const { data, error: rpcError } = await supabase.rpc("create_bank_order", { p_gibb: Math.floor(amount) });
+      const result = data as ({ ok?: boolean; error?: string } & Partial<BankOrder>) | null;
+      if (rpcError || !result?.ok) { setError(errors[result?.error ?? ""] ?? "Die Bestellung konnte nicht erstellt werden."); return; }
+      setNewOrder({ id: result.id ?? "", gibb: result.gibb ?? 0, rappen: result.rappen ?? 0, reference: result.reference ?? "", status: "pending", created_at: new Date().toISOString() });
+      await load();
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const cancelBank = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    await supabase.rpc("cancel_bank_order", { p_id: id });
+    if (newOrder?.id === id) setNewOrder(null);
+    await load();
+  };
+
+  const copy = (text: string) => { void navigator.clipboard?.writeText(text.replace(/\s+/g, text.startsWith("GIBB-") ? "" : " ")).catch(() => undefined); setMessage("Kopiert."); };
 
 
   useEffect(() => {
@@ -155,7 +195,9 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
             <small className="field-hint">Kurs danach: {quote?.ok ? rp(quote.price_after_buy ?? 0) : "–"}</small>
             <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>
             <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (state?.my_credits ?? 0) < (quote.buy_rappen ?? 0)} onClick={() => void act("credits")}>{busy === "credits" ? "Kauft …" : "Mit Credits kaufen"}</button>
+            {bank?.enabled && <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (quote.buy_rappen ?? 0) < 100} onClick={() => void orderBank()}>{busy === "bank" ? "Bestellung wird erstellt …" : "Per Banküberweisung kaufen"}</button>}
             {quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
+            {bank?.enabled && quote?.ok && (quote.buy_rappen ?? 0) < 100 && <small className="field-hint">Per Überweisung erst ab CHF 1.00.</small>}
           </article>
           <article className="market-box sell">
             <h3>An die Bank verkaufen</h3>
@@ -166,8 +208,36 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
         </div>
         {error && <div className="message error">{error}</div>}
         {message && !error && <div className="message">{message}</div>}
+        {newOrder && bank && (
+          <div className="bank-transfer" role="status">
+            <strong>Bitte überweise jetzt {chf(newOrder.rappen)}</strong>
+            <dl>
+              <dt>Empfänger</dt><dd>{bank.holder || "–"}</dd>
+              <dt>IBAN</dt><dd><code>{bank.iban}</code> <button type="button" className="secondary compact" onClick={() => copy(bank.iban)}>Kopieren</button></dd>
+              <dt>Betrag</dt><dd>{chf(newOrder.rappen)}</dd>
+              <dt>Verwendungszweck</dt><dd><code>{newOrder.reference}</code> <button type="button" className="secondary compact" onClick={() => copy(newOrder.reference)}>Kopieren</button></dd>
+            </dl>
+            <small className="field-hint">Wichtig: Gib den Verwendungszweck genau so an. Sobald die Zahlung eingegangen ist (meist 1–2 Werktage), werden dir {newOrder.gibb} GIBB gutgeschrieben – du bekommst eine Mitteilung.</small>
+          </div>
+        )}
         <small className="field-hint">Verkäufe werden nicht in echtem Geld ausbezahlt, sondern als Credits gutgeschrieben – damit kannst du später wieder GIBB kaufen.</small>
       </section>
+
+      {bankOrders.length > 0 && (
+        <section className="card card-pad">
+          <div className="card-head"><h2>Meine Überweisungen</h2><span>{bankOrders.filter((o) => o.status === "pending").length} offen</span></div>
+          <div className="bank-orders">
+            {bankOrders.map((o) => (
+              <div key={o.id} className={`bank-order-row ${o.status}`}>
+                <div><code>{o.reference}</code><small>{o.gibb} GIBB · {chf(o.rappen)} · {new Date(o.created_at).toLocaleDateString("de-CH")}</small></div>
+                <span className="bank-status">{o.status === "pending" ? "wartet auf Zahlung" : o.status === "paid" ? "gutgeschrieben" : o.status === "cancelled" ? "storniert" : "abgelehnt"}</span>
+                {o.status === "pending" && <button type="button" className="secondary compact" onClick={() => void cancelBank(o.id)}>Stornieren</button>}
+              </div>
+            ))}
+          </div>
+          {bank?.enabled && <small className="field-hint">Empfänger: {bank.holder} · IBAN {bank.iban}</small>}
+        </section>
+      )}
 
     </div>
   );
