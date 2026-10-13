@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "account" | "admin";
+type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "account" | "admin";
 
 type Props = {
   activeView: DashboardView;
@@ -16,7 +16,8 @@ const shortcuts: Array<{ key: string; label: string; view: Exclude<DashboardView
   { key: "4", label: "Community", view: "community" },
   { key: "5", label: "Aktivitaet", view: "activity" },
   { key: "6", label: "Blockchain", view: "chain" },
-  { key: "7", label: "Konto", view: "account" },
+  { key: "7", label: "Kaufen", view: "market" },
+  { key: "8", label: "Konto", view: "account" },
 ];
 
 export function KeyboardHelp({ activeView, onNavigate }: Props) {

@@ -14,6 +14,7 @@ import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainExplorer } from "./BlockchainExplorer";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
+import { MarketView } from "./MarketView";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
 import { KeyboardHelp } from "./KeyboardHelp";
@@ -33,7 +34,7 @@ import { UserProfileModal } from "./UserProfileModal";
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
-type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "account" | "admin";
+type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "account" | "admin";
 type OfflineSnapshot = { profile: Profile; wallet: Wallet; transactions: Transaction[]; savedAt: string; statsResetAt?: string | null };
 
 const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: string; icon: string }> = [
@@ -43,6 +44,7 @@ const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: strin
   { key: "community", label: "Community", icon: "◎" },
   { key: "activity", label: "Aktivität", icon: "≡" },
   { key: "chain", label: "Blockchain", icon: "⛓" },
+  { key: "market", label: "Kaufen", icon: "₿" },
   { key: "account", label: "Konto", icon: "●" },
 ];
 
@@ -53,6 +55,7 @@ function viewFromHash(hash: string): DashboardView {
   if (hash === "#community") return "community";
   if (hash === "#activity") return "activity";
   if (["#chain", "#blockchain", "#mining"].includes(hash)) return "chain";
+  if (["#market", "#kaufen", "#buy"].includes(hash)) return "market";
   if (hash === "#account") return "account";
   if (hash === "#admin") return "admin";
   if (["#send-coins", "#qr-code", "#requests", "#buy-coins"].includes(hash)) return "send";
@@ -665,6 +668,11 @@ export function Dashboard({ user }: Props) {
         </>}
         </div>
 
+        <div className="dashboard-view" hidden={activeView !== "market"} aria-label="Kaufen">
+        <div className="view-heading"><span>GIBB-MARKT</span><h1>Kaufen</h1><p>GIBB zum aktuellen Kurs kaufen oder an die Bank verkaufen – jeder Handel bewegt den Preis.</p></div>
+        {activeView === "market" && (offlineMode ? <section className="card card-pad offline-placeholder"><strong>Der Markt ist offline pausiert</strong><p>Kaufen und Verkaufen braucht eine Serververbindung.</p></section> : <MarketView onChanged={() => void loadData()} />)}
+        </div>
+
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
         <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Mine GIBB direkt im Browser – die Belohnung landet sofort in deinem Wallet.</p></div>
         {chainVisited && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} />}
@@ -700,7 +708,7 @@ export function Dashboard({ user }: Props) {
         </div>
 
         {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div>{offlineMode ? <section className="card card-pad offline-placeholder"><strong>Adminpanel offline gesperrt</strong><p>Administrative Aktionen benötigen immer eine aktuelle MFA- und Serverprüfung.</p></section> : <><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} currentUserEmail={user.email} onChanged={loadData} onExit={() => openView("home")} />}</>}</div>}
-        <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. Coins können nicht mit echtem Geld gekauft werden, sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur in der App nutzbar. Die dargestellte Hash-Kette ist serverseitig geprüft und keine öffentliche Blockchain.</p>
+        <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. GIBB können gekauft, aber nicht in echtes Geld zurückgetauscht oder ausbezahlt werden. Sie sind kein gesetzliches Zahlungsmittel und nur in der App nutzbar.</p>
       </main>
       <UserProfileModal />
       {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}

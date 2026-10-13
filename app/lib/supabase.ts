@@ -100,7 +100,8 @@ export async function getUsableSupabaseSession(): Promise<Session | null> {
   }
 }
 
-export async function createCheckoutSession(packId: string): Promise<{ url?: string; error?: string }> {
+// packId: festes Paket ("small" …) oder eine Zahl = so viele GIBB zum aktuellen Marktkurs.
+export async function createCheckoutSession(packId: string | number): Promise<{ url?: string; error?: string }> {
   const supabase = getSupabase();
   if (!supabase) return { error: "client_unavailable" };
 
@@ -116,7 +117,7 @@ export async function createCheckoutSession(packId: string): Promise<{ url?: str
         apikey: publishableKey,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ pack_id: packId }),
+      body: JSON.stringify(typeof packId === "number" ? { gibb: packId } : { pack_id: packId }),
     });
     const payload = await response.json().catch(() => ({})) as { url?: unknown; error?: unknown };
     if (!response.ok) return { error: typeof payload.error === "string" ? payload.error : `http_${response.status}` };

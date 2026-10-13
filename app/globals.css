@@ -2985,3 +2985,26 @@ textarea:focus-visible {
 .lb-detail { color: var(--muted); font-size: 12px; }
 .lb-list b { color: var(--green); }
 @media (max-width: 640px) { .lb-me { grid-template-columns: repeat(3, 1fr); } .lb-list li { grid-template-columns: 36px minmax(0, 1fr) auto; } .lb-detail { display: none; } .lb-podium { grid-template-columns: 1fr; } .lb-podium li { order: 0 !important; } }
+
+/* Kaufen-Tab (GIBB-Markt) */
+.market { display: grid; gap: 14px; }
+.market-hero { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 16px; align-items: center; }
+.market-price { display: grid; gap: 4px; }
+.market-price strong { font-size: clamp(30px, 6vw, 46px); line-height: 1.05; color: var(--text); }
+.market-price strong small { font-size: 15px; color: var(--muted); font-weight: 600; }
+.market-change { font-weight: 800; color: var(--muted); }
+.market-change.up { color: var(--green); }
+.market-change.down { color: #ff8f8f; }
+.market-mine { margin: 0; min-width: 240px; }
+.market-quick { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+.market-quick button { padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-weight: 700; cursor: pointer; }
+.market-quick button.active { background: rgba(124,245,157,.16); color: var(--text); border-color: rgba(124,245,157,.45); }
+.market-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.market-box { display: grid; gap: 8px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: rgba(124,245,157,.035); }
+.market-box.buy { border-color: rgba(124,245,157,.35); }
+.market-box h3 { margin: 0; }
+.market-sum { margin: 0; font-size: 24px; font-weight: 850; color: var(--green); }
+.market-sum small { font-size: 13px; color: var(--muted); font-weight: 600; }
+.market-box.sell .market-sum { color: var(--text); }
+.market-box button { width: 100%; }
+@media (max-width: 560px) { .market-mine { min-width: 0; width: 100%; } }

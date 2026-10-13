@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "account" | "admin";
+type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "account" | "admin";
 
 type Props = {
   onNavigate: (view: DashboardView, target?: string) => void;

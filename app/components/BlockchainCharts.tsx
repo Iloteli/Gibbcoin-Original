@@ -5,7 +5,7 @@ import type { Block } from "../lib/types";
 type Miner = { user_id: string; label: string; blocks: number; reward: number };
 
 // Kleines SVG-Liniendiagramm ohne Bibliothek. Werte von alt nach neu.
-function LineChart({ values, label, unit, target }: { values: number[]; label: string; unit: string; target?: number | null }) {
+export function LineChart({ values, label, unit, target }: { values: number[]; label: string; unit: string; target?: number | null }) {
   const width = 320;
   const height = 96;
   const pad = 6;

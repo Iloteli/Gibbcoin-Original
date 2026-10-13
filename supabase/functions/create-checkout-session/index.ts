@@ -29,8 +29,25 @@ Deno.serve(async (request) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("not_authenticated");
 
-    const { pack_id: packId } = await request.json() as { pack_id?: keyof typeof packs };
-    const pack = packId ? packs[packId] : undefined;
+    const body = await request.json() as { pack_id?: keyof typeof packs; gibb?: number };
+    // Neu: Kauf zum aktuellen Marktkurs ({ gibb: n }). Alte feste Pakete ({ pack_id }) bleiben möglich.
+    let pack: { coins: number; amount: number; name: string } | undefined;
+    let mode: "market" | "pack" = "pack";
+    let packId = body.pack_id;
+    if (typeof body.gibb === "number") {
+      const gibb = Math.floor(body.gibb);
+      if (!(gibb >= 1 && gibb <= 1000)) throw new Error("invalid_pack");
+      const { data: quote, error: quoteError } = await supabase.rpc("market_quote", { p_gibb: gibb });
+      const q = quote as { ok?: boolean; buy_rappen?: number; buy_possible?: boolean; enabled?: boolean } | null;
+      if (quoteError || !q?.ok || !q.enabled || !q.buy_possible) throw new Error("invalid_pack");
+      const amount = Math.ceil(Number(q.buy_rappen));
+      if (!(amount >= 50)) throw new Error("amount_too_small");
+      pack = { coins: gibb, amount, name: `${gibb} GIBB Coins (Marktkurs)` };
+      mode = "market";
+      packId = undefined;
+    } else {
+      pack = packId ? packs[packId] : undefined;
+    }
     if (!pack) throw new Error("invalid_pack");
 
     const secretKey = Deno.env.get("STRIPE_SECRET_KEY")?.trim();
@@ -61,7 +78,9 @@ Deno.serve(async (request) => {
           product_data: { name: pack.name, description: "Interne GIBB-Schulcoins; keine Auszahlung möglich" },
         },
       }],
-      metadata: { user_id: user.id, pack_id: packId!, gibb_coins: String(pack.coins) },
+      metadata: mode === "market"
+        ? { user_id: user.id, mode: "market", gibb_coins: String(pack.coins), quoted_rappen: String(pack.amount) }
+        : { user_id: user.id, pack_id: packId!, gibb_coins: String(pack.coins) },
       success_url: `${appUrl.replace(/\/$/, "")}/?purchase=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl.replace(/\/$/, "")}/?purchase=cancelled`,
     });
@@ -71,7 +90,7 @@ Deno.serve(async (request) => {
   } catch (error) {
     const code = error instanceof Error ? error.message : "checkout_failed";
     const status = code === "not_authenticated" ? 401
-      : code === "invalid_pack" ? 400
+      : code === "invalid_pack" || code === "amount_too_small" ? 400
         : code === "purchases_disabled" ? 403
           : 500;
     const details = error && typeof error === "object" ? error as Record<string, unknown> : {};
