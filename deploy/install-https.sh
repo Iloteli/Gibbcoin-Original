@@ -21,7 +21,7 @@ APP_DIR="${APP_DIR:-/opt/gibbcoin}"
 if [ -d "$APP_DIR/.git" ]; then
   echo "==> Neueste Version holen"
   git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-  git -C "$APP_DIR" fetch -q origin && git -C "$APP_DIR" merge -q --ff-only '@{u}' || true
+  git -C "$APP_DIR" fetch -q origin && git -C "$APP_DIR" reset -q --hard origin/main || true
 fi
 
 echo "==> Caddy installieren"

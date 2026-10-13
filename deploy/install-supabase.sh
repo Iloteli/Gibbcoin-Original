@@ -29,7 +29,7 @@ fi
 
 echo "==> Neueste Version des Projekts holen"
 git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-git -C "$APP_DIR" fetch -q origin && git -C "$APP_DIR" merge -q --ff-only '@{u}' || true
+git -C "$APP_DIR" fetch -q origin && git -C "$APP_DIR" reset -q --hard origin/main || true
 
 echo "==> Docker installieren (falls nötig)"
 export DEBIAN_FRONTEND=noninteractive

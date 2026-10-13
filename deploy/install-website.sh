@@ -16,7 +16,7 @@ if [ ! -d "$APP_DIR/.git" ]; then echo "Erst 'sudo bash deploy/install-server.sh
 
 echo "==> Neueste Version holen"
 git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
-git -C "$APP_DIR" fetch -q origin && git -C "$APP_DIR" merge -q --ff-only '@{u}' || true
+git -C "$APP_DIR" fetch -q origin && git -C "$APP_DIR" reset -q --hard origin/main || true
 
 echo "==> pnpm aktivieren"
 npm install -g pnpm >/dev/null 2>&1 || corepack enable
