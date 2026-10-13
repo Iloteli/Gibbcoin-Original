@@ -59,9 +59,9 @@ test("website owners get a basic chain login; full needs an upgrade and the serv
   const basic = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
   assert.equal(basic.role, "owner_basic");
   // Basic: Mining-Einstellungen ja, Server-/Bank-Einstellungen nein, Admin nein
-  const s = (await post("/api/settings", { token: basic.token, reward: 7, fallbackMinerEnabled: false, website: { bankIban: "CH9300762011623852957", maxTrade: 50 } })).data;
+  const s = (await post("/api/settings", { token: basic.token, reward: 7, chainLoginsEnabled: false, website: { bankIban: "CH9300762011623852957", maxTrade: 50 } })).data;
   assert.equal(s.reward, 7);
-  assert.equal(s.fallbackMinerEnabled, true);
+  assert.equal(s.chainLoginsEnabled, true, "nur Full");
   assert.equal(s.website.bankIban, "");
   assert.equal(s.website.maxTrade, 50);
   assert.equal((await post("/api/admin/node-users", { token: basic.token })).data.error, "not_owner");
@@ -92,8 +92,14 @@ test("full accounts decide what basic may change; local chain accounts can be ba
   assert.equal((await post("/api/website/users", { token: basic.token })).data.error, "not_owner");
   assert.ok(!(await post("/api/auth/me", { token: basic.token })).data.permissions.includes("coins"));
   // Full erlaubt Basic "Coins verwalten" und nimmt "Mining" weg
-  await post("/api/settings", { token: ilja.token, basicPermissions: ["coins", "market"] });
-  assert.ok(Array.isArray((await post("/api/website/users", { token: basic.token })).data.users));
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["coins", "market", "server"] });
+  // Coins verwalten gibt es für Basic nie, auch wenn es versucht wird freizugeben
+  assert.equal((await post("/api/website/users", { token: basic.token })).data.error, "not_owner");
+  // Basic darf keine Coins senden und keine Aufträge erstellen
+  assert.equal((await post("/api/transactions", { token: basic.token, to: "ilja", amount: 1 })).data.error, "basic_no_transfers");
+  assert.equal((await post("/api/order", { token: basic.token, side: "buy", price: 1, amount: 1 })).data.error, "basic_no_transfers");
+  // Mehr Blockchain-Einstellungen: Server-Einstellungen mit Recht "server"
+  assert.equal((await post("/api/settings", { token: basic.token, fallbackDelaySeconds: 42 })).data.fallbackDelaySeconds, 42);
   const before = (await post("/api/stats", undefined)).data;
   const s = (await post("/api/settings", { token: basic.token, reward: 99, tradingFeePercent: 4 })).data;
   assert.notEqual(s.reward, 99, "Mining nicht mehr erlaubt");

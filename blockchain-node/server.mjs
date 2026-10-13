@@ -223,10 +223,14 @@ const PERMISSION_KEYS = {
   market: { settings: ["startPrice", "startingCash", "tradingFeePercent", "minOrderAmount", "marketEnabled", "websitePrice"], website: ["marketStepPercent", "minPrice", "maxPrice", "maxTrade", "buyEnabled", "sellEnabled", "dailySellLimit"] },
   tabs: { settings: [], website: ["disabledTabs"] },
   payments: { settings: [], website: ["cardEnabled", "creditsEnabled"] },
-  coins: { settings: [], website: [] },
   bank: { settings: [], website: [] },
+  server: { settings: ["fallbackMinerEnabled", "fallbackDelaySeconds", "browserMinerThreads"], website: [] },
+  miner: { settings: [], website: [] },
+  verify: { settings: [], website: [] },
 };
-const permissionsOf = (sess) => (sess?.role === "super_admin" ? Object.keys(PERMISSION_KEYS) : sess?.role === "owner_basic" ? (chain.settings.basicPermissions ?? []) : []);
+const permissionsOf = (sess) => (sess?.role === "super_admin" ? [...Object.keys(PERMISSION_KEYS), "coins"] : sess?.role === "owner_basic" ? (chain.settings.basicPermissions ?? []).filter((p) => p in PERMISSION_KEYS) : []);
+// Basic-Konten dürfen keine Coins bewegen (senden, Aufträge, Coins verwalten)
+const forbidBasicTransfers = (sess) => { if (sess?.role === "owner_basic") throw new Error("basic_no_transfers"); };
 const requirePermission = (body, perm) => {
   const sess = sessionOf(body);
   if (sess && (sess.role === "super_admin" || (sess.role === "owner_basic" && permissionsOf(sess).includes(perm)))) return sess;
@@ -300,7 +304,7 @@ const routes = {
     return { ok: true, ...sess, permissions: permissionsOf(sess), balance: acc.balance ?? 0, cash: acc.cash ?? 0 };
   },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
-  "POST /api/local-miner": async (_, body) => { await requireOwner(body); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
+  "POST /api/local-miner": async (_, body) => { requirePermission(body, "miner"); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
   // Von der echten Website: aktuelles Konto anmelden, damit es hier erscheint.
   // Nur mit gültigem Website-Login und nur für das eigene Konto. Ein vom Browser geschicktes
   // Guthaben wird NICHT übernommen (sonst könnte sich jeder Coins geben).
@@ -360,6 +364,7 @@ const routes = {
   "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
   "POST /api/order": (_, body) => {
     const sess = requireSession(body);
+    forbidBasicTransfers(sess);
     if (body.address && body.address !== sess.address) throw new Error("not_your_account");
     body.address = sess.address;
     const r = chain.placeOrder(body.address, body.side, body.price, body.amount);
@@ -375,6 +380,7 @@ const routes = {
   "POST /api/wallets": async (_, body) => { await requireOwner(body); return chain.createWallet(body.name); },
   "POST /api/transactions": (_, body) => {
     const sess = requireSession(body); // Senden nur angemeldet und nur vom eigenen Konto
+    forbidBasicTransfers(sess);
     const from = sess.address;
     if (body.from && body.from !== sess.address) throw new Error("not_your_account");
     // Empfänger darf Adresse ODER Benutzername sein.
