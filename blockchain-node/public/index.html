@@ -147,6 +147,14 @@
   .savebar .dirty { color: var(--amber); font-size: 12px; font-weight: 700; }
   .settings-card.is-dirty .savebar { border-color: rgba(246,200,95,.35); box-shadow: 0 10px 40px rgba(0,0,0,.35); }
   @media (max-width: 560px) { .sgrid { grid-template-columns: 1fr 1fr; } .switches { grid-template-columns: 1fr; } }
+
+  /* Einklappbare Bereiche (z. B. Blöcke) – standardmässig zu */
+  details.fold > summary { list-style: none; cursor: pointer; }
+  details.fold > summary::-webkit-details-marker { display: none; }
+  details.fold > summary h2 { margin: 0; }
+  details.fold > summary h2::after { content: "▸ anzeigen"; margin-left: auto; padding-left: 12px; color: var(--muted); font-size: 11px; font-weight: 600; }
+  details.fold[open] > summary h2::after { content: "▾ ausblenden"; }
+  details.fold[open] > summary { margin-bottom: 14px; }
 </style>
 </head>
 <body>
@@ -355,8 +363,10 @@
   </section>
 
   <section class="card">
-    <h2>Blöcke <span id="blockCount"></span></h2>
-    <div class="list" id="blocks" style="max-height:none"></div>
+    <details class="fold" id="blocksFold">
+      <summary><h2>Blöcke <span id="blockCount"></span></h2></summary>
+      <div class="list" id="blocks" style="max-height:none"></div>
+    </details>
   </section>
 
   <section class="card">
