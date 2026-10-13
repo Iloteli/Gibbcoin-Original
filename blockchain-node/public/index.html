@@ -191,6 +191,10 @@
     <input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 8 Zeichen">
     <label for="authCode" style="margin-top:8px">Owner-Code <span class="muted">(nur für den Owner, sonst leer lassen)</span></label>
     <input id="authCode" type="password" autocomplete="off" placeholder="leer lassen">
+    <div id="authTwoFa" hidden>
+      <label for="auth2fa" style="margin-top:8px">Server-Code <span class="muted">(auf dem Server: <code>sudo gibb-code</code>)</span></label>
+      <input id="auth2fa" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="6-stelliger Code">
+    </div>
     <div class="actions"><button class="primary" id="authGo" style="width:100%">Anmelden</button></div>
     <div class="msg" id="authMsg"></div>
   </div>
@@ -459,12 +463,14 @@ const fail = (id, e) => say(id, errors[e.message] || e.message, true);
 const short = (h, n = 12) => h ? h.slice(0, n) + "…" + h.slice(-4) : "–";
 const time = (s) => new Date(s * 1000).toLocaleTimeString("de-CH");
 const fmt = (n) => Number(n).toLocaleString("de-CH");
+// Text sicher in HTML einsetzen (Namen, Notizen, Protokoll kommen auch von Website-Benutzern)
+const h = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
 let accounts = [], stats = null, openBlock = null, settingsDirty = false;
 
 function fillSelect(sel, keepValue) {
   const current = keepValue ?? sel.value;
-  sel.innerHTML = accounts.map((a) => `<option value="${a.address}">${a.name} (${a.address}) · ${fmt(a.balance)} GIBB</option>`).join("") || `<option value="">– kein Wallet –</option>`;
+  sel.innerHTML = accounts.map((a) => `<option value="${h(a.address)}">${h(a.name)} (${h(a.address)}) · ${fmt(a.balance)} GIBB</option>`).join("") || `<option value="">– kein Wallet –</option>`;
   if (accounts.some((a) => a.address === current)) sel.value = current;
 }
 
@@ -495,12 +501,12 @@ function renderStats(s) {
   $("walletCount").textContent = `${s.accounts} Konten`;
 }
 function renderAccounts() {
-  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${a.name}</b>${a.source === "supabase" ? ` <span style="font-size:9px;color:var(--green);border:1px solid rgba(117,245,154,.3);border-radius:6px;padding:1px 5px">WEBSITE</span>` : ""}<br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b> · <b>${fmt(a.cash)} Rp</b><br><small>frei ${fmt(a.available)} GIBB · ${fmt(a.availableCash)} Rp</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
+  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${h(a.name)}</b>${a.source === "supabase" ? ` <span style="font-size:9px;color:var(--green);border:1px solid rgba(117,245,154,.3);border-radius:6px;padding:1px 5px">WEBSITE</span>` : ""}<br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b> · <b>${fmt(a.cash)} Rp</b><br><small>frei ${fmt(a.available)} GIBB · ${fmt(a.availableCash)} Rp</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
   fillSelect($("orderAddress"));
 }
 function renderMempool(list) {
-  const name = (addr) => accounts.find((a) => a.address === addr)?.name ?? addr;
-  $("mempool").innerHTML = list.map((tx) => `<div class="tx"><div>${name(tx.from)} → ${name(tx.to)} <small class="muted">${tx.note || ""}</small><br><code>${short(tx.hash, 16)}</code></div><b>${fmt(tx.amount)} GIBB</b></div>`).join("") || `<div class="muted">Mempool ist leer.</div>`;
+  const name = (addr) => h(accounts.find((a) => a.address === addr)?.name ?? addr);
+  $("mempool").innerHTML = list.map((tx) => `<div class="tx"><div>${name(tx.from)} → ${name(tx.to)} <small class="muted">${h(tx.note || "")}</small><br><code>${short(tx.hash, 16)}</code></div><b>${fmt(tx.amount)} GIBB</b></div>`).join("") || `<div class="muted">Mempool ist leer.</div>`;
 }
 let lastTopHeight = -1;
 function renderBlocks(blocks) {
@@ -509,20 +515,20 @@ function renderBlocks(blocks) {
   $("blocks").innerHTML = blocks.map((b) => `
     <div class="item ${openBlock === b.height ? "open" : ""} ${lastTopHeight >= 0 && b.height > freshUntil ? "fresh" : ""}" data-h="${b.height}">
       <b class="h">#${b.height}</b>
-      <div><code>${short(b.hash, 18)}</code><br><small>${b.height === 0 ? "Genesis" : "von " + b.miner_label} · ${b.tx_count} Tx · ${b.difficulty_bits} Bit · Nonce ${fmt(b.nonce)}${b.attempts ? " · " + fmt(b.attempts) + " Versuche in " + b.mining_ms + " ms" : ""}</small></div>
+      <div><code>${short(b.hash, 18)}</code><br><small>${b.height === 0 ? "Genesis" : "von " + h(b.miner_label)} · ${b.tx_count} Tx · ${b.difficulty_bits} Bit · Nonce ${fmt(b.nonce)}${b.attempts ? " · " + fmt(b.attempts) + " Versuche in " + b.mining_ms + " ms" : ""}</small></div>
       <div class="right"><b>${b.reward ? "+" + b.reward + " GIBB" : "–"}</b><br><small>${time(b.timestamp)}</small></div>
       ${openBlock === b.height ? `<div class="detail" id="detail-${b.height}">Lädt …</div>` : ""}
     </div>`).join("");
   lastTopHeight = topH;
   if (openBlock !== null) loadDetail(openBlock);
 }
-async function loadDetail(h) {
-  const el = $("detail-" + h); if (!el) return;
-  const b = await api("/api/block?height=" + h);
-  const name = (addr) => addr === "COINBASE" ? "⛏ Coinbase" : (accounts.find((a) => a.address === addr)?.name ?? addr);
+async function loadDetail(height) {
+  const el = $("detail-" + height); if (!el) return;
+  const b = await api("/api/block?height=" + height);
+  const name = (addr) => addr === "COINBASE" ? "⛏ Coinbase" : h(accounts.find((a) => a.address === addr)?.name ?? addr);
   el.innerHTML = `<div><small class="muted">Hash</small><br><code>${b.hash}</code></div><div><small class="muted">Vorgänger</small><br><code>${b.previous_hash}</code></div><div><small class="muted">Merkle-Root</small><br><code>${b.merkle_root}</code></div>
-    <div><small class="muted">Header</small><br><code>${b.height}|${short(b.previous_hash)}|${short(b.merkle_root)}|${b.timestamp}|${b.difficulty_bits}|${b.miner_user_id ?? ""}|${b.nonce}</code></div>
-    ${b.transactions.map((tx) => `<div class="tx ${tx.from === "COINBASE" ? "coinbase" : ""}"><div>${name(tx.from)} → ${name(tx.to)} <small class="muted">${tx.note || ""}</small><br><code>${tx.hash}</code></div><b>${fmt(tx.amount)} GIBB</b></div>`).join("") || `<div class="muted">Keine Transaktionen.</div>`}`;
+    <div><small class="muted">Header</small><br><code>${b.height}|${short(b.previous_hash)}|${short(b.merkle_root)}|${b.timestamp}|${b.difficulty_bits}|${h(b.miner_user_id ?? "")}|${b.nonce}</code></div>
+    ${b.transactions.map((tx) => `<div class="tx ${tx.from === "COINBASE" ? "coinbase" : ""}"><div>${name(tx.from)} → ${name(tx.to)} <small class="muted">${h(tx.note || "")}</small><br><code>${h(tx.hash)}</code></div><b>${fmt(tx.amount)} GIBB</b></div>`).join("") || `<div class="muted">Keine Transaktionen.</div>`}`;
 }
 // ---------- Browser-Miner ----------
 const miner = { worker: null, workerUrl: null, template: null, running: false, want: false, nonce: 0, hashes: 0, startedAt: 0, refreshTimer: null, found: [] };
@@ -635,7 +641,7 @@ function renderMarket(m, s) {
   $("asks").innerHTML = m.asks.slice().reverse().map((o) => `<div class="depth ask"><i style="width:${o.amount / maxAsk * 100}%"></i><span>${price(o.price)}</span><b>${fmt(o.amount)}</b></div>`).join("") || `<div class="muted" style="padding:6px 10px;font-size:11px">kein Angebot</div>`;
   $("bids").innerHTML = m.bids.map((o) => `<div class="depth bid"><i style="width:${o.amount / maxBid * 100}%"></i><span>${price(o.price)}</span><b>${fmt(o.amount)}</b></div>`).join("") || `<div class="muted" style="padding:6px 10px;font-size:11px">keine Nachfrage</div>`;
   $("midPrice").textContent = price(m.price) + " Rp";
-  const name = (addr) => accounts.find((a) => a.address === addr)?.name ?? addr.slice(0, 8);
+  const name = (addr) => h(accounts.find((a) => a.address === addr)?.name ?? addr.slice(0, 8));
   $("trades").innerHTML = m.trades.map((t) => `<div class="tx ${t.takerSide === "buy" ? "" : "coinbase"}"><div>${name(t.buyer)} ← ${name(t.seller)}<br><small class="muted">${new Date(t.at).toLocaleTimeString("de-CH")}</small></div><div style="text-align:right"><b>${price(t.price)} Rp</b><br><small class="muted">${fmt(t.amount)} GIBB</small></div></div>`).join("") || `<div class="muted">Noch kein Handel. Verkaufe gemintes GIBB oder stelle ein Kaufgebot.</div>`;
   $("myOrders").innerHTML = (m.myOrders || []).map((o) => `<div class="tx"><div>${o.side === "buy" ? "Kauf" : "Verkauf"} ${fmt(o.remaining)} GIBB @ ${price(o.price)} Rp<br><small class="muted">von ${fmt(o.amount)} · ${fmt(o.filled)} erfüllt</small></div><button class="danger" style="padding:6px 10px" data-cancel="${o.id}">Storno</button></div>`).join("") || `<div class="muted">Keine offenen Aufträge.</div>`;
   drawChart(m.history);
@@ -662,10 +668,10 @@ function updateOrderHint() {
     : `Bringt bis zu ${fmt(cost)} Rappen (${fmtChf(cost)}) · frei: ${fmt(acc.available)} GIBB`;
 }
 function renderRecent(list) {
-  $("recent").innerHTML = (list || []).map((b) => `<div class="tx"><div>#${b.height} von <b>${b.miner_label}</b><br><code>${short(b.hash, 16)}</code></div><small class="muted">${b.attempts ? fmt(b.attempts) + " Versuche" : ""}${b.hashrate ? " · " + (b.hashrate / 1000).toFixed(0) + " kH/s" : ""}<br>${new Date(b.at).toLocaleTimeString("de-CH")}</small></div>`).join("") || `<div class="muted">Noch kein Block gemint.</div>`;
+  $("recent").innerHTML = (list || []).map((b) => `<div class="tx"><div>#${b.height} von <b>${h(b.miner_label)}</b><br><code>${short(b.hash, 16)}</code></div><small class="muted">${b.attempts ? fmt(b.attempts) + " Versuche" : ""}${b.hashrate ? " · " + (b.hashrate / 1000).toFixed(0) + " kH/s" : ""}<br>${new Date(b.at).toLocaleTimeString("de-CH")}</small></div>`).join("") || `<div class="muted">Noch kein Block gemint.</div>`;
 }
 function renderLog(log) {
-  $("log").innerHTML = log.map((l) => `<div class="${l.kind}"><span>${new Date(l.at).toLocaleTimeString("de-CH")}</span><b>${l.message}</b></div>`).join("") || `<div class="muted">Noch nichts passiert.</div>`;
+  $("log").innerHTML = log.map((l) => `<div class="${h(l.kind)}"><span>${new Date(l.at).toLocaleTimeString("de-CH")}</span><b>${h(l.message)}</b></div>`).join("") || `<div class="muted">Noch nichts passiert.</div>`;
 }
 function renderSettings(s) {
   $("sReward").value = s.reward; $("sTarget").value = s.targetSeconds; $("sBits").value = s.difficultyBits; $("sMaxTx").value = s.maxTxPerBlock; $("sMin").value = s.minBits; $("sMax").value = s.maxBits; $("sAuto").checked = s.autoAdjust;
@@ -725,7 +731,7 @@ let authMode = "login";
 function setMode(m) { authMode = m; $("tabLogin").classList.toggle("active", m === "login"); $("tabReg").classList.toggle("active", m === "reg"); $("authGo").textContent = m === "login" ? "Anmelden" : "Konto erstellen"; $("authPass").autocomplete = m === "login" ? "current-password" : "new-password"; }
 $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
-const authErrors = { invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
+const authErrors = { second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
 function onAuthed(me) {
   setTimeout(() => { void caLoad(); void bankLoad(); }, 0);
   myAddress = me.address;
@@ -740,12 +746,18 @@ $("authGo").onclick = async () => {
   $("authMsg").textContent = ""; $("authMsg").className = "msg";
   try {
     const setupCode = $("authCode").value || undefined;
-    const r = await api(authMode === "login" ? "/api/auth/login" : "/api/auth/register", { username, password, setupCode });
-    $("authCode").value = "";
+    const code = $("auth2fa").value.trim() || undefined;
+    const r = await api(authMode === "login" ? "/api/auth/login" : "/api/auth/register", { username, password, setupCode, code });
+    $("authCode").value = ""; $("auth2fa").value = "";
     authToken = r.token; onAuthed(r);
-  } catch (e) { $("authMsg").textContent = authErrors[e.message] || "Fehlgeschlagen. Läuft der Node?"; $("authMsg").className = "msg err"; }
+  } catch (e) {
+    // Owner: zweiter Faktor nötig -> Feld für den Server-Code zeigen
+    if (e.message === "second_factor_required" || e.message === "invalid_second_factor") { $("authTwoFa").hidden = false; $("auth2fa").focus(); }
+    $("authMsg").textContent = authErrors[e.message] || "Fehlgeschlagen. Läuft der Node?"; $("authMsg").className = "msg err";
+  }
 };
 $("authPass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("authGo").click(); });
+$("auth2fa").addEventListener("keydown", (e) => { if (e.key === "Enter") $("authGo").click(); });
 $("logout").onclick = () => { if (authToken) api("/api/auth/logout", {}).catch(() => {}); authToken = null; myAddress = null; try { localStorage.removeItem("gibb-auth"); } catch {} location.reload(); };
 
 (async () => {

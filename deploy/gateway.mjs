@@ -67,6 +67,18 @@ window.addEventListener("online", check);
 </script></body></html>`;
 }
 
+// Über /node darf die Hauptseite nur die öffentlichen Chain-Schnittstellen nutzen (anzeigen, minen).
+// Die Chain-Seite selbst und alle Owner-Funktionen gibt es nur unter chain.<domain> (mit Browser-Passwort).
+const NODE_PUBLIC = new Set([
+  "GET /api/stats", "GET /api/blocks", "GET /api/block", "GET /api/miner-status", "GET /api/server-mining", "GET /api/verify",
+  "POST /api/template", "POST /api/submit", "POST /api/register", "POST /api/server-mining", "OPTIONS *",
+]);
+function nodeAllowed(method, path) {
+  if (method === "OPTIONS") return true;
+  const pathname = path.split("?")[0].replace(/\/+$/, "");
+  return NODE_PUBLIC.has(`${method} ${pathname}`);
+}
+
 function route(url) {
   for (const [prefix, target] of [["/node", NODE], ["/sb", SUPABASE]]) {
     if (url === prefix || url.startsWith(`${prefix}/`) || url.startsWith(`${prefix}?`)) {
@@ -93,6 +105,11 @@ const server = createServer((req, res) => {
     return;
   }
   const { target, path, label } = route(req.url);
+  if (label === "/node" && !nodeAllowed(req.method, path)) {
+    res.writeHead(404, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
+    res.end(JSON.stringify({ error: "not_found" }));
+    return;
+  }
   const upstream = request({
     hostname: target.hostname, port: target.port, method: req.method, path,
     headers: { ...req.headers, host: target.host, "x-forwarded-prefix": label === "/" ? "" : label, "x-forwarded-for": req.headers["x-forwarded-for"] || req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "gateway" },

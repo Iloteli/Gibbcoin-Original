@@ -1,7 +1,8 @@
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const PORT = 18900 + Math.floor(Math.random() * 90);
 const base = `http://127.0.0.1:${PORT}`;
 let child;
+let codeFile;
 
 const post = async (path, body) => {
   const res = await fetch(base + path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -18,6 +20,7 @@ const post = async (path, body) => {
 
 before(async () => {
   const dir = mkdtempSync(join(tmpdir(), "gibb-sec-"));
+  codeFile = join(dir, "owner-login-code.json");
   child = spawn(process.execPath, [join(here, "server.mjs")], {
     env: { ...process.env, PORT: String(PORT), CHAIN_FILE: join(dir, "chain.json"), GIBB_OWNER_SETUP_CODE: "geheim-1234", NO_AUTH: "", FALLBACK_MINER: "0", SUPABASE_URL: "", SUPABASE_ANON_KEY: "", SUPABASE_SERVICE_ROLE_KEY: "" },
     stdio: "ignore",
@@ -72,4 +75,24 @@ test("logout ends the session and huge requests are refused", async () => {
   assert.equal((await post("/api/auth/me", { token: u.token })).data.ok, false);
   const res = await fetch(`${base}/api/auth/login`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ x: "a".repeat(1_100_000) }) });
   assert.equal(res.status, 413);
+});
+
+test("owner login needs a one-time server code (second factor) and security headers are set", async () => {
+  const missing = await post("/api/auth/login", { username: "ilja", password: "passwort123" });
+  assert.equal(missing.data.error, "second_factor_required");
+  const writeCode = (code, ms = 300000) => writeFileSync(codeFile, JSON.stringify({ hash: createHash("sha256").update(code).digest("hex"), expires: Date.now() + ms }));
+  writeCode("123456");
+  assert.equal((await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "654321" })).data.error, "invalid_second_factor");
+  const ok = await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "123456" });
+  assert.equal(ok.data.role, "super_admin");
+  assert.equal(existsSync(codeFile), false, "Code wird nach Gebrauch gelöscht");
+  assert.equal((await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "123456" })).data.error, "invalid_second_factor");
+  writeCode("777777", -1000);
+  assert.equal((await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "777777" })).data.error, "invalid_second_factor");
+  // Normale Nutzer brauchen keinen Server-Code
+  assert.ok((await post("/api/auth/login", { username: "lea", password: "passwort123" })).data.token);
+  const res = await fetch(base + "/", { headers: { origin: "https://evil.example" } });
+  assert.equal(res.headers.get("x-frame-options"), "DENY");
+  assert.match(res.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
+  assert.equal(res.headers.get("access-control-allow-origin"), null);
 });

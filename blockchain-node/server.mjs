@@ -99,7 +99,7 @@ function note(kind, message) {
 // Anmelde-Sitzungen: sha256(token) -> { address, username, role, expires }.
 // Werden in sessions.json gespeichert (nur Hashes), damit ein Neustart/Update niemanden abmeldet.
 import { randomBytes as _rnd, createHash as _hash } from "node:crypto";
-import { existsSync as _exists, readFileSync as _read, writeFileSync as _write, renameSync as _rename } from "node:fs";
+import { existsSync as _exists, readFileSync as _read, writeFileSync as _write, renameSync as _rename, unlinkSync as _unlink } from "node:fs";
 const SESSION_FILE = join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "sessions.json");
 const tokenKey = (token) => _hash("sha256").update(String(token)).digest("hex");
 const sessions = new Map();
@@ -108,6 +108,21 @@ const saveSessions = () => {
   try { const tmp = `${SESSION_FILE}.tmp`; _write(tmp, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 }); _rename(tmp, SESSION_FILE); } catch { /* nur im Speicher */ }
 };
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // Sitzungen laufen nach 12 Stunden ab
+const OWNER_IDLE_MS = 30 * 60 * 1000;          // Owner wird nach 30 Minuten ohne Aktivität abgemeldet
+
+// Zweiter Faktor für den Owner: Einmal-Code vom Server ("sudo gibb-code"), 5 Minuten gültig, einmal nutzbar.
+const OWNER_2FA = process.env.OWNER_2FA !== "0";
+const OWNER_CODE_FILE = process.env.OWNER_CODE_FILE ?? join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "owner-login-code.json");
+const checkOwnerCode = (code) => {
+  if (!OWNER_2FA) return true;
+  if (typeof code !== "string" || !/^\d{6,8}$/.test(code.trim())) return false;
+  let info;
+  try { info = JSON.parse(_read(OWNER_CODE_FILE, "utf8")); } catch { return false; }
+  if (!info?.hash || !(Number(info.expires) > Date.now())) return false;
+  if (_hash("sha256").update(code.trim()).digest("hex") !== info.hash) return false;
+  try { _unlink(OWNER_CODE_FILE); } catch { /* Code verfällt sonst nach 5 Minuten */ }
+  return true;
+};
 const newSession = (u) => {
   const token = _rnd(32).toString("hex");
   sessions.set(tokenKey(token), { address: u.address, username: u.username, role: u.role, expires: Date.now() + SESSION_TTL_MS });
@@ -144,7 +159,10 @@ const getGuest = () => {
 };
 const sessionOf = (body) => {
   const sess = body && typeof body.token === "string" ? sessions.get(tokenKey(body.token)) : null;
-  if (sess && sess.expires > Date.now()) return sess;
+  if (sess && sess.expires > Date.now() && !(sess.role === "super_admin" && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
+    sess.lastSeen = Date.now();
+    return sess;
+  }
   if (sess) { sessions.delete(tokenKey(body.token)); saveSessions(); }
   return NO_AUTH && body?.__direct === true ? getGuest() : null;
 };
@@ -154,7 +172,7 @@ const websiteOwnerSession = createWebsiteOwnerCheck();
 const requireOwner = async (body) => {
   const sess = sessionOf(body);
   if (sess && sess.role === "super_admin") return sess;
-  const web = await websiteOwnerSession(body?.supabaseToken);
+  const web = OWNER_2FA ? null : await websiteOwnerSession(body?.supabaseToken);
   if (web) return web;
   throw new Error("not_owner");
 };
@@ -179,6 +197,11 @@ const routes = {
     let u;
     try { u = chain.verifyUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { loginFailed(nameKey, ipKey); throw error; }
+    if (u.role === "super_admin" && OWNER_2FA) {
+      if (!body.code) throw new Error("second_factor_required");
+      if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
+      note("auth", `Owner ${u.username} mit Server-Code angemeldet`);
+    }
     loginFailures.delete(nameKey);
     const token = newSession(u);
     return { token, ...u };
@@ -343,15 +366,29 @@ function summarize(block) {
   return { ...block, transactions: undefined, tx_count: block.transactions.length };
 }
 
+// Eigene Website(s), die den Node per Skript aufrufen dürfen (z. B. lokale Entwicklung auf Port 3000).
+const ALLOWED_ORIGINS = String(process.env.ALLOWED_ORIGINS ?? "https://gibbcoin-original.duckdns.org,http://localhost:3000,http://127.0.0.1:3000").split(",").map((o) => o.trim()).filter(Boolean);
 const staticTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".svg": "image/svg+xml" };
 
 const requestHandler = async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host ?? "localhost"}`);
   const key = `${req.method} ${url.pathname}`;
-  // Die echte Website (anderer Port) darf den lokalen Node aufrufen.
-  res.setHeader("access-control-allow-origin", "*");
-  res.setHeader("access-control-allow-headers", "content-type");
-  res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  // Fremde Seiten dürfen den Node nicht per Skript aufrufen – nur die eigene Website.
+  const origin = String(req.headers.origin ?? "");
+  if (origin && ALLOWED_ORIGINS.some((o) => o === origin)) {
+    res.setHeader("access-control-allow-origin", origin);
+    res.setHeader("vary", "origin");
+    res.setHeader("access-control-allow-headers", "content-type");
+    res.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  }
+  // Schutz-Header: kein Einbetten in fremde Seiten, keine fremden Skripte, keine Weitergabe der Adresse.
+  res.setHeader("x-frame-options", "DENY");
+  res.setHeader("x-content-type-options", "nosniff");
+  res.setHeader("referrer-policy", "no-referrer");
+  res.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()");
+  res.setHeader("cross-origin-opener-policy", "same-origin");
+  res.setHeader("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  if (req.headers["x-forwarded-proto"] === "https") res.setHeader("strict-transport-security", "max-age=31536000");
   if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
   try {
     if (routes[key]) {
