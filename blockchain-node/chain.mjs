@@ -44,7 +44,7 @@ export function defaultWebsiteSettings() {
     marketStepPercent: 0.05, minPrice: 0.25, maxPrice: 50, maxTrade: 1000,
     buyEnabled: false, sellEnabled: false, dailySellLimit: 0,
     adminCoinGrants: false,
-    bankEnabled: false, bankIban: "", bankHolder: "", cardEnabled: false, creditsEnabled: true,
+    bankEnabled: false, bankIban: "", bankHolder: "", bankStreet: "", bankZip: "", bankCity: "", cardEnabled: false, creditsEnabled: true,
     disabledTabs: [],
   };
 }
@@ -68,6 +68,9 @@ function sanitizeWebsite(current, patch) {
   }
   if (patch.bankIban !== undefined) next.bankIban = String(patch.bankIban).toUpperCase().replace(/\s+/g, "").slice(0, 40);
   if (patch.bankHolder !== undefined) next.bankHolder = String(patch.bankHolder).trim().slice(0, 80);
+  if (patch.bankStreet !== undefined) next.bankStreet = String(patch.bankStreet).trim().slice(0, 70);
+  if (patch.bankZip !== undefined) next.bankZip = String(patch.bankZip).trim().slice(0, 4);
+  if (patch.bankCity !== undefined) next.bankCity = String(patch.bankCity).trim().slice(0, 35);
   for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled", "adminCoinGrants", "bankEnabled", "cardEnabled", "creditsEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
   if (next.minPrice > next.maxPrice) throw new Error("invalid_price_range");
   return next;

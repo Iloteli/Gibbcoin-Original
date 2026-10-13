@@ -76,6 +76,21 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
         body: JSON.stringify({ p_key: secret, p_card: Boolean(w.cardEnabled), p_credits: w.creditsEnabled !== false }),
       });
       if (!card.ok && card.status !== 404) throw new Error(`card_http_${card.status}`);
+      const address = await fetchImpl(`${url}/rest/v1/rpc/node_set_bank_address`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_street: w.bankStreet ?? "", p_zip: w.bankZip ?? "", p_city: w.bankCity ?? "" }),
+      });
+      if (address.ok) {
+        const addressResult = await address.json();
+        if (!addressResult?.ok) throw new Error(addressResult?.error ?? "address_failed");
+      } else if (address.status !== 404) throw new Error(`address_http_${address.status}`);
+      const levels = await fetchImpl(`${url}/rest/v1/rpc/node_set_owner_levels`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_full: Object.entries(chain.ownerLevels ?? {}).filter(([, level]) => level === "full").map(([id]) => id) }),
+      });
+      if (!levels.ok && levels.status !== 404) throw new Error(`owner_levels_http_${levels.status}`);
       if (bank.ok) {
         const bankResult = await bank.json();
         if (!bankResult?.ok) throw new Error(bankResult?.error ?? "bank_failed");

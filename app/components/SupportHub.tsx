@@ -51,6 +51,7 @@ export function SupportHub({ transactions, isOwner }: { transactions: Transactio
   const [busy, setBusy] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [canDesk, setCanDesk] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
@@ -72,8 +73,13 @@ export function SupportHub({ transactions, isOwner }: { transactions: Transactio
     setExports((exportResult.data ?? []) as RequestItem[]);
     setPrivacy((privacyResult.data ?? []) as RequestItem[]);
     if (isOwner) {
-      const { data } = await supabase.rpc("support_list_all");
-      setDesk((data ?? []) as DeskItem[]);
+      const access = await supabase.rpc("get_support_access");
+      const allowed = !access.error && access.data === true;
+      setCanDesk(allowed);
+      if (allowed) {
+        const { data } = await supabase.rpc("support_list_all");
+        setDesk((data ?? []) as DeskItem[]);
+      }
     }
   }, [isOwner]);
 
@@ -186,7 +192,7 @@ export function SupportHub({ transactions, isOwner }: { transactions: Transactio
         </div>
       </details>
 
-      {isOwner && (
+      {isOwner && canDesk && (
         <div className="support-desk">
           <div className="card-head"><h2>Support bearbeiten</h2><span>{desk.filter((item) => !item.done).length} offen</span></div>
           <div className="support-filter">

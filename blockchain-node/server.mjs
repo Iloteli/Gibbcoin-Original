@@ -464,6 +464,7 @@ const routes = {
     if (level === "full") chain.ownerLevels[id] = "full"; else delete chain.ownerLevels[id];
     chain.save();
     dropSessionsOfAddress(`sb_${id}`); // neu anmelden, damit die neue Stufe gilt
+    void settingsSync.push(); // Hauptseite: Support bearbeiten nur für Full
     note("auth", `Owner ${String(body.name ?? id).slice(0, 40)} ist jetzt ${level === "full" ? "Full" : "Basic"}`);
     return { ok: true, level };
   },
