@@ -15,6 +15,7 @@ import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainOverview } from "./BlockchainOverview";
 import { BrowserMinerCard } from "./BrowserMinerCard";
 import { LocalMinerCard } from "./LocalMinerCard";
+import { BlockchainExplorer } from "./BlockchainExplorer";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
 import { KeyboardHelp } from "./KeyboardHelp";
@@ -647,10 +648,14 @@ export function Dashboard({ user }: Props) {
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
-        <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>{profile?.role === "super_admin" ? "Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle." : "Mine GIBB direkt im Browser – dein Rechner löst echte Blöcke."}</p></div>
-        {activeView === "chain" && <BlockchainOverview userId={user.id} />}
-        <BrowserMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />
-        {profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
+        <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>Mine GIBB direkt im Browser – die Belohnung landet sofort in deinem Wallet.</p></div>
+        {activeView === "chain" && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} />}
+        <details className="card card-pad chain-node-section">
+          <summary><strong>Schulserver-Mining</strong><span>Zweite Blockchain auf dem GIBB-Server – mint auch weiter, wenn der Tab geschlossen ist.</span></summary>
+          {activeView === "chain" && <BlockchainOverview userId={user.id} />}
+          <BrowserMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />
+          {profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
+        </details>
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { blockHash, expectedAttempts, meetsDifficulty, merkleRoot, minerWorkerSource } from "../lib/blockchain-core";
 import { getSupabase } from "../lib/supabase";
 import type { Block } from "../lib/types";
+import { BlockchainCharts, MinerLeaderboard } from "./BlockchainCharts";
 
 type Overview = {
   enabled: boolean;
@@ -139,7 +140,7 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
     if (!supabase) return;
     const [overviewResult, blocksResult] = await Promise.all([
       supabase.rpc("get_blockchain_overview"),
-      supabase.from("blocks").select("height,previous_hash,merkle_root,first_chain_index,last_chain_index,tx_count,mined_at,difficulty_bits,nonce,hash,miner_user_id,miner_label,reward,reward_transaction_id,created_at").order("height", { ascending: false }).limit(30),
+      supabase.from("blocks").select("height,previous_hash,merkle_root,first_chain_index,last_chain_index,tx_count,mined_at,difficulty_bits,nonce,hash,miner_user_id,miner_label,reward,reward_transaction_id,created_at").order("height", { ascending: false }).limit(60),
     ]);
     if (overviewResult.error || blocksResult.error) {
       setLoadError("Die Blockchain ist noch nicht verfügbar. Wurde die Migration 20260915090000_add_gibb_blockchain angewendet?");
@@ -375,6 +376,8 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
         </div>
       </section>
 
+      <BlockchainCharts blocks={blocks} targetSeconds={overview?.target_seconds} />
+
       <div className="blockchain-grid">
         <section className="card card-pad blockchain-miner" aria-label="Mining">
           <div className="card-head"><h2>Miner</h2><span>{overview?.enabled === false ? "Vom Admin pausiert" : status === "mining" ? "Sucht Nonce …" : status === "preparing" ? "Lädt Vorlage …" : status === "submitting" ? "Reicht Block ein …" : status === "cooldown" ? "Wartet …" : "Bereit"}</span></div>
@@ -401,12 +404,12 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
           {error && <div className="message error">{error}</div>}
           {notice && !error && <div className="message">{notice}</div>}
           {foundBlocks.length > 0 && <ul className="blockchain-found">{foundBlocks.map((block) => <li key={block.height}><strong>#{block.height}</strong><span>{shortHash(block.hash, 14)}</span><b>+{block.reward} GIBB</b></li>)}</ul>}
-          <small className="field-hint">Der Miner läuft nur in diesem Tab und nutzt einen Prozessorkern. Schliesst du die App, stoppt er. Die Belohnung wird erst nach der Serverprüfung gutgeschrieben.</small>
+          <small className="field-hint">Die Belohnung landet nach der Serverprüfung <strong>direkt in deinem Wallet</strong>. Ein Block bündelt unbestätigte Coin-Bewegungen – gibt es gerade keine, wartet der Miner, bis jemand Coins sendet oder spielt. Läuft nur, solange dieser Tab offen ist.</small>
         </section>
 
         <section className="card card-pad" aria-label="Top-Miner">
-          <div className="card-head"><h2>Top-Miner</h2><span>Blöcke gesamt</span></div>
-          {overview?.top_miners?.length ? <ol className="blockchain-miners">{overview.top_miners.map((miner, index) => <li key={miner.user_id} className={miner.user_id === userId ? "you" : ""}><span className="rank">{index + 1}</span><strong>{miner.label}</strong><span>{miner.blocks} {miner.blocks === 1 ? "Block" : "Blöcke"} · {formatCount(miner.reward)} GIBB</span></li>)}</ol> : <div className="empty">Noch hat niemand einen Block gefunden. Sei die erste Person!</div>}
+          <div className="card-head"><h2>Bestenliste</h2><span>meiste gefundene Blöcke</span></div>
+          <MinerLeaderboard miners={overview?.top_miners ?? []} userId={userId} myBlocks={overview?.my_blocks} />
           <div className="blockchain-verify">
             <button className="secondary compact" type="button" disabled={verifying || !!loadError} onClick={verify}>{verifying ? "Prüft …" : "Kette vollständig prüfen"}</button>
             {verification && <div className={`chain-status ${verification.valid ? "" : "invalid"}`}><i aria-hidden="true" />{verification.valid ? `${verification.blocks_checked} Blöcke verifiziert` : `Fehler bei Block #${verification.invalid_height}: ${verification.reason}`}</div>}

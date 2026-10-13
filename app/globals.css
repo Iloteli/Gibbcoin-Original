@@ -2909,3 +2909,42 @@ textarea:focus-visible {
 .report-owner { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(192, 132, 252, 0.4); background: rgba(192, 132, 252, 0.1); }
 .report-owner p { margin: 4px 0 0; opacity: 0.8; }
 @media (max-width: 640px) { .report-row { grid-template-columns: 1.6fr 1fr; } .report-row span:nth-child(2) { display: none; } }
+
+/* Blockchain-Tab: Verlauf (Diagramme), Bestenliste, Schulserver-Bereich */
+.chain-charts { margin-top: 14px; }
+.chain-chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.chain-chart { margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(124,245,157,.035); }
+.chain-chart figcaption { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+.chain-chart figcaption span { color: var(--muted); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; flex: 1 1 100%; }
+.chain-chart figcaption strong { color: var(--text); font-size: 20px; }
+.chain-chart figcaption small { color: var(--muted); }
+.chain-chart svg { width: 100%; height: 96px; display: block; overflow: visible; }
+.chain-chart-line { fill: none; stroke: var(--green); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.chain-chart-area { fill: rgba(124,245,157,.12); stroke: none; }
+.chain-chart-dot { fill: var(--green); }
+.chain-chart-target { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 4 4; vector-effect: non-scaling-stroke; }
+.chain-chart-legend { color: var(--muted); font-size: 11px; }
+.chain-chart.empty { display: grid; gap: 6px; min-height: 120px; align-content: center; color: var(--muted); }
+.chain-leaderboard { display: grid; gap: 12px; }
+.chain-me { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chain-me div { padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: rgba(124,245,157,.05); }
+.chain-me span { display: block; color: var(--muted); font-size: 11px; }
+.chain-me strong { font-size: 18px; color: var(--green); }
+.chain-ranks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.chain-ranks li { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 12px; border: 1px solid transparent; }
+.chain-ranks li.you { border-color: rgba(124,245,157,.45); background: rgba(124,245,157,.07); }
+.chain-ranks .rank { text-align: center; font-weight: 800; color: var(--muted); }
+.chain-rank-main { display: grid; gap: 4px; min-width: 0; }
+.chain-rank-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chain-rank-main i { display: block; height: 4px; border-radius: 99px; background: var(--green); opacity: .7; transition: width var(--motion-normal, .3s) var(--ease-out, ease-out); }
+.chain-rank-stats { color: var(--muted); font-size: 12px; white-space: nowrap; }
+.chain-rank-stats b { color: var(--text); }
+.chain-node-section { margin-top: 14px; }
+.chain-node-section > summary { cursor: pointer; list-style: none; display: grid; gap: 2px; }
+.chain-node-section > summary::-webkit-details-marker { display: none; }
+.chain-node-section > summary strong::before { content: "▸ "; color: var(--green); }
+.chain-node-section[open] > summary strong::before { content: "▾ "; }
+.chain-node-section > summary span { color: var(--muted); font-size: 13px; }
+.chain-node-section[open] > summary { margin-bottom: 12px; }
+@media (max-width: 560px) { .chain-me { grid-template-columns: 1fr; } .chain-ranks li { grid-template-columns: 28px 1fr; } .chain-rank-stats { grid-column: 2; } }
+@media (prefers-reduced-motion: reduce) { .chain-rank-main i { transition: none; } }
