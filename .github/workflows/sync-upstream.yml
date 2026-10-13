@@ -1,0 +1,53 @@
+name: Änderungen aus dem Schulwallet übernehmen
+
+# Holt einmal pro Tag die neuen Commits von nxn7gmcgmt-byte/gibb-coin-schulwallet (main)
+# und mergt sie in den eigenen main. Bei einem Merge-Konflikt wird nichts verändert;
+# der Lauf schlägt fehl (GitHub meldet das per Mail) und muss von Hand gelöst werden.
+on:
+  schedule:
+    - cron: "15 3 * * *" # täglich 03:15 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Schulwallet holen
+        run: |
+          git config user.name "gibb-sync-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream https://github.com/nxn7gmcgmt-byte/gibb-coin-schulwallet.git
+          git fetch --no-tags upstream main
+
+      - name: Mergen (nur wenn es Neues gibt)
+        id: merge
+        run: |
+          NEW=$(git rev-list --count HEAD..upstream/main)
+          echo "Neue Commits im Schulwallet: $NEW"
+          echo "new=$NEW" >> "$GITHUB_OUTPUT"
+          if [ "$NEW" = "0" ]; then exit 0; fi
+          if ! git merge --no-edit -m "Tägliche Übernahme aus gibb-coin-schulwallet" upstream/main; then
+            echo "::error::Merge-Konflikt mit dem Schulwallet. Nichts wurde geändert – bitte von Hand mergen."
+            git diff --name-only --diff-filter=U | sed 's/^/Konflikt: /'
+            git merge --abort
+            exit 1
+          fi
+          if git diff --name-only HEAD@{1} HEAD | grep -q '^.github/workflows/'; then
+            echo "::warning::Das Schulwallet ändert GitHub-Workflows. Solche Änderungen darf der Bot nicht pushen – bitte von Hand übernehmen."
+          fi
+
+      - name: Pushen
+        if: steps.merge.outputs.new != '0'
+        run: git push origin HEAD:main

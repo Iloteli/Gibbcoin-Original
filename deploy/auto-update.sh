@@ -9,7 +9,7 @@ RUN_USER="${RUN_USER:-gibb}"
 git config --global --add safe.directory "$PWD" 2>/dev/null || true
 git fetch -q origin || { echo "GitHub nicht erreichbar"; exit 1; }
 TARGET="$(git rev-parse '@{u}' 2>/dev/null || git rev-parse origin/main)"
-if [ "$(git rev-parse HEAD)" = "$TARGET" ]; then exit 0; fi
+if [ "${FORCE:-0}" != "1" ] && [ "$(git rev-parse HEAD)" = "$TARGET" ]; then exit 0; fi
 git reset -q --hard "$TARGET"
 echo "GIBB Coin: neue Version $(git rev-parse --short HEAD)"
 if [ -f /etc/systemd/system/gibb-website.service ]; then
