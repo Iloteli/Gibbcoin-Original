@@ -65,7 +65,8 @@ begin
   v_def := pg_catalog.replace(pg_catalog.pg_get_functiondef('public.admin_adjust_balance_secure(uuid, bigint, text, text)'::pg_catalog.regprocedure), chr(13), '');
   if pg_catalog.strpos(v_def, 'coin_grants_switch') = 0 then
     v_pos := pg_catalog.strpos(v_def, E'\nbegin\n');
-    if v_pos = 0 then raise exception 'admin_adjust_balance_secure: Funktionsbeginn nicht gefunden'; end if;
+    -- Andere Schreibweise (z. B. in der Cloud): überspringen – 20261013180000 ersetzt die Funktion ohnehin.
+    if v_pos = 0 then raise notice 'admin_adjust_balance_secure übersprungen'; return; end if;
     v_def := pg_catalog.left(v_def, v_pos + 6)
       || E'  -- coin_grants_switch: Gutschreiben nur, wenn auf der Chain-Seite eingeschaltet\n'
       || E'  if p_amount > 0 and not private.admin_coin_grants_enabled() then\n'
