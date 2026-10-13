@@ -61,3 +61,24 @@ test("keeps all accounts when the main site cannot be asked", async () => {
   assert.equal((await sync.cleanupAccounts()).removed, 0);
   assert.equal(Object.keys(chain.accounts).filter((a) => a.startsWith("sb_")).length, 1);
 });
+
+test("mirrors website accounts: names, balances, new and deleted accounts", async () => {
+  const chain = new Blockchain(null);
+  const a = "11111111-1111-4111-8111-111111111111", b = "22222222-2222-4222-8222-222222222222", c = "33333333-3333-4333-8333-333333333333";
+  chain.upsertWebsiteAccount(a, "alt", 2_399_793_771);
+  chain.upsertWebsiteAccount(b, "geloescht", 500);
+  const local = chain.createWallet("Lokal").address;
+  const fetchImpl = async (url) => {
+    assert.match(url, /node_list_users$/);
+    return { ok: true, json: async () => ({ ok: true, users: [{ id: a, username: "ilja", balance: 10 }, { id: c, username: "neu", balance: 7 }] }) };
+  };
+  const sync = createSettingsSync({ chain, fetchImpl, env: { SUPABASE_URL: "https://x", SUPABASE_ANON_KEY: "k", NODE_SETTINGS_KEY: "s" }, intervalMs: 1e9, accountSyncMs: 1e9 });
+  const r = await sync.syncAccounts();
+  assert.equal(r.ok, true);
+  assert.equal(chain.accounts[`sb_${a}`].balance, 10);
+  assert.equal(chain.accounts[`sb_${a}`].name, "ilja");
+  assert.equal(chain.accounts[`sb_${b}`], undefined);
+  assert.equal(chain.accounts[`sb_${c}`].balance, 7);
+  assert.ok(chain.accounts[local]);
+  assert.equal(chain.verify().valid, true);
+});

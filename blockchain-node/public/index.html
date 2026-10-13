@@ -303,7 +303,7 @@
   </div>
 
   <section class="card coin-admin-card owner-only" id="coinAdminCard">
-    <h2>Coins verwalten <span>Hauptseite · alle Benutzer</span></h2>
+    <h2>Coins verwalten <span id="caSync">Hauptseite · alle Benutzer</span></h2>
     <p class="muted" style="margin:0 0 12px">Coins geben oder abziehen für Konten der Hauptseite. Jede Änderung wird als Transaktion gebucht und der Person mitgeteilt.</p>
     <div class="coin-admin">
       <div>
@@ -461,6 +461,7 @@ async function refresh() {
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
     const push = s.settingsSync ?? {};
+    $("caSync").textContent = push.accountSyncError ? `Abgleich fehlgeschlagen (${push.accountSyncError})` : push.lastAccountSync ? `${push.websiteUsers} Konten · abgeglichen ${new Date(push.lastAccountSync).toLocaleTimeString("de-CH")}` : "Hauptseite · alle Benutzer";
     $("pushStatus").textContent = !push.configured ? "" : !push.enabled ? "Hauptseite: Schlüssel fehlt – auf dem Server einmal „sudo gibb-chain-key“ ausführen." : push.lastError ? `Hauptseite: Übertragung fehlgeschlagen (${push.lastError}).` : push.lastPush ? `Hauptseite: zuletzt übertragen ${new Date(push.lastPush).toLocaleTimeString("de-CH")}.` : "Hauptseite: wird übertragen …";
     fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
   if (myAddress) ["minerAddress", "orderAddress", "txFrom"].forEach((id) => { const el = $(id); if (el && [...el.options].some((o) => o.value === myAddress)) el.value = myAddress; });

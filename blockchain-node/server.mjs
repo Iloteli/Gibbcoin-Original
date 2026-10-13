@@ -323,6 +323,7 @@ const routes = {
     const reason = String(body.reason ?? "").trim().slice(0, 120);
     if (reason.length < 3) throw new Error("reason_required");
     const result = await settingsSync.adjustWebsiteBalance(String(body.userId ?? ""), amount, reason);
+    void settingsSync.syncAccounts();
     note("wallet", `${amount > 0 ? "Gutschrift" : "Abzug"} ${Math.abs(amount)} GIBB auf der Hauptseite (${String(body.name ?? body.userId).slice(0, 40)}): ${reason}`);
     return result;
   },

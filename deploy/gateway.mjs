@@ -56,7 +56,7 @@ async function check() {
   if (leaving) return;
   try {
     const s = await fetch("/__status?t=" + Date.now(), { cache: "no-store" }).then((r) => r.json());
-    if (!s.maintenance) { leaving = true; location.replace(location.pathname + location.search + location.hash); }
+    if (!s.maintenance) { leaving = true; location.reload(); }
   } catch {}
 }
 setInterval(check, 5000);

@@ -33,12 +33,12 @@ export function buildPushPayload(settings, { price } = {}) {
   return { blockchain, market };
 }
 
-export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalThis.fetch, env = process.env, intervalMs = 10 * 60_000, onAccountRemoved = () => {} } = {}) {
+export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalThis.fetch, env = process.env, intervalMs = 10 * 60_000, accountSyncMs = 30_000, onAccountRemoved = () => {} } = {}) {
   const url = (env.SUPABASE_URL ?? "").replace(/\/$/, "");
   const apiKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "";
   const secret = env.NODE_SETTINGS_KEY ?? "";
   const enabled = Boolean(url && apiKey && secret);
-  const state = { enabled, configured: Boolean(url && apiKey), lastPush: null, lastError: enabled ? null : (url && apiKey ? "no_key" : null) };
+  const state = { enabled, configured: Boolean(url && apiKey), lastPush: null, lastError: enabled ? null : (url && apiKey ? "no_key" : null), lastAccountSync: null, accountSyncError: null, websiteUsers: 0 };
 
   async function push(options = {}) {
     if (!enabled) return { ok: false, error: state.lastError ?? "not_configured" };
@@ -69,7 +69,49 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     }
   }
 
-  // Gelöschte Website-Konten auch hier entfernen.
+  // Website-Konten 1:1 übernehmen: Name und Guthaben von der Hauptseite, neue Konten anlegen,
+  // gelöschte Konten entfernen. Die Hauptseite ist für Website-Konten führend.
+  let syncing = false;
+  async function syncAccounts() {
+    if (!enabled || syncing) return { ok: false, removed: 0, updated: 0 };
+    syncing = true;
+    try {
+      const users = await listWebsiteUsers();
+      const ids = new Set();
+      let updated = 0;
+      for (const u of users) {
+        const id = String(u.id ?? "").toLowerCase();
+        if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) continue;
+        ids.add(id);
+        const name = String(u.username || u.display_name || "Nutzer");
+        const balance = Math.max(0, Math.round(Number(u.balance) || 0));
+        const before = chain.accounts[`sb_${id}`];
+        if (!before || before.name !== name || before.balance !== balance) {
+          chain.upsertWebsiteAccount(id, name, balance, { overwriteBalance: true });
+          updated += 1;
+        }
+      }
+      let removed = 0;
+      for (const address of Object.keys(chain.accounts)) {
+        if (!address.startsWith("sb_") || chain.accounts[address]?.source !== "supabase") continue;
+        if (ids.has(address.slice(3).toLowerCase())) continue;
+        const name = chain.accounts[address]?.name ?? address;
+        if (chain.removeWebsiteAccount(address)) { removed += 1; onAccountRemoved(address); note("wallet", `Gelöschtes Website-Konto entfernt: ${name}`); }
+      }
+      state.lastAccountSync = Date.now();
+      state.accountSyncError = null;
+      state.websiteUsers = ids.size;
+      return { ok: true, removed, updated };
+    } catch (error) {
+      if (state.accountSyncError !== error.message) note("error", `Konten-Abgleich mit der Hauptseite fehlgeschlagen: ${error.message}`);
+      state.accountSyncError = error.message;
+      return { ok: false, removed: 0, updated: 0, error: error.message };
+    } finally {
+      syncing = false;
+    }
+  }
+
+  // Gelöschte Website-Konten auch hier entfernen (ältere, schmalere Abfrage).
   async function cleanupAccounts() {
     if (!enabled) return { ok: false, removed: 0 };
     const ids = Object.keys(chain.accounts)
@@ -101,10 +143,6 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     }
   }
 
-  if (enabled) {
-    setTimeout(() => { void push(); void cleanupAccounts(); }, 3000).unref();
-    setInterval(() => { void push(); void cleanupAccounts(); }, intervalMs).unref();
-  }
 
   // Coins der Website-Benutzer verwalten (nur über die Chain-Seite).
   async function rpc(name, body) {
@@ -122,5 +160,11 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   const listWebsiteUsers = async () => (await rpc("node_list_users", {})).users ?? [];
   const adjustWebsiteBalance = async (userId, amount, reason) => rpc("node_adjust_balance", { p_user: userId, p_amount: amount, p_reason: reason });
 
-  return { enabled, push, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, status: () => ({ ...state }) };
+  if (enabled) {
+    setTimeout(() => { void push(); void syncAccounts(); }, 3000).unref();
+    setInterval(() => { void push(); }, intervalMs).unref();
+    setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
+  }
+
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, status: () => ({ ...state }) };
 }
