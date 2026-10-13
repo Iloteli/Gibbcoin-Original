@@ -3022,3 +3022,6 @@ textarea:focus-visible {
 .bank-order-row.pending .bank-status { color: var(--amber, #f6c85f); }
 .bank-order-row.paid .bank-status { color: var(--green); }
 @media (max-width: 560px) { .bank-transfer dl { grid-template-columns: 1fr; } .bank-order-row { grid-template-columns: 1fr auto; } .bank-order-row .bank-status { grid-column: 1; } }
+.bank-transfer .bank-message code { font-size: 16px; color: var(--green); background: rgba(117,245,154,.08); border: 1px dashed rgba(117,245,154,.45); border-radius: 8px; padding: 3px 8px; }
+.bank-important { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(246,200,95,.08); border: 1px solid rgba(246,200,95,.35); font-size: 13px; line-height: 1.5; }
+.bank-important code { font-weight: 800; }

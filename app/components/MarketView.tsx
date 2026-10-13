@@ -217,9 +217,10 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
               <dt>Empfänger</dt><dd>{bank.holder || "–"}</dd>
               <dt>IBAN</dt><dd><code>{bank.iban}</code> <button type="button" className="secondary compact" onClick={() => copy(bank.iban)}>Kopieren</button></dd>
               <dt>Betrag</dt><dd>{chf(newOrder.rappen)}</dd>
-              <dt>Verwendungszweck</dt><dd><code>{newOrder.reference}</code> <button type="button" className="secondary compact" onClick={() => copy(newOrder.reference)}>Kopieren</button></dd>
+              <dt>Mitteilung an den Empfänger</dt><dd className="bank-message"><code>{newOrder.reference}</code> <button type="button" className="secondary compact" onClick={() => copy(newOrder.reference)}>Kopieren</button></dd>
             </dl>
-            <small className="field-hint">Wichtig: Gib den Verwendungszweck genau so an. Sobald die Zahlung eingegangen ist (meist 1–2 Werktage), werden dir {newOrder.gibb} GIBB gutgeschrieben – du bekommst eine Mitteilung.</small>
+            <p className="bank-important"><b>Wichtig:</b> Schreibe <code>{newOrder.reference}</code> in das Feld <b>„Mitteilung an den Empfänger“</b> (je nach Bank auch „Zusätzliche Informationen“ oder „Mitteilung“). <b>Nicht</b> ins Feld „Referenz“ – das ist nur für QR-Rechnungen.</p>
+            <small className="field-hint">Ohne diesen Code können wir deine Zahlung nicht zuordnen. Sobald sie eingegangen ist (meist 1–2 Werktage), werden dir {newOrder.gibb} GIBB gutgeschrieben – du bekommst eine Mitteilung.</small>
           </div>
         )}
         <small className="field-hint">Verkäufe werden nicht in echtem Geld ausbezahlt, sondern als Credits gutgeschrieben – damit kannst du später wieder GIBB kaufen.</small>
