@@ -556,7 +556,7 @@ export function Dashboard({ user }: Props) {
           </a>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
             {dashboardViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
-          </div>
+          </nav>
           <div className="header-actions">
             <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
             <div className="menu-wrap">
