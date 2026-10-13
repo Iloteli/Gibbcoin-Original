@@ -303,8 +303,9 @@ const routes = {
     note("mining", `Server-Mining ausgeschaltet für ${user.username}`);
     return serverMining.disable(address);
   },
-  "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(settingsSync.filterPatch(body)); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
+  "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
   "POST /api/tamper": async (_, body) => { await requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
+  "POST /api/market/reset-prices": async (_, body) => { await requireOwner(body); const r = chain.resetPrices(1); const website = await settingsSync.push({ price: 1 }); note("settings", "Kurse zurückgesetzt (1 Rp)"); return { ...r, websitePush: website }; },
   "POST /api/reset": async (_, body) => { await requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
 

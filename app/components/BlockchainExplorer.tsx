@@ -51,7 +51,6 @@ type Template = {
 type BlockTransaction = { chain_index: number; hash: string; previous_hash: string; type: string; created_at: string };
 type Verification = { valid: boolean; blocks_checked: number; invalid_height?: number; reason?: string; checked_at?: string };
 type MiningStatus = "idle" | "preparing" | "mining" | "submitting" | "cooldown";
-type Settings = { enabled: boolean; reward: number; target_seconds: number; min_bits: number; max_bits: number; cooldown_seconds: number; max_tx_per_block: number; halving_blocks: number; max_blocks_per_day: number; require_real_tx: boolean };
 
 const TEMPLATE_REFRESH_MS = 45_000;
 const OVERVIEW_REFRESH_MS = 30_000;
@@ -126,10 +125,6 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [pin, setPin] = useState("");
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [settingsMessage, setSettingsMessage] = useState("");
 
   const workerRef = useRef<Worker | null>(null);
   const workerUrlRef = useRef<string | null>(null);
@@ -165,7 +160,6 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
     const next = overviewResult.data as Overview;
     setOverview(next);
     setBlocks((blocksResult.data ?? []) as Block[]);
-    setSettings((current) => current ?? { enabled: next.enabled, reward: next.reward, target_seconds: next.target_seconds, min_bits: next.min_bits, max_bits: next.max_bits, cooldown_seconds: next.cooldown_seconds, max_tx_per_block: next.max_tx_per_block, halving_blocks: next.halving_blocks ?? 0, max_blocks_per_day: next.max_blocks_per_day ?? 0, require_real_tx: next.require_real_tx ?? true });
   }, []);
 
   useEffect(() => {
@@ -345,23 +339,6 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
     setVerification(data as Verification);
   }, []);
 
-  const saveSettings = useCallback(async () => {
-    const supabase = getSupabase();
-    if (!supabase || !settings) return;
-    setSavingSettings(true);
-    setSettingsMessage("");
-    const { data, error: rpcError } = await supabase.rpc("admin_update_blockchain_settings", { p_value: settings, p_pin: pin });
-    setSavingSettings(false);
-    const result = data as { ok: boolean; error?: string; settings?: Settings } | null;
-    if (rpcError || !result?.ok) {
-      const code = result?.error ?? codeOf(rpcError);
-      setSettingsMessage(code === "owner_required" ? "Dafür fehlen dir die Rechte." : code?.startsWith("admin_pin_") ? "Admin-PIN ungültig oder Freigabe abgelaufen." : code === "mfa_required" ? "Für diese Änderung ist eine bestätigte MFA-Sitzung nötig." : code === "invalid_difficulty_range" ? "Die minimale Schwierigkeit darf die maximale nicht übersteigen." : "Die Einstellungen konnten nicht gespeichert werden.");
-      return;
-    }
-    if (result.settings) setSettings(result.settings);
-    setSettingsMessage("Blockchain-Einstellungen gespeichert.");
-    await load();
-  }, [load, pin, settings]);
 
   const cooldownTarget = cooldownUntil ?? (overview?.my_next_mining_at ? new Date(overview.my_next_mining_at).getTime() : null);
   const cooldownRemaining = cooldownTarget ? Math.max(0, Math.ceil((cooldownTarget - now) / 1000)) : 0;
@@ -470,29 +447,6 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
         </div>
       </details>
 
-      {overview?.can_edit_settings && settings && (
-        <section className="card card-pad blockchain-admin" aria-label="Blockchain-Einstellungen">
-          <div className="card-head"><h2>Admin · Blockchain</h2><span>Belohnung, Tempo, Schwierigkeit, Miner</span></div>
-          <div className="blockchain-admin-grid">
-            <label className="field"><span>Mining aktiv</span><select className="input" value={settings.enabled ? "1" : "0"} onChange={(event) => setSettings({ ...settings, enabled: event.target.value === "1" })}><option value="1">Ja</option><option value="0">Nein</option></select></label>
-            <label className="field"><span>Belohnung pro Block (GIBB)</span><input className="input" type="number" min={0} max={1000} value={settings.reward} onChange={(event) => setSettings({ ...settings, reward: Number(event.target.value) })} /></label>
-            <label className="field"><span>Ziel-Blockzeit (Sekunden)</span><input className="input" type="number" min={10} max={86400} value={settings.target_seconds} onChange={(event) => setSettings({ ...settings, target_seconds: Number(event.target.value) })} /></label>
-            <label className="field"><span>Pause pro Miner (Sekunden)</span><input className="input" type="number" min={0} max={86400} value={settings.cooldown_seconds} onChange={(event) => setSettings({ ...settings, cooldown_seconds: Number(event.target.value) })} /></label>
-            <label className="field"><span>Min. Schwierigkeit (Bit)</span><input className="input" type="number" min={8} max={48} value={settings.min_bits} onChange={(event) => setSettings({ ...settings, min_bits: Number(event.target.value) })} /></label>
-            <label className="field"><span>Max. Schwierigkeit (Bit)</span><input className="input" type="number" min={8} max={48} value={settings.max_bits} onChange={(event) => setSettings({ ...settings, max_bits: Number(event.target.value) })} /></label>
-            <label className="field"><span>Max. Transaktionen pro Block</span><input className="input" type="number" min={1} max={2000} value={settings.max_tx_per_block} onChange={(event) => setSettings({ ...settings, max_tx_per_block: Number(event.target.value) })} /></label>
-            <label className="field"><span>Belohnung halbieren alle … Blöcke (0 = nie)</span><input className="input" type="number" min={0} max={1000000} value={settings.halving_blocks} onChange={(event) => setSettings({ ...settings, halving_blocks: Number(event.target.value) })} /></label>
-            <label className="field"><span>Max. Blöcke pro Miner und Tag (0 = unbegrenzt)</span><input className="input" type="number" min={0} max={100000} value={settings.max_blocks_per_day} onChange={(event) => setSettings({ ...settings, max_blocks_per_day: Number(event.target.value) })} /></label>
-            <label className="field"><span>Nur mit echten Transaktionen minen</span><select className="input" value={settings.require_real_tx ? "1" : "0"} onChange={(event) => setSettings({ ...settings, require_real_tx: event.target.value === "1" })}><option value="1">Ja</option><option value="0">Nein (Belohnungen reichen)</option></select></label>
-            <label className="field"><span>Admin-PIN</span><input className="input" type="password" autoComplete="off" inputMode="numeric" value={pin} onChange={(event) => setPin(event.target.value)} placeholder="PIN zur Freigabe" /></label>
-          </div>
-          <div className="blockchain-actions">
-            <button className="primary compact" type="button" disabled={savingSettings || !pin} onClick={() => void saveSettings()}>{savingSettings ? "Speichert …" : "Einstellungen speichern"}</button>
-            {settingsMessage && <span className={`message ${settingsMessage.includes("gespeichert") ? "" : "error"}`}>{settingsMessage}</span>}
-          </div>
-          <small className="field-hint">Jedes Bit verdoppelt die nötige Rechenarbeit. Ein Notebook-Kern schafft rund 100–300 kH/s: 16 Bit ≈ Sekundenbruchteile, 20 Bit ≈ 5 s, 24 Bit ≈ 1–2 min, 28 Bit ≈ 20 min. Die Schwierigkeit regelt sich automatisch auf die Ziel-Blockzeit ein und sinkt, wenn die Kette stillsteht.{typeof overview?.next_reward === "number" ? ` Nächste Blockbelohnung: ${overview.next_reward} GIBB.` : ""}</small>
-        </section>
-      )}
 
     </div>
   );

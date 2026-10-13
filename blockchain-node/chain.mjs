@@ -31,7 +31,35 @@ const defaultSettings = {
   fallbackMinerEnabled: true,
   fallbackDelaySeconds: 60,
   browserMinerThreads: 0,  // Standard-Kernzahl des Browser-Miners (0 = alle Kerne des Geräts)
+  // Zusätzliche Einstellungen für die Hauptseite (Website-Mining und GIBB-Markt); werden übertragen.
+  website: { ...defaultWebsiteSettings() },
 };
+
+export function defaultWebsiteSettings() {
+  return {
+    miningEnabled: true, cooldownSeconds: 90, halvingBlocks: 0, maxBlocksPerDay: 0, requireRealTx: true,
+    marketStepPercent: 0.05, minPrice: 0.25, maxPrice: 50, maxTrade: 1000,
+    buyEnabled: false, sellEnabled: false, dailySellLimit: 0,
+  };
+}
+
+function sanitizeWebsite(current, patch) {
+  const next = { ...defaultWebsiteSettings(), ...(current ?? {}) };
+  if (!patch || typeof patch !== "object") return next;
+  const num = (key, min, max) => {
+    if (patch[key] === undefined || patch[key] === "") return;
+    const value = Number(patch[key]);
+    if (!Number.isFinite(value)) throw new Error(`invalid_${key}`);
+    next[key] = clamp(value, min, max);
+  };
+  num("cooldownSeconds", 0, 86400); num("halvingBlocks", 0, 1_000_000); num("maxBlocksPerDay", 0, 100_000);
+  num("marketStepPercent", 0, 5); num("minPrice", 0.01, 100_000); num("maxPrice", 0.01, 100_000);
+  num("maxTrade", 1, 100_000); num("dailySellLimit", 0, 10_000_000);
+  for (const key of ["cooldownSeconds", "halvingBlocks", "maxBlocksPerDay", "maxTrade", "dailySellLimit"]) next[key] = Math.round(next[key]);
+  for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
+  if (next.minPrice > next.maxPrice) throw new Error("invalid_price_range");
+  return next;
+}
 
 export function transactionHash(tx) {
   return sha256(`${tx.id}|${tx.from}|${tx.to}|${tx.amount}|${tx.note}|${tx.timestamp}`);
@@ -61,6 +89,7 @@ export class Blockchain {
       this.accounts = raw.accounts ?? {};
       this.users = raw.users ?? {};
       this.settings = { ...defaultSettings, ...(raw.settings ?? {}) };
+      this.settings.website = sanitizeWebsite(this.settings.website);
       this.orders = raw.orders ?? [];
       this.trades = raw.trades ?? [];
       this.lastPrice = raw.lastPrice ?? null;
@@ -504,6 +533,15 @@ export class Blockchain {
     };
   }
 
+  // Kurs zurücksetzen: Kursverlauf leeren, Preis wieder ab Startpreis (offene Aufträge bleiben).
+  resetPrices(startPrice = 1) {
+    this.trades = [];
+    this.lastPrice = null;
+    this.settings = { ...this.settings, startPrice: clamp(Number(startPrice) || 1, 0.0001, 1_000_000) };
+    this.save();
+    return { price: this.settings.startPrice };
+  }
+
   updateSettings(patch) {
     const next = { ...this.settings };
     for (const key of ["reward", "difficultyBits", "minBits", "maxBits", "targetSeconds", "maxTxPerBlock", "startingCash", "minOrderAmount", "fallbackDelaySeconds", "browserMinerThreads"]) {
@@ -523,6 +561,7 @@ export class Blockchain {
     if (patch.autoAdjust !== undefined) next.autoAdjust = Boolean(patch.autoAdjust);
     if (patch.marketEnabled !== undefined) next.marketEnabled = Boolean(patch.marketEnabled);
     if (patch.fallbackMinerEnabled !== undefined) next.fallbackMinerEnabled = Boolean(patch.fallbackMinerEnabled);
+    next.website = sanitizeWebsite(this.settings.website, patch.website);
     next.reward = clamp(next.reward, 0, 10_000);
     next.minBits = clamp(next.minBits, 1, 40);
     next.maxBits = clamp(next.maxBits, next.minBits, 40);

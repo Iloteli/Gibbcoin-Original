@@ -10,11 +10,6 @@ type MarketState = {
   history: Array<{ t: string; p: number; k: string; n: number }>;
   my_gibb: number; my_credits: number;
   buy_enabled?: boolean; sell_enabled?: boolean; daily_sell_limit?: number; my_sold_24h?: number;
-  settings?: MarketSettings | null;
-};
-type MarketSettings = {
-  price: number; step: number; min_price: number; max_price: number; sell_fee: number; max_trade: number;
-  enabled: boolean; buy_enabled: boolean; sell_enabled: boolean; daily_sell_limit: number;
 };
 type Quote = {
   ok: boolean; error?: string; gibb?: number; price?: number; buy_rappen?: number; buy_possible?: boolean;
@@ -47,10 +42,6 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [loadError, setLoadError] = useState("");
-  const [form, setForm] = useState<MarketSettings | null>(null);
-  const [pin, setPin] = useState("");
-  const [savingSettings, setSavingSettings] = useState(false);
-  const [settingsMessage, setSettingsMessage] = useState("");
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
@@ -60,28 +51,8 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
     setLoadError("");
     const next = data as MarketState;
     setState(next);
-    if (next.settings) setForm((current) => current ?? next.settings ?? null);
   }, []);
 
-  const saveSettings = async () => {
-    const supabase = getSupabase();
-    if (!supabase || !form) return;
-    setSavingSettings(true); setSettingsMessage("");
-    const { data, error: rpcError } = await supabase.rpc("admin_update_market_settings", { p_value: form, p_pin: pin });
-    setSavingSettings(false);
-    const result = data as { ok?: boolean; error?: string; settings?: MarketSettings } | null;
-    if (rpcError || !result?.ok) {
-      const code = result?.error ?? "";
-      setSettingsMessage(code === "owner_required" ? "Dafür fehlen dir die Rechte." : code.startsWith("admin_pin_") ? "Admin-PIN ungültig oder Freigabe abgelaufen." : code === "invalid_price_range" ? "Der Mindestkurs darf nicht über dem Höchstkurs liegen." : "Die Einstellungen konnten nicht gespeichert werden.");
-      return;
-    }
-    if (result.settings) setForm(result.settings);
-    setPin("");
-    setSettingsMessage("Markt-Einstellungen gespeichert.");
-    await load();
-  };
-  const num = (key: keyof MarketSettings) => (event: { target: { value: string } }) => form && setForm({ ...form, [key]: Number(event.target.value) });
-  const flag = (key: keyof MarketSettings) => (event: { target: { value: string } }) => form && setForm({ ...form, [key]: event.target.value === "1" });
 
   useEffect(() => {
     const first = window.setTimeout(() => void load(), 0);
@@ -149,6 +120,7 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
   return (
     <div className="market">
       {loadError && <div className="game-error">{loadError}</div>}
+      {state && state.buy_enabled === false && state.sell_enabled === false && <div className="message">Kaufen und Verkaufen sind gerade pausiert.</div>}
 
       <section className="card card-pad market-hero">
         <div className="market-price">
@@ -197,29 +169,6 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
         <small className="field-hint">Verkäufe werden nicht in echtem Geld ausbezahlt, sondern als Credits gutgeschrieben – damit kannst du später wieder GIBB kaufen.</small>
       </section>
 
-      {form && (
-        <section className="card card-pad blockchain-admin" aria-label="Markt-Einstellungen">
-          <div className="card-head"><h2>Admin · Coinwert</h2><span>Kurs, Grenzen, Gebühren, Handel</span></div>
-          <div className="blockchain-admin-grid">
-            <label className="field"><span>Kurs jetzt (Rp pro GIBB)</span><input className="input" type="number" step="0.01" min={0.01} value={form.price} onChange={num("price")} /></label>
-            <label className="field"><span>Mindestkurs (Rp)</span><input className="input" type="number" step="0.01" min={0.01} value={form.min_price} onChange={num("min_price")} /></label>
-            <label className="field"><span>Höchstkurs (Rp)</span><input className="input" type="number" step="0.01" min={0.01} value={form.max_price} onChange={num("max_price")} /></label>
-            <label className="field"><span>Kursänderung pro GIBB (%)</span><input className="input" type="number" step="0.001" min={0} max={5} value={Number((Number(form.step) * 100).toFixed(4))} onChange={(e) => setForm({ ...form, step: Number(e.target.value) / 100 })} /></label>
-            <label className="field"><span>Verkaufsgebühr (%)</span><input className="input" type="number" step="0.1" min={0} max={90} value={Number((Number(form.sell_fee) * 100).toFixed(2))} onChange={(e) => setForm({ ...form, sell_fee: Number(e.target.value) / 100 })} /></label>
-            <label className="field"><span>Max. GIBB pro Handel</span><input className="input" type="number" min={1} max={100000} value={form.max_trade} onChange={num("max_trade")} /></label>
-            <label className="field"><span>Verkaufslimit pro Person / 24 h (0 = keins)</span><input className="input" type="number" min={0} value={form.daily_sell_limit} onChange={num("daily_sell_limit")} /></label>
-            <label className="field"><span>Markt aktiv</span><select className="input" value={form.enabled ? "1" : "0"} onChange={flag("enabled")}><option value="1">Ja</option><option value="0">Nein</option></select></label>
-            <label className="field"><span>Kaufen erlaubt</span><select className="input" value={form.buy_enabled ? "1" : "0"} onChange={flag("buy_enabled")}><option value="1">Ja</option><option value="0">Nein</option></select></label>
-            <label className="field"><span>Verkaufen erlaubt</span><select className="input" value={form.sell_enabled ? "1" : "0"} onChange={flag("sell_enabled")}><option value="1">Ja</option><option value="0">Nein</option></select></label>
-            <label className="field"><span>Admin-PIN</span><input className="input" type="password" autoComplete="off" inputMode="numeric" value={pin} onChange={(e) => setPin(e.target.value)} placeholder="PIN zur Freigabe" /></label>
-          </div>
-          <div className="blockchain-actions">
-            <button className="primary compact" type="button" disabled={savingSettings || !pin} onClick={() => void saveSettings()}>{savingSettings ? "Speichert …" : "Einstellungen speichern"}</button>
-            {settingsMessage && <span className={`message ${settingsMessage.includes("gespeichert") ? "" : "error"}`}>{settingsMessage}</span>}
-          </div>
-          <small className="field-hint">Kaufen hebt den Kurs pro GIBB um die eingestellte Kursänderung, Verkaufen senkt ihn. Der Kurs bleibt immer zwischen Mindest- und Höchstkurs.</small>
-        </section>
-      )}
     </div>
   );
 }

@@ -9,6 +9,7 @@ APP_DIR="${APP_DIR:-/opt/gibbcoin}"
 # Kurzbefehl "sudo gibb-update" einrichten (zeigt immer auf dieses Skript)
 ln -sf "$APP_DIR/deploy/update.sh" /usr/local/bin/gibb-update 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/maintenance.sh" /usr/local/bin/gibb-wartung 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/chain-key.sh" /usr/local/bin/gibb-chain-key 2>/dev/null || true
 FORCE=1 bash "$APP_DIR/deploy/auto-update.sh"
 systemctl reload caddy 2>/dev/null || true
 sleep 3

@@ -1,67 +1,72 @@
-// Übernimmt die Einstellungen der Hauptseite (Supabase) in die Chain-Seite.
-// Quelle: public.get_shared_chain_settings() – öffentlich lesbar, enthält nur Einstellungen.
-// Die Hauptseite ist führend: übernommene Felder werden auf der Chain-Seite nicht separat gespeichert.
-export const SYNCED_KEYS = ["reward", "targetSeconds", "minBits", "maxBits", "maxTxPerBlock", "startPrice", "tradingFeePercent", "marketEnabled"];
+// Überträgt die Einstellungen der Chain-Seite auf die Hauptseite (Supabase).
+// Nur die Chain-Seite hat Einstellungen; die Hauptseite übernimmt sie über
+// public.node_push_settings(key, blockchain, market). Der Schlüssel (NODE_SETTINGS_KEY) wird mit
+// "sudo gibb-chain-key" erzeugt und einmal in Supabase hinterlegt.
 
-export function mapSharedSettings(shared) {
-  const chain = shared?.blockchain ?? {};
-  const market = shared?.market ?? {};
-  const patch = {};
-  if (Number.isFinite(Number(chain.reward))) patch.reward = Number(chain.reward);
-  if (Number.isFinite(Number(chain.target_seconds))) patch.targetSeconds = Math.min(3600, Number(chain.target_seconds));
-  if (Number.isFinite(Number(chain.min_bits))) patch.minBits = Math.min(40, Number(chain.min_bits));
-  if (Number.isFinite(Number(chain.max_bits))) patch.maxBits = Math.min(40, Number(chain.max_bits));
-  if (Number.isFinite(Number(chain.max_tx_per_block))) patch.maxTxPerBlock = Math.min(1000, Number(chain.max_tx_per_block));
-  if (Number.isFinite(Number(market.price))) patch.startPrice = Number(market.price);
-  if (Number.isFinite(Number(market.sell_fee))) patch.tradingFeePercent = Math.min(20, Number(market.sell_fee) * 100);
-  if (typeof market.enabled === "boolean") patch.marketEnabled = market.enabled;
-  return patch;
+// Chain-Einstellungen -> Format der Hauptseite. Der Kurs wird nur mitgeschickt, wenn er gesetzt werden soll.
+export function buildPushPayload(settings, { price } = {}) {
+  const w = settings.website ?? {};
+  const blockchain = {
+    enabled: w.miningEnabled ?? true,
+    reward: settings.reward,
+    target_seconds: settings.targetSeconds,
+    min_bits: settings.minBits,
+    max_bits: settings.maxBits,
+    max_tx_per_block: settings.maxTxPerBlock,
+    cooldown_seconds: w.cooldownSeconds,
+    halving_blocks: w.halvingBlocks,
+    max_blocks_per_day: w.maxBlocksPerDay,
+    require_real_tx: w.requireRealTx,
+  };
+  const market = {
+    enabled: settings.marketEnabled,
+    sell_fee: Number(settings.tradingFeePercent) / 100,
+    step: Number(w.marketStepPercent) / 100,
+    min_price: w.minPrice,
+    max_price: w.maxPrice,
+    max_trade: w.maxTrade,
+    buy_enabled: w.buyEnabled,
+    sell_enabled: w.sellEnabled,
+    daily_sell_limit: w.dailySellLimit,
+  };
+  if (price !== undefined && price !== null && price !== "" && Number.isFinite(Number(price))) market.price = Number(price);
+  return { blockchain, market };
 }
 
-export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalThis.fetch, env = process.env, intervalMs = 60_000 } = {}) {
+export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalThis.fetch, env = process.env, intervalMs = 10 * 60_000 } = {}) {
   const url = (env.SUPABASE_URL ?? "").replace(/\/$/, "");
-  const key = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "";
-  const enabled = Boolean(url && key) && env.SETTINGS_SYNC !== "0";
-  const state = { enabled, lastSync: null, lastError: null };
+  const apiKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "";
+  const secret = env.NODE_SETTINGS_KEY ?? "";
+  const enabled = Boolean(url && apiKey && secret);
+  const state = { enabled, configured: Boolean(url && apiKey), lastPush: null, lastError: enabled ? null : (url && apiKey ? "no_key" : null) };
 
-  async function sync() {
+  async function push(options = {}) {
+    if (!enabled) return { ok: false, error: state.lastError ?? "not_configured" };
     try {
-      const res = await fetchImpl(`${url}/rest/v1/rpc/get_shared_chain_settings`, {
+      const payload = buildPushPayload(chain.settings, options);
+      const res = await fetchImpl(`${url}/rest/v1/rpc/node_push_settings`, {
         method: "POST",
-        headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
-        body: "{}",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_blockchain: payload.blockchain, p_market: payload.market }),
       });
       if (!res.ok) throw new Error(`http_${res.status}`);
-      const patch = mapSharedSettings(await res.json());
-      const changed = Object.keys(patch).filter((k) => chain.settings[k] !== patch[k]);
-      if (changed.length) {
-        chain.updateSettings(patch);
-        note("settings", `Einstellungen der Hauptseite übernommen (${changed.join(", ")})`);
-      }
-      state.lastSync = Date.now();
-      if (state.lastError) note("settings", "Einstellungs-Abgleich mit der Hauptseite läuft wieder");
+      const result = await res.json();
+      if (!result?.ok) throw new Error(result?.error ?? "push_failed");
+      if (state.lastError) note("settings", "Einstellungen werden wieder an die Hauptseite übertragen");
+      state.lastPush = Date.now();
       state.lastError = null;
+      return { ok: true };
     } catch (error) {
-      if (!state.lastError) note("error", `Einstellungen der Hauptseite nicht abrufbar: ${error.message}`);
+      if (state.lastError !== error.message) note("error", `Einstellungen konnten nicht an die Hauptseite übertragen werden: ${error.message}`);
       state.lastError = error.message;
+      return { ok: false, error: error.message };
     }
   }
 
   if (enabled) {
-    void sync();
-    setInterval(() => { void sync(); }, intervalMs).unref();
+    setTimeout(() => { void push(); }, 3000).unref();
+    setInterval(() => { void push(); }, intervalMs).unref();
   }
 
-  return {
-    enabled,
-    sync,
-    status: () => ({ ...state, keys: enabled ? SYNCED_KEYS : [] }),
-    // Felder, die von der Hauptseite kommen, nicht lokal überschreiben.
-    filterPatch(patch) {
-      if (!enabled) return patch;
-      const copy = { ...patch };
-      for (const k of SYNCED_KEYS) delete copy[k];
-      return copy;
-    },
-  };
+  return { enabled, push, status: () => ({ ...state }) };
 }
