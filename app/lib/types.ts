@@ -15,6 +15,7 @@ export type Wallet = {
   id: string;
   user_id: string;
   balance: number;
+  credits?: number;
   created_at: string;
   updated_at: string;
   status?: "active" | "locked";

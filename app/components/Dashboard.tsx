@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
 import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
 import { SupportHub } from "./SupportHub";
+import { CreditsSummary } from "./CreditsSummary";
 import { AccountEssentials } from "./AccountEssentials";
 import { AccountReadiness } from "./AccountReadiness";
 import { ActivitySummary } from "./ActivitySummary";
@@ -608,7 +609,7 @@ export function Dashboard({ user }: Props) {
         </section>
 
         <section className="overview-grid" aria-label="Wallet-Übersicht">
-          <article className="card balance-card premium-balance" id="wallet"><div className="balance-top"><span>Verfügbares Guthaben</span><b className={accountLocked ? "locked" : "active"}>{accountLocked ? "Gesperrt" : "Aktiv"}</b></div><div className="balance">{formattedBalance} <small>GIBB</small></div><p>Dein Guthaben ist serverseitig geschützt und sofort einsatzbereit.</p><div className="balance-actions"><a href="#send-coins">Senden <span aria-hidden="true">↗</span></a><a href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Aufladen" : "Anfordern"} <span aria-hidden="true">＋</span></a></div></article>
+          <article className="card balance-card premium-balance" id="wallet"><div className="balance-top"><span>Verfügbares Guthaben</span><b className={accountLocked ? "locked" : "active"}>{accountLocked ? "Gesperrt" : "Aktiv"}</b></div><div className="balance">{formattedBalance} <small>GIBB</small></div><p>Dein Guthaben ist serverseitig geschützt und sofort einsatzbereit.</p><CreditsSummary credits={Number(wallet?.credits ?? 0)} transactions={transactions} userId={user.id} /><div className="balance-actions"><a href="#send-coins">Senden <span aria-hidden="true">↗</span></a><a href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Aufladen" : "Anfordern"} <span aria-hidden="true">＋</span></a></div></article>
           <article className="stat-card"><span>Erhalten</span><strong>+{new Intl.NumberFormat("de-CH").format(activity.receivedAmount)}</strong><small>{activity.receivedCount} Eingänge</small></article>
           <article className="stat-card"><span>Gesendet</span><strong className="negative">−{new Intl.NumberFormat("de-CH").format(activity.sentAmount)}</strong><small>{activity.sentCount} Ausgänge</small></article>
           <div className="home-stats-reset">
