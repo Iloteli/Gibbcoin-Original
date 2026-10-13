@@ -32,6 +32,8 @@ const defaultSettings = {
   fallbackDelaySeconds: 60,
   browserMinerThreads: 0,  // Standard-Kernzahl des Browser-Miners (0 = alle Kerne des Geräts)
   chainLoginsEnabled: true, // false = nur der Owner kann sich auf der Chain-Seite anmelden
+  // Was Basic-Konten sehen und ändern dürfen (stellt ein Full-Konto ein)
+  basicPermissions: ["mining", "rules", "market", "tabs", "payments"],
   // Zusätzliche Einstellungen für die Hauptseite (Website-Mining und GIBB-Markt); werden übertragen.
   website: { ...defaultWebsiteSettings() },
 };
@@ -337,13 +339,13 @@ export class Blockchain {
       this.ensureOwner();
       this.save();
     }
-    return { address: u.address, username: u.username, role: u.role };
+    return { address: u.address, username: u.username, role: u.role, level: u.role === "super_admin" ? "full" : (u.level ?? "user") };
   }
 
   // ---------- Chain-Logins verwalten (nur Owner) ----------
   listUsers() {
     return Object.entries(this.users).map(([key, u]) => ({
-      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null, disabled: Boolean(u.disabled),
+      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null, disabled: Boolean(u.disabled), level: u.role === "super_admin" ? "full" : (u.level ?? "user"),
       balance: this.accounts[u.address]?.balance ?? 0,
     })).sort((a, b) => a.key.localeCompare(b.key));
   }
@@ -358,6 +360,16 @@ export class Blockchain {
     u.hash = this.hashPassword(password, u.salt);
     this.save();
     return { username: u.username };
+  }
+
+  setUserLevel(username, level) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("user_not_found");
+    if (u.role === "super_admin") throw new Error("account_is_protected");
+    u.level = ["basic", "full"].includes(level) ? level : "user";
+    this.save();
+    return { username: u.username, level: u.level };
   }
 
   setUserDisabled(username, disabled) {
@@ -657,6 +669,10 @@ export class Blockchain {
     if (patch.marketEnabled !== undefined) next.marketEnabled = Boolean(patch.marketEnabled);
     if (patch.fallbackMinerEnabled !== undefined) next.fallbackMinerEnabled = Boolean(patch.fallbackMinerEnabled);
     if (patch.chainLoginsEnabled !== undefined) next.chainLoginsEnabled = Boolean(patch.chainLoginsEnabled);
+    if (patch.basicPermissions !== undefined) {
+      const allowed = ["mining", "rules", "market", "tabs", "payments", "coins", "bank"];
+      next.basicPermissions = Array.isArray(patch.basicPermissions) ? [...new Set(patch.basicPermissions.map(String).filter((p) => allowed.includes(p)))] : next.basicPermissions;
+    }
     next.website = sanitizeWebsite(this.settings.website, patch.website);
     next.reward = clamp(next.reward, 0, 10_000);
     next.minBits = clamp(next.minBits, 1, 40);

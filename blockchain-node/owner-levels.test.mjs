@@ -83,3 +83,29 @@ test("website owners get a basic chain login; full needs an upgrade and the serv
   await post("/api/admin/owner-level", { token: ilja.token, userId: ROBYN, level: "basic" });
   assert.equal((await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data.role, "owner_basic");
 });
+
+test("full accounts decide what basic may change; local chain accounts can be basic or full", async () => {
+  serverCode("555666");
+  const ilja = (await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "555666" })).data;
+  // Basic darf standardmässig keine Coins verwalten
+  const basic = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
+  assert.equal((await post("/api/website/users", { token: basic.token })).data.error, "not_owner");
+  assert.ok(!(await post("/api/auth/me", { token: basic.token })).data.permissions.includes("coins"));
+  // Full erlaubt Basic "Coins verwalten" und nimmt "Mining" weg
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["coins", "market"] });
+  assert.ok(Array.isArray((await post("/api/website/users", { token: basic.token })).data.users));
+  const before = (await post("/api/stats", undefined)).data;
+  const s = (await post("/api/settings", { token: basic.token, reward: 99, tradingFeePercent: 4 })).data;
+  assert.notEqual(s.reward, 99, "Mining nicht mehr erlaubt");
+  assert.equal(s.tradingFeePercent, 4);
+  assert.equal((await post("/api/settings", { token: basic.token, basicPermissions: ["mining"] })).data.basicPermissions.includes("mining"), false, "Basic darf Rechte nicht ändern");
+  void before;
+  // Lokales Chain-Konto als Basic
+  await post("/api/admin/node-users/create", { token: ilja.token, username: "ghg", password: "passwort123" });
+  await post("/api/admin/node-users/level", { token: ilja.token, username: "ghg", level: "basic" });
+  assert.equal((await post("/api/auth/login", { username: "ghg", password: "passwort123" })).data.role, "owner_basic");
+  await post("/api/admin/node-users/level", { token: ilja.token, username: "ghg", level: "full" });
+  assert.equal((await post("/api/auth/login", { username: "ghg", password: "passwort123" })).data.error, "second_factor_required");
+  assert.equal((await post("/api/admin/node-users/level", { token: ilja.token, username: "ilja", level: "user" })).data.error, "account_is_protected");
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });
+});

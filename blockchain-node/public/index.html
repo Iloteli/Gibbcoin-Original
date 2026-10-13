@@ -69,6 +69,7 @@
   .owner-basic { display: none !important; }
   body.is-owner .owner-basic, body.is-basic .owner-basic { display: revert !important; }
   body.is-basic .full-only { display: none !important; }
+  body.is-basic .perm-off { display: none !important; }
   [hidden] { display: none !important; }
   #authGate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 50% 20%, rgba(46,209,100,.14), transparent 40%), var(--bg); }
   #authGate .box { width: min(400px, 100%); border: 1px solid var(--line); border-radius: 20px; padding: 28px; background: linear-gradient(145deg, rgba(16,24,20,.96), rgba(10,15,12,.98)); }
@@ -413,6 +414,8 @@
         <div class="actions"><button class="primary" type="submit">Chain-Konto erstellen</button></div>
       </form>
       <div class="list" id="nuList"></div>
+      <h3 class="ad-h">Was Basic sehen und ändern darf</h3>
+      <div class="switches" id="basicPerms"></div>
       <h3 class="ad-h">Owner der Hauptseite</h3>
       <p class="muted" style="margin:0 0 8px">Jeder Owner der Hauptseite meldet sich hier mit seiner Website-E-Mail und seinem Passwort an. <b>Basic</b>: Einstellungen für Mining, Markt und Tabs sowie die Zahlarten. <b>Full</b>: alles wie du, Anmeldung zusätzlich mit Server-Code (<code>sudo gibb-code</code>).</p>
       <div class="list" id="olList"></div>
@@ -425,21 +428,21 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
-  <section class="card pay-card owner-basic" id="payCard">
+  <section class="card pay-card owner-basic" id="payCard" data-perm="payments">
     <h2>Zahlarten <span>Kaufen-Tab der Hauptseite</span></h2>
     <p class="muted" style="margin:0 0 12px">Ein Klick schaltet die Kaufart sofort für alle ein oder aus.</p>
     <div class="pay-methods" id="payMethods"></div>
     <div class="msg" id="payMsg"></div>
   </section>
 
-  <section class="card bank-card owner-only" id="bankCard">
+  <section class="card bank-card owner-basic" id="bankCard" data-perm="bank">
     <h2>Banküberweisungen <span id="bankCount">Kauf per IBAN</span></h2>
     <p class="muted" style="margin:0 0 12px">Bestellungen aus dem Kaufen-Tab. Prüfe auf deinem Konto, ob der Betrag mit dem Verwendungszweck eingegangen ist, und bestätige dann die Zahlung – erst dann werden die GIBB gutgeschrieben.</p>
     <div class="list" id="bankOrders"><div class="muted">Wird geladen …</div></div>
     <div class="msg" id="bankMsg"></div>
   </section>
 
-  <section class="card coin-admin-card owner-only" id="coinAdminCard">
+  <section class="card coin-admin-card owner-basic" id="coinAdminCard" data-perm="coins">
     <h2>Coins verwalten <span id="caSync">Hauptseite · alle Benutzer</span></h2>
     <p class="muted" style="margin:0 0 12px">Coins geben oder abziehen für Konten der Hauptseite. Jede Änderung wird als Transaktion gebucht und der Person mitgeteilt.</p>
     <div class="coin-admin">
@@ -466,7 +469,7 @@
   <section class="card settings-card owner-basic" id="settingsCard">
     <h2>Einstellungen <span id="pushStatus"></span></h2>
     <p class="muted" id="syncHint" style="margin:0 0 12px">Gilt für die Chain-Seite und die Hauptseite – beim Speichern wird alles übertragen.</p>
-    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab full-only" data-tab="server">🖥 Server</button></div>
+    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain" data-perm="mining">⛏ Mining</button><button type="button" class="stab" data-tab="site" data-perm="rules">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market" data-perm="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs" data-perm="tabs">🗂 Tabs</button><button type="button" class="stab full-only" data-tab="server">🖥 Server</button></div>
       <div class="spanel" data-panel="chain">
         <p class="muted spanel-desc">Gilt für die Chain-Seite und das Mining auf der Hauptseite.</p>
         <div class="sgrid">
@@ -881,8 +884,20 @@ function setMode(m) { authMode = m; $("tabLogin").classList.toggle("active", m =
 $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
 const authErrors = { not_owner_account: "Mit E-Mail können sich nur Owner der Hauptseite anmelden.", website_login_unavailable: "Anmeldung mit der Hauptseite ist gerade nicht möglich.", account_disabled: "Dieses Chain-Konto ist deaktiviert.", chain_logins_disabled: "Die Anmeldung ist gerade nur für den Owner möglich.", registration_disabled: "Konten werden vom Owner erstellt.", second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
+let myPermissions = [];
+function applyPermissions(perms) {
+  myPermissions = perms ?? [];
+  document.querySelectorAll("[data-perm]").forEach((el) => el.classList.toggle("perm-off", document.body.classList.contains("is-basic") && !myPermissions.includes(el.dataset.perm)));
+  // Einstellungen nur zeigen, wenn mindestens ein Reiter erlaubt ist; ersten erlaubten Reiter öffnen
+  const isBasic = document.body.classList.contains("is-basic");
+  const tabs = [...document.querySelectorAll(".stab[data-tab]")].filter((b) => !isBasic || (!b.classList.contains("perm-off") && !b.classList.contains("full-only")));
+  $("settingsCard").classList.toggle("perm-off", document.body.classList.contains("is-basic") && tabs.length === 0);
+  if (document.body.classList.contains("is-basic") && tabs[0] && document.querySelector(".stab.active")?.classList.contains("perm-off")) tabs[0].click();
+}
+const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
 function onAuthed(me) {
-  setTimeout(() => { void caLoad(); void bankLoad(); void adLoad("users"); }, 0);
+  setTimeout(async () => { try { const info = await api("/api/auth/me", {}); applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); }, 0);
+  setTimeout(() => { void adLoad("users"); }, 0);
   myAddress = me.address;
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
   document.body.classList.toggle("is-owner", me.role === "super_admin");
@@ -930,7 +945,7 @@ function caRender() {
   $("caGive").disabled = $("caTake").disabled = !sel;
 }
 async function caLoad() {
-  if (!document.body.classList.contains("is-owner")) return;
+  if (!canUse("coins")) return;
   try { caUsers = (await api("/api/website/users", {})).users ?? []; caRender(); }
   catch (e) { $("caUsers").innerHTML = `<div class="muted">${caEsc(caErrors[e.message] ?? e.message)}</div>`; }
 }
@@ -963,7 +978,7 @@ setInterval(() => { if (document.visibilityState === "visible") void caLoad(); }
 const bankStatus = { pending: "offen", paid: "bezahlt", cancelled: "storniert", rejected: "abgelehnt" };
 const chf = (rp) => "CHF " + (Number(rp) / 100).toFixed(2);
 async function bankLoad() {
-  if (!document.body.classList.contains("is-owner")) return;
+  if (!canUse("bank")) return;
   try {
     const orders = (await api("/api/bank/orders", {})).orders ?? [];
     const open = orders.filter((o) => o.status === "pending").length;
@@ -996,7 +1011,7 @@ const needPin = () => { if (!/^\d{4}$/.test(adminPin)) { say("adMsg", adErrors.a
 document.querySelectorAll(".adtab").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll(".adtab").forEach((x) => x.classList.toggle("active", x === b));
   document.querySelectorAll(".adpanel").forEach((pnl) => { pnl.hidden = pnl.dataset.adp !== b.dataset.ad; });
-  if (b.dataset.ad === "nodeusers") { void nuLoad(); void olLoad(); } else void adLoad(b.dataset.ad);
+  if (b.dataset.ad === "nodeusers") { void nuLoad(); void olLoad(); renderBasicPerms(stats?.settings); } else void adLoad(b.dataset.ad);
 }));
 $("adPinCheck").onclick = async () => {
   const pin = $("adPin").value.trim();
@@ -1170,7 +1185,7 @@ const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] ||
 async function nuLoad() {
   try {
     const users = (await api("/api/admin/node-users", {})).users ?? [];
-    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? "" : `<button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
+    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select><button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
   } catch (e) { nuFail(e); }
 }
 $("nuGen").addEventListener("click", (e) => { e.preventDefault(); $("nuPass").value = genPass(); });
@@ -1182,6 +1197,14 @@ $("nuCreate").addEventListener("submit", async (e) => {
     $("nuName").value = ""; $("nuPass").value = "";
     await nuLoad(); await refresh();
   } catch (err) { nuFail(err); }
+});
+$("nuList").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-nu-level]"); if (!sel) return;
+  const user = sel.closest("[data-user]").dataset.user;
+  if (sel.value === "full" && !confirm(`${user} auf Full setzen? Dann hat das Konto alle Rechte wie du (Anmeldung mit Server-Code).`)) { await nuLoad(); return; }
+  try { await api("/api/admin/node-users/level", { username: user, level: sel.value }); say("adMsg", `${user} ist jetzt ${({ user: "Normal", basic: "Basic", full: "Full" })[sel.value]} (muss sich neu anmelden).`); }
+  catch (err) { nuFail(err); }
+  await nuLoad();
 });
 $("nuList").addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-nu]"); if (!btn) return;
@@ -1236,7 +1259,7 @@ $("payMethods").addEventListener("click", async (e) => {
 async function olLoad() {
   try {
     const owners = (await api("/api/admin/owner-levels", {})).owners ?? [];
-    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts"><button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button></div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
+    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
   } catch (e) { $("olList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
 }
 $("olList").addEventListener("click", async (e) => {
@@ -1246,6 +1269,26 @@ $("olList").addEventListener("click", async (e) => {
   try { await api("/api/admin/owner-level", { userId: row.dataset.owner, name: row.dataset.name, level }); say("adMsg", `${row.dataset.name} ist jetzt ${level === "full" ? "Full" : "Basic"} (muss sich neu anmelden).`); }
   catch (err) { say("adMsg", adErrors[err.message] || err.message, true); }
   await olLoad();
+});
+
+// ---------- Rechte für Basic (sofort gespeichert) ----------
+const permList = [
+  ["mining", "⛏ Mining-Einstellungen", "Belohnung, Blockzeit, Schwierigkeit"],
+  ["rules", "📏 Mining-Regeln", "Mining an/aus, Pause, Halbieren, Tageslimit"],
+  ["market", "📈 Markt & Coinwert", "Kurs, Grenzen, Gebühren (ohne IBAN)"],
+  ["tabs", "🗂 Tabs", "Tabs der Hauptseite ein-/ausblenden"],
+  ["payments", "💳 Zahlarten", "Karte und Credits ein-/ausschalten"],
+  ["coins", "🪙 Coins verwalten", "GIBB geben und abziehen"],
+  ["bank", "🏦 Banküberweisungen", "Zahlungen bestätigen oder ablehnen"],
+];
+function renderBasicPerms(settings) {
+  const perms = settings?.basicPermissions ?? [];
+  $("basicPerms").innerHTML = permList.map(([key, label, hint]) => `<label class="switch"><input type="checkbox" data-bperm="${key}"${perms.includes(key) ? " checked" : ""} /><span class="knob"></span><span class="switch-text"><b>${label}</b><small>${hint}</small></span></label>`).join("");
+}
+$("basicPerms").addEventListener("change", async () => {
+  const perms = [...document.querySelectorAll("[data-bperm]")].filter((el) => el.checked).map((el) => el.dataset.bperm);
+  try { await api("/api/settings", { basicPermissions: perms }); say("adMsg", "Rechte für Basic gespeichert – der Server prüft sie sofort, die Anzeige ändert sich beim nächsten Neuladen der Basic-Konten."); }
+  catch (err) { say("adMsg", err.message, true); }
 });
 </script>
 </body>
