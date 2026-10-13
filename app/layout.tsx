@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { DeviceClass } from "./components/DeviceClass";
 import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
+import { MaintenanceWatch } from "./components/MaintenanceWatch";
 import "./globals.css";
 
 const title = "GIBB Coin – Dein Campus Wallet";
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="de">
-      <body><DeviceClass /><ServiceWorkerRegistration />{children}</body>
+      <body><DeviceClass /><ServiceWorkerRegistration /><MaintenanceWatch />{children}</body>
     </html>
   );
 }
