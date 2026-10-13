@@ -645,7 +645,7 @@ export function Dashboard({ user }: Props) {
 
         <div id="community" className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
         <div className="view-heading"><span>GEMEINSAM & SICHER</span><h1>Community</h1><p>Gruppen-Wallets verwalten und verdächtige Vorgänge melden.</p></div>
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /><GroupWallets onChanged={loadData} /><AbuseReports transactions={transactions} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} /></>}
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /><GroupWallets onChanged={loadData} /><AbuseReports transactions={transactions} isAdmin={profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com"} /></>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">

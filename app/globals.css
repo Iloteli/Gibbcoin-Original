@@ -2948,3 +2948,8 @@ textarea:focus-visible {
 .chain-node-section[open] > summary { margin-bottom: 12px; }
 @media (max-width: 560px) { .chain-me { grid-template-columns: 1fr; } .chain-ranks li { grid-template-columns: 28px 1fr; } .chain-rank-stats { grid-column: 2; } }
 @media (prefers-reduced-motion: reduce) { .chain-rank-main i { transition: none; } }
+.blockchain-blocks-section > summary { cursor: pointer; list-style: none; }
+.blockchain-blocks-section > summary::-webkit-details-marker { display: none; }
+.blockchain-blocks-section > summary h2::before { content: "▸ "; color: var(--green); }
+.blockchain-blocks-section[open] > summary h2::before { content: "▾ "; }
+.blockchain-blocks-section:not([open]) > summary { margin-bottom: 0; }

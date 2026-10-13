@@ -349,7 +349,7 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
     const result = data as { ok: boolean; error?: string; settings?: Settings } | null;
     if (rpcError || !result?.ok) {
       const code = result?.error ?? codeOf(rpcError);
-      setSettingsMessage(code?.startsWith("admin_pin_") ? "Admin-PIN ungültig oder Freigabe abgelaufen." : code === "mfa_required" ? "Für diese Änderung ist eine bestätigte MFA-Sitzung nötig." : code === "invalid_difficulty_range" ? "Die minimale Schwierigkeit darf die maximale nicht übersteigen." : "Die Einstellungen konnten nicht gespeichert werden.");
+      setSettingsMessage(code === "owner_required" ? "Nur Ilja darf die Blockchain-Einstellungen ändern." : code?.startsWith("admin_pin_") ? "Admin-PIN ungültig oder Freigabe abgelaufen." : code === "mfa_required" ? "Für diese Änderung ist eine bestätigte MFA-Sitzung nötig." : code === "invalid_difficulty_range" ? "Die minimale Schwierigkeit darf die maximale nicht übersteigen." : "Die Einstellungen konnten nicht gespeichert werden.");
       return;
     }
     if (result.settings) setSettings(result.settings);
@@ -429,8 +429,8 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
         </section>
       </div>
 
-      <section className="card card-pad" aria-label="Blöcke">
-        <div className="card-head"><h2>Blöcke</h2><span>{overview ? `${formatCount(overview.block_count)} Blöcke · Spitze ${shortHash(overview.tip_hash)}` : ""}</span></div>
+      <details className="card card-pad blockchain-blocks-section" aria-label="Blöcke">
+        <summary className="card-head"><h2>Blöcke</h2><span>{overview ? `${formatCount(overview.block_count)} Blöcke · Spitze ${shortHash(overview.tip_hash)} · zum Anzeigen klicken` : "zum Anzeigen klicken"}</span></summary>
         {blocks.length === 0 && !loadError && <div className="empty">Noch keine Blöcke.</div>}
         <div className="blockchain-blocks">
           {blocks.map((block) => {
@@ -462,7 +462,7 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
             );
           })}
         </div>
-      </section>
+      </details>
 
       {isAdmin && settings && (
         <section className="card card-pad blockchain-admin" aria-label="Blockchain-Einstellungen">
