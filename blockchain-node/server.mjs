@@ -132,7 +132,7 @@ const checkOwnerCode = (code) => {
 };
 const newSession = (u) => {
   const token = _rnd(32).toString("hex");
-  sessions.set(tokenKey(token), { address: u.address, username: u.username, role: u.role, expires: Date.now() + SESSION_TTL_MS });
+  sessions.set(tokenKey(token), { address: u.address, username: u.username, role: u.role, ...(u.level ? { level: u.level } : {}), expires: Date.now() + SESSION_TTL_MS });
   saveSessions();
   return token;
 };
@@ -166,8 +166,8 @@ const getGuest = () => {
 };
 const sessionOf = (body) => {
   const sess = body && typeof body.token === "string" ? sessions.get(tokenKey(body.token)) : null;
-  const blocked = sess && sess.role !== "super_admin" && (chain.settings.chainLoginsEnabled === false || chain.users[String(sess.username ?? "").toLowerCase()]?.disabled);
-  if (sess && !blocked && sess.expires > Date.now() && !(sess.role === "super_admin" && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
+  const blocked = sess && sess.role !== "super_admin" && sess.role !== "owner_basic" && (chain.settings.chainLoginsEnabled === false || chain.users[String(sess.username ?? "").toLowerCase()]?.disabled);
+  if (sess && !blocked && sess.expires > Date.now() && !((sess.role === "super_admin" || sess.role === "owner_basic") && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
     sess.lastSeen = Date.now();
     return sess;
   }
@@ -185,6 +185,60 @@ const requireOwner = async (body) => {
   throw new Error("not_owner");
 };
 
+// ---------- Owner der Hauptseite: Anmeldung mit E-Mail/Passwort der Website ----------
+// Jeder Website-Owner hat automatisch ein Basic-Konto; Ilja kann es auf Full upgraden (Full braucht den Server-Code).
+const SB_URL = (process.env.SUPABASE_URL ?? "").replace(/\/$/, "");
+const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const PRIMARY_OWNER_EMAIL = String(process.env.NODE_OWNER_EMAIL ?? "ilja.podorieszach@icloud.com").toLowerCase();
+const ownerLevelOf = (userId, email) => (String(email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL ? "full" : chain.ownerLevels[userId] === "full" ? "full" : "basic");
+async function loginWebsiteOwner(body, nameKey, ipKey) {
+  if (!SB_URL || !SB_KEY) throw new Error("website_login_unavailable");
+  const res = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SB_KEY, "content-type": "application/json" },
+    body: JSON.stringify({ email: String(body.username).trim(), password: String(body.password ?? "") }),
+  });
+  const auth = await res.json().catch(() => ({}));
+  if (!res.ok || !auth?.access_token) { loginFailed(nameKey, ipKey); throw new Error("invalid_login"); }
+  const user = await websiteUser(auth.access_token);
+  if (!user || user.role !== "super_admin") { loginFailed(nameKey, ipKey); throw new Error("not_owner_account"); }
+  const level = ownerLevelOf(user.userId, user.email);
+  if (level === "full" && OWNER_2FA) {
+    if (!body.code) throw new Error("second_factor_required");
+    if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
+  }
+  loginFailures.delete(nameKey);
+  const address = `sb_${user.userId}`;
+  if (!chain.accounts[address]) chain.upsertWebsiteAccount(user.userId, user.username, 0);
+  const u = { address, username: user.username, role: level === "full" ? "super_admin" : "owner_basic", level, supabaseId: user.userId };
+  const token = newSession(u);
+  note("auth", `Owner ${user.username} (${level === "full" ? "Full" : "Basic"}) angemeldet`);
+  return { token, ...u };
+}
+// Einstellungen: Full darf alles, Basic nur Mining, Mining-Regeln, Markt & Coinwert, Tabs und Zahlarten
+const BASIC_SETTING_KEYS = ["reward", "targetSeconds", "difficultyBits", "minBits", "maxBits", "autoAdjust", "maxTxPerBlock", "startPrice", "startingCash", "tradingFeePercent", "minOrderAmount", "marketEnabled", "websitePrice"];
+const BASIC_WEBSITE_KEYS = ["miningEnabled", "cooldownSeconds", "halvingBlocks", "maxBlocksPerDay", "requireRealTx", "marketStepPercent", "minPrice", "maxPrice", "maxTrade", "buyEnabled", "sellEnabled", "dailySellLimit", "disabledTabs", "cardEnabled", "creditsEnabled"];
+const requireSettingsAccess = (body) => {
+  const sess = sessionOf(body);
+  if (sess && (sess.role === "super_admin" || sess.role === "owner_basic")) return sess;
+  throw new Error("not_owner");
+};
+const limitSettingsPatch = (sess, body) => {
+  if (sess.role === "super_admin") return body;
+  const patch = {};
+  for (const k of BASIC_SETTING_KEYS) if (body[k] !== undefined) patch[k] = body[k];
+  if (body.website && typeof body.website === "object") {
+    patch.website = {};
+    for (const k of BASIC_WEBSITE_KEYS) if (body.website[k] !== undefined) patch.website[k] = body.website[k];
+  }
+  return patch;
+};
+const dropSessionsOfAddress = (address) => {
+  let changed = false;
+  for (const [k, sess] of sessions) if (sess.address === address) { sessions.delete(k); changed = true; }
+  if (changed) saveSessions();
+};
+
 const routes = {
   "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, settingsSync: settingsSync.status(), fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
@@ -199,10 +253,11 @@ const routes = {
     note("auth", `Neuer Nutzer registriert: ${u.username}${u.role === "super_admin" ? " (Owner)" : ""}`);
     return { token, ...u };
   },
-  "POST /api/auth/login": (_, body) => {
+  "POST /api/auth/login": async (_, body) => {
     const nameKey = `name:${String(body.username ?? "").trim().toLowerCase()}`;
     const ipKey = `ip:${body.__ip}`;
     if (loginBlocked(nameKey, ipKey)) throw new Error("too_many_attempts");
+    if (String(body.username ?? "").includes("@")) return loginWebsiteOwner(body, nameKey, ipKey);
     let u;
     try { u = chain.verifyUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { loginFailed(nameKey, ipKey); throw error; }
@@ -344,7 +399,7 @@ const routes = {
     note("mining", `Server-Mining ausgeschaltet für ${user.username}`);
     return serverMining.disable(address);
   },
-  "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
+  "POST /api/settings": async (_, body) => { const who = requireSettingsAccess(body); body = limitSettingsPatch(who, body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
   // Coins der Website-Benutzer geben/abziehen (nur Owner der Chain-Seite)
   // Admin-Bereich der Hauptseite (nur Owner der Chain-Seite)
   "POST /api/admin/call": async (_, body) => {
@@ -369,6 +424,22 @@ const routes = {
     return r;
   },
   // Anmeldungen für die Chain-Seite selbst (nur Owner)
+  "POST /api/admin/owner-levels": async (_, body) => {
+    await requireOwner(body);
+    const users = await settingsSync.listWebsiteUsers();
+    return { owners: users.filter((u) => u.role === "super_admin").map((u) => ({ id: u.id, username: u.username, display_name: u.display_name, level: chain.ownerLevels[u.id] === "full" ? "full" : "basic" })) };
+  },
+  "POST /api/admin/owner-level": async (_, body) => {
+    await requireOwner(body);
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new Error("invalid_request");
+    const level = body.level === "full" ? "full" : "basic";
+    if (level === "full") chain.ownerLevels[id] = "full"; else delete chain.ownerLevels[id];
+    chain.save();
+    dropSessionsOfAddress(`sb_${id}`); // neu anmelden, damit die neue Stufe gilt
+    note("auth", `Owner ${String(body.name ?? id).slice(0, 40)} ist jetzt ${level === "full" ? "Full" : "Basic"}`);
+    return { ok: true, level };
+  },
   "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers() }; },
   "POST /api/admin/node-users/create": async (_, body) => {
     await requireOwner(body);

@@ -66,6 +66,9 @@
   footer { color: var(--muted); font-size: 11px; text-align: center; border: 1px solid rgba(246,200,95,.15); border-radius: 12px; padding: 12px; }
   .owner-only { display: none !important; }
   body.is-owner .owner-only { display: revert !important; }
+  .owner-basic { display: none !important; }
+  body.is-owner .owner-basic, body.is-basic .owner-basic { display: revert !important; }
+  body.is-basic .full-only { display: none !important; }
   [hidden] { display: none !important; }
   #authGate { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 20px; background: radial-gradient(circle at 50% 20%, rgba(46,209,100,.14), transparent 40%), var(--bg); }
   #authGate .box { width: min(400px, 100%); border: 1px solid var(--line); border-radius: 20px; padding: 28px; background: linear-gradient(145deg, rgba(16,24,20,.96), rgba(10,15,12,.98)); }
@@ -218,7 +221,7 @@
     <h2>GIBB Chain</h2>
     <p id="authIntro">Melde dich mit deinem Konto an.</p>
     <div class="tabs"><button id="tabLogin" class="active" type="button">Anmelden</button><button id="tabReg" type="button" hidden>Registrieren</button></div>
-    <label for="authUser">Benutzername</label>
+    <label for="authUser">Benutzername <span class="muted">oder E-Mail (Owner der Hauptseite)</span></label>
     <input id="authUser" autocomplete="username" placeholder="z. B. ilja">
     <label for="authPass" style="margin-top:8px">Passwort</label>
     <input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 8 Zeichen">
@@ -410,6 +413,9 @@
         <div class="actions"><button class="primary" type="submit">Chain-Konto erstellen</button></div>
       </form>
       <div class="list" id="nuList"></div>
+      <h3 class="ad-h">Owner der Hauptseite</h3>
+      <p class="muted" style="margin:0 0 8px">Jeder Owner der Hauptseite meldet sich hier mit seiner Website-E-Mail und seinem Passwort an. <b>Basic</b>: Einstellungen für Mining, Markt und Tabs sowie die Zahlarten. <b>Full</b>: alles wie du, Anmeldung zusätzlich mit Server-Code (<code>sudo gibb-code</code>).</p>
+      <div class="list" id="olList"></div>
     </div>
     <div class="adpanel" data-adp="visitors" hidden>
       <div class="ca-quick" id="adRange"><button type="button" data-days="7" class="active">7 Tage</button><button type="button" data-days="30">30 Tage</button><button type="button" data-days="3650">Alles</button></div>
@@ -419,7 +425,7 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
-  <section class="card pay-card owner-only" id="payCard">
+  <section class="card pay-card owner-basic" id="payCard">
     <h2>Zahlarten <span>Kaufen-Tab der Hauptseite</span></h2>
     <p class="muted" style="margin:0 0 12px">Ein Klick schaltet die Kaufart sofort für alle ein oder aus.</p>
     <div class="pay-methods" id="payMethods"></div>
@@ -457,10 +463,10 @@
     </div>
   </section>
 
-  <section class="card settings-card owner-only" id="settingsCard">
+  <section class="card settings-card owner-basic" id="settingsCard">
     <h2>Einstellungen <span id="pushStatus"></span></h2>
     <p class="muted" id="syncHint" style="margin:0 0 12px">Gilt für die Chain-Seite und die Hauptseite – beim Speichern wird alles übertragen.</p>
-    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
+    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab full-only" data-tab="server">🖥 Server</button></div>
       <div class="spanel" data-panel="chain">
         <p class="muted spanel-desc">Gilt für die Chain-Seite und das Mining auf der Hauptseite.</p>
         <div class="sgrid">
@@ -499,14 +505,14 @@
           <div class="field"><label for="wSellLimit">Verkaufslimit pro Person</label><input id="wSellLimit" type="number" min="0" /><small>GIBB pro 24 h · 0 = keins</small></div>
           <div class="field"><label for="sStartPrice">Startpreis Chain-Markt</label><input id="sStartPrice" type="number" min="0" step="0.01" /><small>Rp · bis zum ersten Handel</small></div>
           <div class="field"><label for="sStartCash">Startguthaben Chain-Wallets</label><input id="sStartCash" type="number" min="0" /><small>Rappen pro neuem Wallet</small></div>
-          <div class="field"><label for="wBankIban">IBAN für Überweisungen</label><input id="wBankIban" autocomplete="off" placeholder="CH.. .... .... .... .... ." /><small>Wird Käufer:innen angezeigt; der Code kommt in „Mitteilung an den Empfänger“</small></div>
-          <div class="field"><label for="wBankHolder">Kontoinhaber:in</label><input id="wBankHolder" autocomplete="off" maxlength="80" placeholder="Vorname Nachname" /><small>Empfänger der Überweisung</small></div>
+          <div class="field full-only"><label for="wBankIban">IBAN für Überweisungen</label><input id="wBankIban" autocomplete="off" placeholder="CH.. .... .... .... .... ." /><small>Wird Käufer:innen angezeigt; der Code kommt in „Mitteilung an den Empfänger“</small></div>
+          <div class="field full-only"><label for="wBankHolder">Kontoinhaber:in</label><input id="wBankHolder" autocomplete="off" maxlength="80" placeholder="Vorname Nachname" /><small>Empfänger der Überweisung</small></div>
           <div class="field"><label for="sMinOrder">Min. Ordermenge</label><input id="sMinOrder" type="number" min="1" /><small>GIBB · Chain-Markt</small></div>
         </div>
         <div class="switches">
           <label class="switch"><input type="checkbox" id="sMarket" /><span class="knob"></span><span class="switch-text"><b>Markt aktiv</b><small>aus = kein Handel auf beiden Seiten</small></span></label>
           <label class="switch"><input type="checkbox" id="wBuy" /><span class="knob"></span><span class="switch-text"><b>Kaufen erlaubt</b><small>Hauptseite: mit Karte/TWINT und Credits</small></span></label>
-          <label class="switch"><input type="checkbox" id="wBank" /><span class="knob"></span><span class="switch-text"><b>Kauf per Banküberweisung</b><small>IBAN anzeigen, Zahlung hier bestätigen</small></span></label>
+          <label class="switch full-only"><input type="checkbox" id="wBank" /><span class="knob"></span><span class="switch-text"><b>Kauf per Banküberweisung</b><small>IBAN anzeigen, Zahlung hier bestätigen</small></span></label>
           <label class="switch"><input type="checkbox" id="wSell" /><span class="knob"></span><span class="switch-text"><b>Verkaufen erlaubt</b><small>Hauptseite: an die Bank gegen Credits</small></span></label>
         </div>
       </div>
@@ -874,13 +880,14 @@ let authMode = "login";
 function setMode(m) { authMode = m; $("tabLogin").classList.toggle("active", m === "login"); $("tabReg").classList.toggle("active", m === "reg"); $("authGo").textContent = m === "login" ? "Anmelden" : "Konto erstellen"; $("authPass").autocomplete = m === "login" ? "current-password" : "new-password"; }
 $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
-const authErrors = { account_disabled: "Dieses Chain-Konto ist deaktiviert.", chain_logins_disabled: "Die Anmeldung ist gerade nur für den Owner möglich.", registration_disabled: "Konten werden vom Owner erstellt.", second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
+const authErrors = { not_owner_account: "Mit E-Mail können sich nur Owner der Hauptseite anmelden.", website_login_unavailable: "Anmeldung mit der Hauptseite ist gerade nicht möglich.", account_disabled: "Dieses Chain-Konto ist deaktiviert.", chain_logins_disabled: "Die Anmeldung ist gerade nur für den Owner möglich.", registration_disabled: "Konten werden vom Owner erstellt.", second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
 function onAuthed(me) {
   setTimeout(() => { void caLoad(); void bankLoad(); void adLoad("users"); }, 0);
   myAddress = me.address;
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
   document.body.classList.toggle("is-owner", me.role === "super_admin");
-  $("whoami").hidden = false; $("whoName").textContent = me.username + (me.role === "super_admin" ? " · Owner" : "");
+  document.body.classList.toggle("is-basic", me.role === "owner_basic");
+  $("whoami").hidden = false; $("whoName").textContent = me.username + (me.role === "super_admin" ? " · Owner (Full)" : me.role === "owner_basic" ? " · Owner (Basic)" : "");
   $("authGate").hidden = true;
   boot();
 }
@@ -989,7 +996,7 @@ const needPin = () => { if (!/^\d{4}$/.test(adminPin)) { say("adMsg", adErrors.a
 document.querySelectorAll(".adtab").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll(".adtab").forEach((x) => x.classList.toggle("active", x === b));
   document.querySelectorAll(".adpanel").forEach((pnl) => { pnl.hidden = pnl.dataset.adp !== b.dataset.ad; });
-  if (b.dataset.ad === "nodeusers") void nuLoad(); else void adLoad(b.dataset.ad);
+  if (b.dataset.ad === "nodeusers") { void nuLoad(); void olLoad(); } else void adLoad(b.dataset.ad);
 }));
 $("adPinCheck").onclick = async () => {
   const pin = $("adPin").value.trim();
@@ -1208,7 +1215,7 @@ const payMethods = [
 ];
 function renderPayMethods(settings) {
   const w = settings?.website ?? {};
-  $("payMethods").innerHTML = payMethods.map((m) => {
+  $("payMethods").innerHTML = payMethods.filter((m) => m.key !== "bankEnabled" || !document.body.classList.contains("is-basic")).map((m) => {
     const on = w[m.key] === undefined ? m.def : w[m.key] === true;
     return `<div class="pay-method"><b>${m.label}</b><span class="state ${on ? "on" : "off"}">${on ? "● Aktiv" : "○ Deaktiviert"}</span><small>${m.hint}</small><button type="button" class="${on ? "danger" : "primary"}" data-pay="${m.key}" data-on="${on ? "1" : "0"}">${on ? "Deaktivieren" : "Aktivieren"}</button></div>`;
   }).join("");
@@ -1223,6 +1230,22 @@ $("payMethods").addEventListener("click", async (e) => {
     renderPayMethods(r);
     await refresh();
   } catch (err) { say("payMsg", errors[err.message] || err.message, true); btn.disabled = false; }
+});
+
+// ---------- Owner der Hauptseite: Basic / Full ----------
+async function olLoad() {
+  try {
+    const owners = (await api("/api/admin/owner-levels", {})).owners ?? [];
+    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts"><button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button></div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
+  } catch (e) { $("olList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
+}
+$("olList").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-level]"); if (!btn) return;
+  const row = btn.closest("[data-owner]"); const level = btn.dataset.level;
+  if (!confirm(level === "full" ? `${row.dataset.name} auf Full upgraden? Dann hat das Konto alle Rechte wie du.` : `${row.dataset.name} auf Basic zurückstufen?`)) return;
+  try { await api("/api/admin/owner-level", { userId: row.dataset.owner, name: row.dataset.name, level }); say("adMsg", `${row.dataset.name} ist jetzt ${level === "full" ? "Full" : "Basic"} (muss sich neu anmelden).`); }
+  catch (err) { say("adMsg", adErrors[err.message] || err.message, true); }
+  await olLoad();
 });
 </script>
 </body>
