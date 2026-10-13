@@ -9,7 +9,7 @@ import { startServerMining } from "./server-mining.mjs";
 test("server mining keeps mining for enabled website accounts in turn and survives a restart", async () => {
   const dir = mkdtempSync(join(tmpdir(), "gibb-sm-"));
   const chain = new Blockchain(join(dir, "chain.json"));
-  chain.updateSettings({ difficultyBits: 4, minBits: 1, maxBits: 6 });
+  chain.updateSettings({ difficultyBits: 4, minBits: 1, maxBits: 6, website: { requireRealTx: false, cooldownSeconds: 0 } });
   const a = chain.upsertWebsiteAccount("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa", "Lea", 0).address;
   const b = chain.upsertWebsiteAccount("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", "Tim", 0).address;
   const file = join(dir, "server-miners.json");

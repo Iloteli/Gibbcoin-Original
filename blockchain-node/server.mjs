@@ -281,7 +281,7 @@ const routes = {
   // Vorlage für den Browser-Miner (Transaktionen nur als Hashes, der Header-Präfix ist fertig zusammengesetzt).
   "POST /api/template": (_, body) => {
     const t = chain.issueTemplate(body.address);
-    return { id: t.id, height: t.height, previous_hash: t.previous_hash, merkle_root: t.merkle_root, timestamp: t.timestamp, difficulty_bits: t.difficulty_bits, miner_user_id: t.miner_user_id, tx_count: t.transactions.length, tx_hashes: t.transactions.map((tx) => tx.hash), reward: chain.settings.reward, header_prefix: t.header_prefix };
+    return { id: t.id, height: t.height, previous_hash: t.previous_hash, merkle_root: t.merkle_root, timestamp: t.timestamp, difficulty_bits: t.difficulty_bits, miner_user_id: t.miner_user_id, tx_count: t.transactions.length, tx_hashes: t.transactions.map((tx) => tx.hash), reward: t.transactions[0]?.amount ?? 0, header_prefix: t.header_prefix };
   },
   // Gefundene Nonce einreichen – der Server prüft Hash, Merkle-Root, Schwierigkeit und Proof of Work komplett nach.
   "POST /api/submit": (_, body) => {

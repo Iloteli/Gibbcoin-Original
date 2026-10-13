@@ -329,7 +329,7 @@
   <section class="card settings-card owner-only" id="settingsCard">
     <h2>Einstellungen <span id="pushStatus"></span></h2>
     <p class="muted" id="syncHint" style="margin:0 0 12px">Gilt für die Chain-Seite und die Hauptseite – beim Speichern wird alles übertragen.</p>
-    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">🌐 Hauptseite-Mining</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
+    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
       <div class="spanel" data-panel="chain">
         <p class="muted spanel-desc">Gilt für die Chain-Seite und das Mining auf der Hauptseite.</p>
         <div class="sgrid">
@@ -345,14 +345,14 @@
         </div>
       </div>
       <div class="spanel" data-panel="site" hidden>
-        <p class="muted spanel-desc">Zusätzliche Regeln für das Mining im Blockchain-Tab der Hauptseite.</p>
+        <p class="muted spanel-desc">Gelten für alle Miner: Chain-Seite, Browser- und Server-Mining der Hauptseite, Reserve-Miner und Blockchain-Tab der Hauptseite.</p>
         <div class="sgrid">
           <div class="field"><label for="wCooldown">Pause pro Miner</label><input id="wCooldown" type="number" min="0" /><small>Sekunden nach einem gefundenen Block</small></div>
           <div class="field"><label for="wHalving">Belohnung halbieren alle</label><input id="wHalving" type="number" min="0" /><small>Blöcke · 0 = nie</small></div>
           <div class="field"><label for="wMaxPerDay">Max. Blöcke pro Miner/Tag</label><input id="wMaxPerDay" type="number" min="0" /><small>0 = unbegrenzt</small></div>
         </div>
         <div class="switches">
-          <label class="switch"><input type="checkbox" id="wMining" /><span class="knob"></span><span class="switch-text"><b>Mining auf der Hauptseite aktiv</b><small>aus = niemand kann dort minen</small></span></label>
+          <label class="switch"><input type="checkbox" id="wMining" /><span class="knob"></span><span class="switch-text"><b>Mining aktiv</b><small>aus = niemand kann mehr minen (alle Miner)</small></span></label>
           <label class="switch"><input type="checkbox" id="wRealTx" /><span class="knob"></span><span class="switch-text"><b>Nur mit echten Transaktionen minen</b><small>verhindert Blöcke nur aus Belohnungen</small></span></label>
         </div>
       </div>
@@ -380,7 +380,7 @@
         <p class="muted spanel-desc">Reserve-Miner und Browser-Miner der Chain-Seite.</p>
         <div class="sgrid">
           <div class="field"><label for="sFallbackDelay">Reserve-Miner springt ein nach</label><input id="sFallbackDelay" type="number" min="5" /><small>Sekunden Stillstand</small></div>
-          <div class="field"><label for="sBrowserThreads">Browser-Miner Kerne</label><input id="sBrowserThreads" type="number" min="0" max="64" /><small>0 = alle Kerne des Geräts</small></div>
+          <div class="field"><label for="sBrowserThreads">Browser-Miner Kerne</label><input id="sBrowserThreads" type="number" min="0" max="64" /><small>Browser-Miner der Hauptseite · 0 = alle Kerne</small></div>
         </div>
         <div class="switches">
           <label class="switch"><input type="checkbox" id="sFallback" /><span class="knob"></span><span class="switch-text"><b>Reserve-Miner aktiv</b><small>mint nur, wenn sonst niemand mint</small></span></label>
@@ -431,6 +431,7 @@ const api = async (path, body) => {
   return data;
 };
 const errors = {
+  mining_disabled: "Mining ist ausgeschaltet (Einstellungen → Mining-Regeln).", mining_cooldown: "Pause nach dem letzten Block dieses Miners (Einstellungen → Mining-Regeln).", mining_daily_limit: "Tageslimit an Blöcken für diesen Miner erreicht.", no_pending_transactions: "Keine Transaktionen im Mempool – „Nur mit echten Transaktionen minen“ ist an.",
   insufficient_funds: "Nicht genug Guthaben (Mempool-Ausgaben eingerechnet).", unknown_sender: "Absender unbekannt.", unknown_recipient: "Empfänger unbekannt.",
   same_account: "Absender und Empfänger sind gleich.", invalid_amount: "Betrag muss eine positive ganze Zahl sein.", miner_busy: "Es wird gerade gemint.",
   unknown_miner: "Bitte zuerst ein Wallet anlegen und als Miner wählen.", miner_already_running: "Der PC-Miner läuft bereits.", unknown_block: "Block nicht gefunden.", block_has_no_transactions: "Der Block hat keine Transaktionen.",

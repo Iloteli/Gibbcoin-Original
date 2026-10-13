@@ -117,8 +117,8 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
     try { t = await call("/api/template", { address: `sb_${userId}` }) as Template; }
     catch (e) {
       const code = e instanceof Error ? e.message : "";
-      if (retryable.has(code) && m.current.want) { setMessage(code === "no_pending_transactions" ? "Warte auf Transaktionen, die in einen Block kommen …" : "Kette hat sich geändert – neue Vorlage …"); m.current.timer = window.setTimeout(() => void startRoundRef.current(), 4000); return; }
-      stop(); setError("Node nicht erreichbar. Läuft ein Blockchain-Node?"); return;
+      if (retryable.has(code) && m.current.want) { setMessage(code === "no_pending_transactions" ? "Warte auf Transaktionen, die in einen Block kommen …" : code === "mining_cooldown" ? "Kurze Pause nach deinem letzten Block …" : "Kette hat sich geändert – neue Vorlage …"); m.current.timer = window.setTimeout(() => void startRoundRef.current(), 4000); return; }
+      stop(); setError(code === "mining_disabled" ? "Mining ist zurzeit ausgeschaltet." : code === "mining_daily_limit" ? "Du hast dein Tageslimit an Blöcken erreicht – morgen geht es weiter." : "Node nicht erreichbar. Läuft ein Blockchain-Node?"); return;
     }
     if (!m.current.want) return;
     // Lokale Gegenprüfung: Merkle-Root und Header müssen mit dem Server übereinstimmen.

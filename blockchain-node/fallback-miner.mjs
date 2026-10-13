@@ -53,7 +53,7 @@ export function startFallbackMiner(chain, { getAddress, note, batch = 4000, thro
   const tick = async () => {
     if (!state.active) return;
     const s = chain.settings;
-    const enabled = s.fallbackMinerEnabled || process.env.FALLBACK_MINER === "1";
+    const enabled = s.fallbackMinerEnabled !== false && process.env.FALLBACK_MINER !== "0";
     const hasPending = chain.mempool.length > 0;
     if (enabled && hasPending && !state.running && idleSeconds() >= (s.fallbackDelaySeconds ?? 60)) {
       await mineOne();

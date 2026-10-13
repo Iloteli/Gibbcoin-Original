@@ -188,13 +188,36 @@ export class Blockchain {
     return clamp(bits, s.minBits, s.maxBits);
   }
 
+  // Belohnung für einen Block: Grundbelohnung, halbiert alle "halvingBlocks" Blöcke (0 = nie).
+  blockReward(height) {
+    const base = Math.max(0, Math.round(Number(this.settings.reward) || 0));
+    const every = Math.round(Number(this.settings.website?.halvingBlocks) || 0);
+    if (every <= 0) return base;
+    return Math.floor(base / 2 ** Math.min(62, Math.floor(Math.max(0, height) / every)));
+  }
+
+  // Mining-Regeln (gelten für alle Miner: Chain-Seite, Hauptseite, Server- und Reserve-Miner).
+  assertMiningAllowed(minerAddress) {
+    const w = this.settings.website ?? {};
+    if (w.miningEnabled === false) throw new Error("mining_disabled");
+    if (w.requireRealTx !== false && this.mempool.length === 0) throw new Error("no_pending_transactions");
+    const now = Math.floor(Date.now() / 1000);
+    const mine = this.blocks.filter((b) => b.height > 0 && b.miner === minerAddress);
+    const cooldown = Math.max(0, Number(w.cooldownSeconds) || 0);
+    const last = mine[mine.length - 1];
+    if (cooldown > 0 && last && now - last.timestamp < cooldown) throw new Error("mining_cooldown");
+    const perDay = Math.max(0, Number(w.maxBlocksPerDay) || 0);
+    if (perDay > 0 && mine.filter((b) => b.timestamp > now - 86_400).length >= perDay) throw new Error("mining_daily_limit");
+  }
+
   // Blockvorlage für einen Miner: Belohnung (Coinbase) zuerst, dann Mempool in Eingangsreihenfolge.
   // Die Vorlage bleibt 10 Minuten gültig; der Browser sucht dazu die Nonce.
   issueTemplate(minerAddress) {
     if (!this.accounts[minerAddress]) throw new Error("unknown_miner");
+    this.assertMiningAllowed(minerAddress);
     const tipBlock = this.tip();
     const timestamp = Math.max(Math.floor(Date.now() / 1000), tipBlock.timestamp);
-    const coinbase = this.buildTransaction(COINBASE, minerAddress, this.settings.reward, `Block #${tipBlock.height + 1} Belohnung`, timestamp);
+    const coinbase = this.buildTransaction(COINBASE, minerAddress, this.blockReward(tipBlock.height + 1), `Block #${tipBlock.height + 1} Belohnung`, timestamp);
     const transactions = [coinbase, ...this.mempool.slice(0, this.settings.maxTxPerBlock)];
     const template = {
       id: randomBytes(8).toString("hex"),
@@ -231,7 +254,10 @@ export class Blockchain {
     if (candidate.height !== tipBlock.height + 1 || candidate.previous_hash !== tipBlock.hash) throw new Error("stale_block");
     const txs = candidate.transactions;
     if (txs.length === 0 || txs[0].from !== COINBASE) throw new Error("missing_coinbase");
-    if (txs[0].amount !== this.settings.reward) throw new Error("wrong_reward");
+    if (txs[0].amount !== this.blockReward(candidate.height)) throw new Error("wrong_reward");
+    // Regeln auch beim Einreichen prüfen (z. B. Mining wurde inzwischen ausgeschaltet).
+    const w = this.settings.website ?? {};
+    if (w.miningEnabled === false) throw new Error("mining_disabled");
     if (merkleRoot(txs.map((tx) => tx.hash)) !== candidate.merkle_root) throw new Error("merkle_root_mismatch");
     const header = { height: candidate.height, previous_hash: candidate.previous_hash, merkle_root: candidate.merkle_root, timestamp: candidate.timestamp, difficulty_bits: candidate.difficulty_bits, miner_user_id: candidate.miner_user_id, nonce: candidate.nonce };
     if (sha256(blockHeaderString(header)) !== candidate.hash) throw new Error("hash_mismatch");
@@ -248,7 +274,7 @@ export class Blockchain {
     }
     const ids = new Set(txs.map((tx) => tx.id));
     this.mempool = this.mempool.filter((tx) => !ids.has(tx.id));
-    const block = { ...header, hash: candidate.hash, transactions: txs, miner: candidate.miner_user_id, miner_label: this.accounts[candidate.miner_user_id]?.name ?? candidate.miner_user_id, reward: this.settings.reward, attempts: Number.isFinite(meta.attempts) ? Math.round(meta.attempts) : null, mining_ms: Number.isFinite(meta.ms) ? Math.round(meta.ms) : null, hashrate: Number.isFinite(meta.hashrate) ? Math.round(meta.hashrate) : null };
+    const block = { ...header, hash: candidate.hash, transactions: txs, miner: candidate.miner_user_id, miner_label: this.accounts[candidate.miner_user_id]?.name ?? candidate.miner_user_id, reward: txs[0].amount, attempts: Number.isFinite(meta.attempts) ? Math.round(meta.attempts) : null, mining_ms: Number.isFinite(meta.ms) ? Math.round(meta.ms) : null, hashrate: Number.isFinite(meta.hashrate) ? Math.round(meta.hashrate) : null };
     this.blocks.push(block);
     this.save();
     return block;

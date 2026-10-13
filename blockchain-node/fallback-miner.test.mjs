@@ -13,6 +13,7 @@ function fastChain() {
   c.settings.autoAdjust = false;
   c.settings.fallbackMinerEnabled = true;
   c.settings.fallbackDelaySeconds = 1;
+  c.settings.website = { ...c.settings.website, requireRealTx: false, cooldownSeconds: 0 };
   c.accounts.srv_fallback = { name: "Server", balance: 0, cash: 100, lockedGibb: 0, lockedCash: 0, createdAt: Date.now(), source: "server" };
   return c;
 }
