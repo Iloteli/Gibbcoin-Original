@@ -75,7 +75,6 @@ from auth.users u left join public.profiles p on p.id = u.id
 where u.id not in (select id from reset_keep);
 delete from auth.users where id not in (select id from reset_keep);
 delete from private.account_deletion_authorizations;
-delete from private.ledger_identities where id not in (select id from reset_keep);
 
 -- 4) Neue Kette: Startguthaben als Transaktionen, dann Genesis-Block
 do $$
