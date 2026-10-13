@@ -13,7 +13,7 @@ test("ships profiles, rewards, shop, seasons and friends-facing community tools"
   assert.match(dashboard, /<ProfileEditor/); assert.match(dashboard, /<RewardsHub/);
   assert.match(profile, /update_my_profile/); assert.match(profile, /storage\.from\("avatars"\)/);
   assert.match(payments, /list_contacts/); assert.match(rewards, /claim_daily_task/);
-  assert.match(rewards, /claim_challenge/); assert.match(rewards, /buy_marketplace_item/);
+  assert.match(rewards, /claim_challenge/); assert.doesNotMatch(rewards, /Campus-Shop/);
   assert.match(rewards, /get_season_state/); assert.match(migration, /create table if not exists public\.daily_tasks/);
   assert.match(migration, /create table if not exists public\.daily_rewards/);
   assert.match(migration, /create table if not exists public\.challenges/);

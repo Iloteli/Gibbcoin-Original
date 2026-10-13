@@ -708,7 +708,6 @@ export function Dashboard({ user }: Props) {
         </div>
 
         {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div>{offlineMode ? <section className="card card-pad offline-placeholder"><strong>Adminpanel offline gesperrt</strong><p>Administrative Aktionen benötigen immer eine aktuelle MFA- und Serverprüfung.</p></section> : <><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} currentUserEmail={user.email} onChanged={loadData} onExit={() => openView("home")} />}</>}</div>}
-        <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. GIBB können gekauft, aber nicht in echtes Geld zurückgetauscht oder ausbezahlt werden. Sie sind kein gesetzliches Zahlungsmittel und nur in der App nutzbar.</p>
       </main>
       <UserProfileModal />
       {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}
