@@ -494,7 +494,6 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
         </section>
       )}
 
-      <div className="disclaimer">Die GIBB-Blockchain ist ein Lernprojekt innerhalb der Schul-App: kein öffentliches Netzwerk, keine echte Kryptowährung. Guthaben bleiben serverautoritativ; Blöcke machen den Verlauf nachprüfbar.</div>
     </div>
   );
 }
