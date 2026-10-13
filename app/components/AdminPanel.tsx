@@ -117,6 +117,12 @@ function passwordResetError(code?: string) {
   return "Der Passwort-Reset konnte nicht gestartet werden.";
 }
 
+// Schnellnavigation: eingeklappten Abschnitt beim Anspringen öffnen
+function openAdminSection(event: { currentTarget: HTMLAnchorElement }) {
+  const section = document.querySelector<HTMLDetailsElement>(event.currentTarget.getAttribute("href") ?? "");
+  if (section) section.open = true;
+}
+
 export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onChanged, onExit }: Props) {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [pinStatus, setPinStatus] = useState<PinStatus | null>(null);
@@ -612,13 +618,13 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
 
       <div className="admin-stats" aria-label="Admin-Übersicht"><div><span>Konten</span><strong>{adminStats.users}</strong></div><div><span>Admins</span><strong>{adminStats.admins}</strong></div><div><span>Gebannt</span><strong>{adminStats.locked}</strong></div><div><span>Coins im Umlauf</span><strong>{new Intl.NumberFormat("de-CH").format(adminStats.circulation)}</strong></div></div>
       <nav className="admin-quick-nav" aria-label="Admin-Bereiche">
-        <a href="#admin-games">Spiele</a>
-        <a href="#admin-operations">Tools</a>
-        <a href="#admin-coins">Coins</a>
-        <a href="#admin-users">Konten</a>
-        <a href="#admin-audit">Protokoll</a>
-        <a href="#admin-visitors">Besucher</a>
-        <a href="#admin-reports">Berichte</a>
+        <a href="#admin-games" onClick={openAdminSection}>Spiele</a>
+        <a href="#admin-operations" onClick={openAdminSection}>Tools</a>
+        <a href="#admin-coins" onClick={openAdminSection}>Coins</a>
+        <a href="#admin-users" onClick={openAdminSection}>Konten</a>
+        <a href="#admin-audit" onClick={openAdminSection}>Protokoll</a>
+        <a href="#admin-visitors" onClick={openAdminSection}>Besucher</a>
+        <a href="#admin-reports" onClick={openAdminSection}>Berichte</a>
       </nav>
 
       <div className="admin-coin-stats" aria-label="Deine Coin-Statistik">
@@ -629,7 +635,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
 
       {coinGrants && <div className="admin-reserve">
         <div><span>Unbegrenzte Admin-Reserve</span><strong>∞ GIBB</strong><p>{currentRole === "super_admin" ? "Als Owner darfst du Coins für andere und für dein eigenes Konto erzeugen." : "Admins erzeugen Coins nur für andere Konten. Eigengutschriften sind serverseitig gesperrt."}</p></div>
-        {currentRole === "super_admin" ? <button className="secondary compact" type="button" onClick={() => { chooseAdjustmentMode("credit"); setQuery(""); setTargetId(currentUserId); document.getElementById("admin-amount")?.focus(); }}>Mir selbst Coins geben</button> : <span>Eigengutschrift gesperrt</span>}
+        {currentRole === "super_admin" ? <button className="secondary compact" type="button" onClick={() => { chooseAdjustmentMode("credit"); setQuery(""); setTargetId(currentUserId); const coins = document.getElementById("admin-coins") as HTMLDetailsElement | null; if (coins) coins.open = true; document.getElementById("admin-amount")?.focus(); }}>Mir selbst Coins geben</button> : <span>Eigengutschrift gesperrt</span>}
       </div>}
 
       {!pinStatus?.has_pin && <form className="pin-setup" id="admin-pin-setup" onSubmit={savePin}>
@@ -637,7 +643,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
         <div className="pin-fields"><input className="input pin-input" aria-label="Neuer vierstelliger Admin-PIN" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="••••" value={newPin} onChange={(event) => setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /><input className="input pin-input" aria-label="Admin-PIN bestätigen" type="password" inputMode="numeric" pattern="[0-9]{4}" maxLength={4} placeholder="••••" value={confirmPin} onChange={(event) => setConfirmPin(event.target.value.replace(/\D/g, "").slice(0, 4))} /><button className="primary compact" type="submit" disabled={busy}>PIN speichern</button></div>
       </form>}
 
-      <details id="admin-games" className="admin-panel-section admin-collapsible" open>
+      <details id="admin-games" className="admin-panel-section admin-collapsible">
         <summary className="admin-section-kicker"><span>01</span><div><strong>Spiele &amp; Limits</strong><small>Spielschalter, Einsatzgrenzen und zentrale Schutzregeln</small></div><b aria-hidden="true">⌄</b></summary>
         <GameAdminControls adminPin={adminSessionPin} currentRole={currentRole} pinReady={Boolean(pinStatus?.has_pin)} pinLocked={pinLocked} onPinRejected={expireAdminAccess} />
       </details>
@@ -646,7 +652,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
         <AdminOperations pin={adminSessionPin} active={adminAccessGranted} />
       </details>
 
-      <details id="admin-coins" className="admin-panel-section admin-coins-section admin-collapsible" open>
+      <details id="admin-coins" className="admin-panel-section admin-coins-section admin-collapsible">
         <summary className="admin-section-kicker"><span>03</span><div><strong>Coins verwalten</strong><small>Gutschriften und Abzüge mit Begründung</small></div><b aria-hidden="true">⌄</b></summary>
         <div className="admin-credit-head"><div><strong>{removingCoins ? "Coins von einem Benutzer entfernen" : pinStatus?.has_pin ? "Coins aus der Admin-Reserve gutschreiben" : "2. Coins gutschreiben"}</strong><p>{removingCoins ? currentRole === "super_admin" ? "Als Owner kannst du Coins von deinem eigenen und von fremden Konten entziehen. Andere Admins können dein Owner-Guthaben nicht verändern. Kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : "Als Admin kannst du Coins von deinem eigenen und von anderen Benutzerkonten entziehen. Das Owner-Konto bleibt geschützt, kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : currentRole === "super_admin" ? "Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben. Jede Gutschrift wird protokolliert." : "Nur an andere Konten. Eigengutschriften sind serverseitig gesperrt und jede erlaubte Gutschrift wird protokolliert."}</p></div><span>{pinStatus?.has_pin ? "PIN geschützt" : "PIN fehlt"}</span></div>
         <div className="admin-adjust-tabs" role="tablist" aria-label="Coin-Aktion">{coinGrants && <button type="button" role="tab" aria-selected={!removingCoins} className={!removingCoins ? "active" : ""} onClick={() => chooseAdjustmentMode("credit")}>Coins geben</button>}<button type="button" role="tab" aria-selected={removingCoins} className={removingCoins ? "active remove" : ""} onClick={() => chooseAdjustmentMode("remove")}>Coins entfernen</button></div>
@@ -668,7 +674,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
         {pinFormError && <p className="pin-form-error" role="alert">{pinFormError}</p>}
       </form>}
 
-      <details id="admin-users" className="admin-panel-section admin-collapsible" open>
+      <details id="admin-users" className="admin-panel-section admin-collapsible">
       <summary className="admin-section-kicker"><span>04</span><div><strong>Konten &amp; Berechtigungen</strong><small>Rollen, Banns, Passwort-Reset und Fun-Ränge</small></div><b aria-hidden="true">⌄</b></summary>
       <div className="admin-users-head">
         <div><strong>Konten, Rollen, Banns und Passwort-Reset</strong><p>{currentRole === "super_admin" ? "Verwalte Konten, Rollen, Banns und Passwörter. Geschützte Konten können nicht gebannt oder gelöscht werden." : "Admins können normale Benutzer bannen, ihr Passwort zurücksetzen und ihre Konten dauerhaft löschen. Owner- und andere Admin-Konten bleiben geschützt."}<br /><span className="admin-demo-disclaimer">Fun-Ränge sind nur visuell und geben niemals Rechte.</span></p></div>
