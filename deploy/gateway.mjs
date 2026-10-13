@@ -30,21 +30,23 @@ function maintenanceState() {
 const escapeHtml = (text) => String(text).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 function maintenancePage(state) {
   const message = state.message ? `<p class="msg">${escapeHtml(state.message)}</p>` : "";
-  const eta = state.until ? `<p class="eta" id="eta" data-until="${state.until}">Voraussichtlich wieder online: <b id="etaTime"></b> <span id="etaLeft"></span></p>` : "";
+  const eta = state.until ? `<div class="timer" id="eta" data-until="${state.until}"><span>Website wieder online in</span><strong id="etaLeft">–</strong><small>ca. um <b id="etaTime"></b></small></div>` : "";
   return `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GIBB Coin – Wartung</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:#0f1115;color:#e8eaf0;text-align:center;padding:16px}main{max-width:520px}h1{font-size:24px;margin:0 0 8px}p{color:#9aa3b2;margin:0 0 10px}.msg{color:#e8eaf0;background:#171b22;border:1px solid #2a303b;border-radius:12px;padding:12px 14px;white-space:pre-wrap}.eta b{color:#75f59a}</style></head>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui,sans-serif;background:#0f1115;color:#e8eaf0;text-align:center;padding:16px}main{max-width:520px}h1{font-size:24px;margin:0 0 8px}p{color:#9aa3b2;margin:0 0 10px}.msg{color:#e8eaf0;background:#171b22;border:1px solid #2a303b;border-radius:12px;padding:12px 14px;white-space:pre-wrap}.timer{margin:18px auto;padding:16px 18px;border:1px solid rgba(117,245,154,.3);border-radius:16px;background:rgba(117,245,154,.06);max-width:320px}.timer span{display:block;color:#9aa3b2;font-size:13px}.timer strong{display:block;font-size:44px;line-height:1.15;color:#75f59a;font-variant-numeric:tabular-nums;letter-spacing:-.02em}.timer small{color:#9aa3b2}.timer b{color:#e8eaf0}</style></head>
 <body><main><h1>GIBB Coin ist kurz offline</h1><p>Wir führen gerade Wartungsarbeiten durch.</p>${message}${eta}<p>Die Seite lädt automatisch neu, sobald sie wieder online ist.</p></main>
 <script>
 const el = document.getElementById("eta");
 const until = el ? Date.parse(el.dataset.until) : NaN;
+// Live-Countdown (z. B. 19:42), bei mehr als einer Stunde mit Stunden (1:05:09).
+const pad = (n) => String(n).padStart(2, "0");
 function tick() {
-  if (Number.isFinite(until)) {
-    document.getElementById("etaTime").textContent = new Date(until).toLocaleString("de-CH", { weekday: "short", hour: "2-digit", minute: "2-digit" });
-    const min = Math.max(0, Math.ceil((until - Date.now()) / 60000));
-    document.getElementById("etaLeft").textContent = min > 0 ? "(in ca. " + (min >= 120 ? Math.round(min / 60) + " Std." : min + " Min.") + ")" : "(gleich)";
-  }
+  if (!Number.isFinite(until)) return;
+  document.getElementById("etaTime").textContent = new Date(until).toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" });
+  const left = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+  const h = Math.floor(left / 3600), m = Math.floor((left % 3600) / 60), sec = left % 60;
+  document.getElementById("etaLeft").textContent = left === 0 ? "gleich …" : h > 0 ? h + ":" + pad(m) + ":" + pad(sec) : pad(m) + ":" + pad(sec);
 }
-tick(); setInterval(tick, 15000);
+tick(); setInterval(tick, 1000);
 // Zurück zur Website, sobald die Wartung vorbei ist – ohne selbst neu laden zu müssen.
 let leaving = false;
 async function check() {
