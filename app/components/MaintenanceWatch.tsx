@@ -25,7 +25,8 @@ export function MaintenanceWatch() {
         }
         stopped = true;
         const supabase = getSupabase();
-        if (supabase) await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);
+        // Abmelden, aber höchstens 2 Sekunden warten – die Wartungsseite muss in jedem Fall kommen.
+        if (supabase) await Promise.race([supabase.auth.signOut({ scope: "local" }).catch(() => undefined), new Promise((resolve) => window.setTimeout(resolve, 2000))]);
         window.location.replace(window.location.href);
       } catch {
         // Kein Gateway (z. B. lokale Entwicklung): nichts tun.
