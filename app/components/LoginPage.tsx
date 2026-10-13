@@ -161,7 +161,6 @@ export function LoginPage() {
           <div className="auth-card-heading"><span className="eyebrow">{mode === "forgot" ? "Sicherer Zugang" : "Willkommen"}</span><h2 id="login-title">{mode === "login" ? "Bei GIBB Coin anmelden" : mode === "register" ? "Dein Konto erstellen" : "Passwort zurücksetzen"}</h2><p>{mode === "login" ? "Melde dich mit E-Mail und Passwort an." : mode === "register" ? "Registriere dich ausschliesslich mit E-Mail und Passwort." : "Wir senden dir einen Bestätigungslink an die E-Mail-Adresse deines Kontos."}</p></div>
           {mode !== "forgot" && <div className="auth-tabs" role="tablist" aria-label="Anmeldemodus">
             <button type="button" role="tab" aria-selected={mode === "login"} className={mode === "login" ? "active" : ""} onClick={() => changeMode("login")}>Anmelden</button>
-            <button type="button" role="tab" aria-selected={mode === "register"} className={mode === "register" ? "active" : ""} onClick={() => changeMode("register")}>Registrieren</button>
           </div>}
           <form className="email-auth-form" onSubmit={submitEmailAuth}>
             <div className="field"><label htmlFor="auth-email">E-Mail-Adresse</label><input className="input" id="auth-email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@beispiel.ch" required /></div>

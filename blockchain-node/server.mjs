@@ -181,6 +181,7 @@ const routes = {
   "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, settingsSync: settingsSync.status(), fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
+    if (process.env.NODE_REGISTRATION !== "1") throw new Error("registration_disabled");
     const ipKey = `ip:${body.__ip}`;
     if (loginBlocked(ipKey)) throw new Error("too_many_attempts");
     let u;
@@ -357,6 +358,14 @@ const routes = {
     const r = await settingsSync.deleteAccount(String(body.userId ?? ""), String(body.pin ?? ""));
     note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} gelöscht`);
     void settingsSync.syncAccounts();
+    return r;
+  },
+  "POST /api/admin/create-account": async (_, body) => {
+    await requireOwner(body);
+    const password = String(body.password ?? "");
+    if (password.length < 8) throw new Error("weak_password");
+    const r = await settingsSync.createWebsiteAccount(String(body.email ?? ""), String(body.username ?? ""), password);
+    note("auth", `Neues Website-Konto angelegt: ${r.username}`);
     return r;
   },
   "POST /api/admin/password-reset": async (_, body) => { await requireOwner(body); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },

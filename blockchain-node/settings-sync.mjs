@@ -197,6 +197,19 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     await rpc("node_password_reset", { p_user: userId, p_sent: true });
     return { ok: true, display_name: auth.display_name };
   }
+  // Neues Website-Konto anlegen: E-Mail freigeben, dann bei Supabase registrieren (Bestätigungs-E-Mail)
+  async function createWebsiteAccount(email, username, password) {
+    const allowed = await rpc("node_allow_signup", { p_email: email, p_username: username });
+    const res = await fetchImpl(`${url}/auth/v1/signup`, {
+      method: "POST",
+      headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ email: allowed.email, password, data: { username: allowed.username, full_name: allowed.username } }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error_code || body?.msg || `signup_http_${res.status}`);
+    void syncAccounts();
+    return { ok: true, email: allowed.email, username: allowed.username, confirmationSent: !body?.access_token };
+  }
   const listBankOrders = async () => (await rpc("node_list_bank_orders", {})).orders ?? [];
   const decideBankOrder = async (id, paid) => rpc("node_decide_bank_order", { p_id: id, p_paid: Boolean(paid) });
 
@@ -206,5 +219,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, status: () => ({ ...state }) };
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, status: () => ({ ...state }) };
 }

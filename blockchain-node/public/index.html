@@ -197,6 +197,11 @@
   .ad-health { display: grid; gap: 6px; margin-top: 10px; font-size: 12px; }
   .ca-quick button.active { background: var(--green); color: #07100a; border-color: transparent; }
   @media (max-width: 760px) { .ad-pin { grid-template-columns: 1fr; } .ad-pin button { margin-bottom: 0; } }
+
+  .ad-create { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; }
+  .ad-create .field label { margin: 0 0 5px; font-weight: 700; color: var(--text); }
+  .ad-create .field small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .ad-create a { color: var(--green); }
 </style>
 </head>
 <body>
@@ -204,7 +209,7 @@
   <div class="box">
     <h2>GIBB Chain</h2>
     <p id="authIntro">Melde dich mit deinem Konto an.</p>
-    <div class="tabs"><button id="tabLogin" class="active" type="button">Anmelden</button><button id="tabReg" type="button">Registrieren</button></div>
+    <div class="tabs"><button id="tabLogin" class="active" type="button">Anmelden</button><button id="tabReg" type="button" hidden>Registrieren</button></div>
     <label for="authUser">Benutzername</label>
     <input id="authUser" autocomplete="username" placeholder="z. B. ilja">
     <label for="authPass" style="margin-top:8px">Passwort</label>
@@ -343,6 +348,15 @@
       <button type="button" class="stab adtab active" data-ad="users">👥 Konten</button><button type="button" class="stab adtab" data-ad="games">🎮 Spiele</button><button type="button" class="stab adtab" data-ad="tools">🛠 Tools</button><button type="button" class="stab adtab" data-ad="audit">📜 Protokoll</button><button type="button" class="stab adtab" data-ad="visitors">📈 Besucher</button>
     </div>
     <div class="adpanel" data-adp="users">
+      <form class="ad-create" id="adCreate" autocomplete="off">
+        <strong>Neues Konto erstellen</strong>
+        <div class="sgrid">
+          <div class="field"><label for="adNewEmail">E-Mail</label><input id="adNewEmail" type="email" required placeholder="name@beispiel.ch" /><small>Bekommt eine Bestätigungs-E-Mail</small></div>
+          <div class="field"><label for="adNewUser">Benutzername</label><input id="adNewUser" required pattern="[a-z0-9._-]{3,30}" placeholder="z. B. lea.muster" /><small>3–30 Zeichen: a–z, 0–9, . _ -</small></div>
+          <div class="field"><label for="adNewPass">Start-Passwort</label><input id="adNewPass" required minlength="8" placeholder="mind. 8 Zeichen" /><small><a href="#" id="adGenPass">Passwort erzeugen</a> · der Person mitteilen</small></div>
+        </div>
+        <div class="actions"><button class="primary" type="submit">Konto erstellen</button></div>
+      </form>
       <div class="field"><label for="adSearch">Benutzer suchen</label><input id="adSearch" placeholder="Name oder Benutzername" autocomplete="off" /></div>
       <div class="list ad-users" id="adUsers"><div class="muted">Wird geladen …</div></div>
     </div>
@@ -561,9 +575,22 @@ function fillSelect(sel, keepValue) {
   if (accounts.some((a) => a.address === current)) sel.value = current;
 }
 
+// Statusanzeige oben rechts: grün = verbunden, gelb = Server nicht erreichbar
+function setChainStatus(ok, text) {
+  const el = $("chainStatus");
+  el.className = ok ? "status" : "status bad";
+  el.querySelector("span").textContent = text;
+}
 async function refresh() {
   try {
-    const [s, acc, blocks, mempool] = await Promise.all([api("/api/stats"), api("/api/accounts"), api("/api/blocks?limit=40"), api("/api/mempool")]);
+    let s, acc, blocks, mempool;
+    try {
+      [s, acc, blocks, mempool] = await Promise.all([api("/api/stats"), api("/api/accounts"), api("/api/blocks?limit=40"), api("/api/mempool")]);
+    } catch (netErr) {
+      setChainStatus(false, "Server nicht erreichbar");
+      return;
+    }
+    setChainStatus(true, `Live · Block #${s.height ?? "?"}`);
     stats = s; accounts = acc;
     renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
@@ -575,7 +602,7 @@ async function refresh() {
   if (myAddress) ["minerAddress", "orderAddress", "txFrom"].forEach((id) => { const el = $(id); if (el && [...el.options].some((o) => o.value === myAddress)) el.value = myAddress; });
     // Neuer Block von jemand anderem? Dann ist unsere Vorlage veraltet.
     if (miner.template && s.height + 1 !== miner.template.height) restartRound("Neuer Block in der Kette – Vorlage erneuert.");
-  } catch (e) { $("chainStatus").className = "status bad"; $("chainStatus").querySelector("span").textContent = "Server nicht erreichbar"; }
+  } catch (e) { console.error("Anzeige-Fehler", e); }
 }
 
 function renderStats(s) {
@@ -1080,6 +1107,25 @@ document.querySelectorAll("#adRange button").forEach((b) => b.addEventListener("
   document.querySelectorAll("#adRange button").forEach((x) => x.classList.toggle("active", x === b));
   adDays = Number(b.dataset.days); void adLoad("visitors");
 }));
+
+// ---------- Neues Website-Konto ----------
+const createErrors = { invalid_email: "Bitte eine gültige E-Mail eingeben.", invalid_username: "Benutzername: 3–30 Zeichen, nur a–z, 0–9, . _ -", email_taken: "Diese E-Mail hat schon ein Konto.", username_taken: "Dieser Benutzername ist schon vergeben.", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", over_email_send_rate_limit: "Zu viele E-Mails in kurzer Zeit – bitte etwas warten." };
+$("adGenPass").addEventListener("click", (e) => {
+  e.preventDefault();
+  const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(12));
+  $("adNewPass").value = Array.from(bytes, (b) => chars[b % chars.length]).join("");
+});
+$("adCreate").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("adNewEmail").value.trim(); const username = $("adNewUser").value.trim().toLowerCase(); const password = $("adNewPass").value;
+  try {
+    const r = await api("/api/admin/create-account", { email, username, password });
+    say("adMsg", r.confirmationSent ? `Konto ${r.username} angelegt. ${r.email} bekommt eine Bestätigungs-E-Mail – danach kann sich die Person anmelden.` : `Konto ${r.username} angelegt – Anmeldung ist sofort möglich.`);
+    $("adNewEmail").value = ""; $("adNewUser").value = ""; $("adNewPass").value = "";
+    await adLoad("users");
+  } catch (err) { say("adMsg", createErrors[err.message] || adErrors[err.message] || err.message, true); }
+});
 </script>
 </body>
 </html>

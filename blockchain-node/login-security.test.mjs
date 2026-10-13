@@ -22,7 +22,7 @@ before(async () => {
   const dir = mkdtempSync(join(tmpdir(), "gibb-sec-"));
   codeFile = join(dir, "owner-login-code.json");
   child = spawn(process.execPath, [join(here, "server.mjs")], {
-    env: { ...process.env, PORT: String(PORT), CHAIN_FILE: join(dir, "chain.json"), GIBB_OWNER_SETUP_CODE: "geheim-1234", NO_AUTH: "", FALLBACK_MINER: "0", SUPABASE_URL: "", SUPABASE_ANON_KEY: "", SUPABASE_SERVICE_ROLE_KEY: "" },
+    env: { ...process.env, PORT: String(PORT), CHAIN_FILE: join(dir, "chain.json"), GIBB_OWNER_SETUP_CODE: "geheim-1234", NODE_REGISTRATION: "1", NO_AUTH: "", FALLBACK_MINER: "0", SUPABASE_URL: "", SUPABASE_ANON_KEY: "", SUPABASE_SERVICE_ROLE_KEY: "" },
     stdio: "ignore",
   });
   for (let i = 0; i < 50; i += 1) {
