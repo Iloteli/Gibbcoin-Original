@@ -45,7 +45,20 @@ function tick() {
   }
 }
 tick(); setInterval(tick, 15000);
-setInterval(async () => { try { const s = await fetch("/__status?t=" + Date.now(), { cache: "no-store" }).then((r) => r.json()); if (!s.maintenance) location.reload(); } catch {} }, 20000);
+// Zurück zur Website, sobald die Wartung vorbei ist – ohne selbst neu laden zu müssen.
+let leaving = false;
+async function check() {
+  if (leaving) return;
+  try {
+    const s = await fetch("/__status?t=" + Date.now(), { cache: "no-store" }).then((r) => r.json());
+    if (!s.maintenance) { leaving = true; location.replace(location.pathname + location.search + location.hash); }
+  } catch {}
+}
+setInterval(check, 5000);
+if (Number.isFinite(until)) setTimeout(check, Math.max(1000, until - Date.now() + 1500));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") check(); });
+window.addEventListener("focus", check);
+window.addEventListener("online", check);
 </script></body></html>`;
 }
 
