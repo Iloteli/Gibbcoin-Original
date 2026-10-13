@@ -326,7 +326,15 @@ const api = async (path, body) => {
   const payload = body ? (authToken ? { ...body, token: authToken } : body) : undefined;
   const res = await fetch(path, payload ? { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(payload) } : undefined);
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || "Fehler");
+  if (!res.ok) {
+    // Anmeldung abgelaufen (z. B. nach 12 h): neu anmelden statt "not_owner" anzuzeigen.
+    if (authToken && (data.error === "not_owner" || data.error === "login_required") && path !== "/api/auth/me") {
+      let still = false;
+      try { const me = await fetch("/api/auth/me", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ token: authToken }) }).then((r) => r.json()); still = Boolean(me?.ok); } catch {}
+      if (!still) { authToken = null; try { localStorage.removeItem("gibb-auth"); } catch {} alert("Deine Anmeldung ist abgelaufen. Bitte melde dich neu an."); location.reload(); }
+    }
+    throw new Error(data.error || "Fehler");
+  }
   return data;
 };
 const errors = {

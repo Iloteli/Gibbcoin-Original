@@ -96,16 +96,25 @@ function note(kind, message) {
 }
 
 // ---------- API ----------
-// Anmelde-Sitzungen: token -> { address, username, role }. Nur im Speicher.
-import { randomBytes as _rnd } from "node:crypto";
+// Anmelde-Sitzungen: sha256(token) -> { address, username, role, expires }.
+// Werden in sessions.json gespeichert (nur Hashes), damit ein Neustart/Update niemanden abmeldet.
+import { randomBytes as _rnd, createHash as _hash } from "node:crypto";
+import { existsSync as _exists, readFileSync as _read, writeFileSync as _write, renameSync as _rename } from "node:fs";
+const SESSION_FILE = join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "sessions.json");
+const tokenKey = (token) => _hash("sha256").update(String(token)).digest("hex");
 const sessions = new Map();
+try { if (_exists(SESSION_FILE)) for (const [k, v] of Object.entries(JSON.parse(_read(SESSION_FILE, "utf8")))) if (v?.expires > Date.now()) sessions.set(k, v); } catch { /* leere Sitzungen */ }
+const saveSessions = () => {
+  try { const tmp = `${SESSION_FILE}.tmp`; _write(tmp, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 }); _rename(tmp, SESSION_FILE); } catch { /* nur im Speicher */ }
+};
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // Sitzungen laufen nach 12 Stunden ab
 const newSession = (u) => {
   const token = _rnd(32).toString("hex");
-  sessions.set(token, { address: u.address, username: u.username, role: u.role, expires: Date.now() + SESSION_TTL_MS });
+  sessions.set(tokenKey(token), { address: u.address, username: u.username, role: u.role, expires: Date.now() + SESSION_TTL_MS });
+  saveSessions();
   return token;
 };
-setInterval(() => { const now = Date.now(); for (const [t, s] of sessions) if (s.expires < now) sessions.delete(t); }, 60_000).unref();
+setInterval(() => { const now = Date.now(); let changed = false; for (const [t, s] of sessions) if (s.expires < now) { sessions.delete(t); changed = true; } if (changed) saveSessions(); }, 60_000).unref();
 
 // Schutz gegen Passwort-Raten (Sperre für 15 Minuten nach zu vielen Fehlversuchen).
 const loginFailures = new Map(); // key -> { count, until }
@@ -134,9 +143,9 @@ const getGuest = () => {
   return guestSession;
 };
 const sessionOf = (body) => {
-  const sess = body && typeof body.token === "string" ? sessions.get(body.token) : null;
+  const sess = body && typeof body.token === "string" ? sessions.get(tokenKey(body.token)) : null;
   if (sess && sess.expires > Date.now()) return sess;
-  if (sess) sessions.delete(body.token);
+  if (sess) { sessions.delete(tokenKey(body.token)); saveSessions(); }
   return NO_AUTH && body?.__direct === true ? getGuest() : null;
 };
 const requireSession = (body) => { const sess = sessionOf(body); if (!sess) throw new Error("login_required"); return sess; };
@@ -175,7 +184,7 @@ const routes = {
     return { token, ...u };
   },
   "POST /api/auth/logout": (_, body) => {
-    if (typeof body.token === "string") sessions.delete(body.token);
+    if (typeof body.token === "string") { sessions.delete(tokenKey(body.token)); saveSessions(); }
     return { ok: true };
   },
   "POST /api/auth/me": (_, body) => {
