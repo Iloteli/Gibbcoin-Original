@@ -349,7 +349,7 @@ export function BlockchainExplorer({ userId, isAdmin, onChanged }: { userId: str
     const result = data as { ok: boolean; error?: string; settings?: Settings } | null;
     if (rpcError || !result?.ok) {
       const code = result?.error ?? codeOf(rpcError);
-      setSettingsMessage(code === "owner_required" ? "Nur Ilja darf die Blockchain-Einstellungen ändern." : code?.startsWith("admin_pin_") ? "Admin-PIN ungültig oder Freigabe abgelaufen." : code === "mfa_required" ? "Für diese Änderung ist eine bestätigte MFA-Sitzung nötig." : code === "invalid_difficulty_range" ? "Die minimale Schwierigkeit darf die maximale nicht übersteigen." : "Die Einstellungen konnten nicht gespeichert werden.");
+      setSettingsMessage(code === "owner_required" ? "Dafür fehlen dir die Rechte." : code?.startsWith("admin_pin_") ? "Admin-PIN ungültig oder Freigabe abgelaufen." : code === "mfa_required" ? "Für diese Änderung ist eine bestätigte MFA-Sitzung nötig." : code === "invalid_difficulty_range" ? "Die minimale Schwierigkeit darf die maximale nicht übersteigen." : "Die Einstellungen konnten nicht gespeichert werden.");
       return;
     }
     if (result.settings) setSettings(result.settings);

@@ -270,9 +270,8 @@ test("reserves account bans and Owner deletion for Ilja as the only primary Owne
   assert.match(adminPanel, /currentRole === "super_admin" && \(currentUserEmail \?\? ""\)\.toLowerCase\(\) === PRIMARY_OWNER_EMAIL/);
   assert.doesNotMatch(adminPanel, /d465d88f-0acb-4bff-ad55-945761acaeea/);
   assert.doesNotMatch(adminPanel, /get_my_admin_account_capabilities/);
-  assert.match(adminPanel, /Nur der Haupt-Owner Ilja darf Konten bannen/);
+  assert.doesNotMatch(adminPanel, /Nur der Haupt-Owner|Haupt-Owner aktiv/);
   assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
-  assert.match(adminPanel, /Haupt-Owner aktiv/);
   assert.match(dashboard, /currentUserEmail=\{user\.email\}/);
   // Ilja wird per Migration selbst Owner (super_admin).
   assert.match(promoteMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
