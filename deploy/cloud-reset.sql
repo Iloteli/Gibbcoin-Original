@@ -1,20 +1,20 @@
 -- GIBB Coin: alles zurücksetzen. Behalten werden nur die Konten von
--- Ilja, Robyn, gianleomala und lpi164520. Alle anderen Konten werden gelöscht.
+-- Ilja, Robyn, gianleomala, lpi164520 und xexobo9705. Alle anderen Konten werden gelöscht.
 -- Zurückgesetzt werden: Blockchain, alle Transaktionen, Guthaben (10 GIBB Startguthaben),
 -- Credits, Markt und Kurs, Spiele, Ranglisten, Belohnungen, Mitteilungen und Besucherstatistik.
 -- Einstellungen, Shop-Artikel, Aufgaben und Saisons bleiben erhalten.
 --
--- SCHRITT 1 (nur anschauen): Diese Abfrage muss GENAU 4 Konten zeigen.
+-- SCHRITT 1 (nur anschauen): Diese Abfrage muss GENAU 5 Konten zeigen.
 --
 --   select u.id, u.email, p.username, p.display_name, p.role
 --   from auth.users u left join public.profiles p on p.id = u.id
 --   where lower(u.email) = 'ilja.podorieszach@icloud.com'
 --      or u.id = 'd465d88f-0acb-4bff-ad55-945761acaeea'
---      or lower(coalesce(p.username, '')) in ('gianleomala', 'lpi164520')
---      or lower(coalesce(p.display_name, '')) in ('gianleomala', 'lpi164520')
---      or lower(split_part(u.email, '@', 1)) in ('gianleomala', 'lpi164520');
+--      or lower(coalesce(p.username, '')) in ('gianleomala', 'lpi164520', 'xexobo9705')
+--      or lower(coalesce(p.display_name, '')) in ('gianleomala', 'lpi164520', 'xexobo9705')
+--      or lower(split_part(u.email, '@', 1)) in ('gianleomala', 'lpi164520', 'xexobo9705');
 --
--- SCHRITT 2: Ab hier alles ausführen. Bricht ab, wenn nicht genau 4 Konten gefunden werden.
+-- SCHRITT 2: Ab hier alles ausführen. Bricht ab, wenn nicht genau 5 Konten gefunden werden.
 
 begin;
 
@@ -22,14 +22,14 @@ create temporary table reset_keep on commit drop as
 select u.id from auth.users u left join public.profiles p on p.id = u.id
 where lower(u.email) = 'ilja.podorieszach@icloud.com'
    or u.id = 'd465d88f-0acb-4bff-ad55-945761acaeea'
-   or lower(coalesce(p.username, '')) in ('gianleomala', 'lpi164520')
-   or lower(coalesce(p.display_name, '')) in ('gianleomala', 'lpi164520')
-   or lower(split_part(u.email, '@', 1)) in ('gianleomala', 'lpi164520');
+   or lower(coalesce(p.username, '')) in ('gianleomala', 'lpi164520', 'xexobo9705')
+   or lower(coalesce(p.display_name, '')) in ('gianleomala', 'lpi164520', 'xexobo9705')
+   or lower(split_part(u.email, '@', 1)) in ('gianleomala', 'lpi164520', 'xexobo9705');
 
 do $$
 begin
-  if (select count(*) from reset_keep) <> 4 then
-    raise exception 'Abbruch: % statt 4 Konten gefunden – nichts wurde geändert.', (select count(*) from reset_keep);
+  if (select count(*) from reset_keep) <> 5 then
+    raise exception 'Abbruch: % statt 5 Konten gefunden – nichts wurde geändert.', (select count(*) from reset_keep);
   end if;
 end $$;
 
@@ -107,6 +107,6 @@ end $$;
 
 commit;
 
--- Kontrolle: 4 Konten mit je 10 GIBB, Kette gültig
+-- Kontrolle: 5 Konten mit je 10 GIBB, Kette gültig
 select u.email, p.username, p.role, w.balance, w.credits
 from auth.users u left join public.profiles p on p.id = u.id left join public.wallets w on w.user_id = u.id;
