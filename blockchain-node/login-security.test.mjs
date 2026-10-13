@@ -96,3 +96,22 @@ test("owner login needs a one-time server code (second factor) and security head
   assert.match(res.headers.get("content-security-policy") ?? "", /frame-ancestors 'none'/);
   assert.equal(res.headers.get("access-control-allow-origin"), null);
 });
+
+test("only the owner creates, resets and deletes chain logins; self-registration can be switched off", async () => {
+  const writeCode = (code) => writeFileSync(codeFile, JSON.stringify({ hash: createHash("sha256").update(code).digest("hex"), expires: Date.now() + 300000 }));
+  writeCode("246810");
+  const owner = (await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "246810" })).data;
+  const lea = (await post("/api/auth/login", { username: "lea", password: "passwort123" })).data;
+  assert.equal((await post("/api/admin/node-users/create", { token: lea.token, username: "max", password: "passwort123" })).data.error, "not_owner");
+  const created = await post("/api/admin/node-users/create", { token: owner.token, username: "max", password: "passwort123" });
+  assert.equal(created.data.role, "user");
+  const max = (await post("/api/auth/login", { username: "max", password: "passwort123" })).data;
+  assert.ok(max.token);
+  assert.ok((await post("/api/admin/node-users", { token: owner.token })).data.users.some((u) => u.key === "max"));
+  await post("/api/admin/node-users/password", { token: owner.token, username: "max", password: "neues-passwort" });
+  assert.equal((await post("/api/auth/me", { token: max.token })).data.ok, false, "alte Sitzung beendet");
+  assert.ok((await post("/api/auth/login", { username: "max", password: "neues-passwort" })).data.token);
+  assert.equal((await post("/api/admin/node-users/delete", { token: owner.token, username: "ilja" })).data.error, "account_is_protected");
+  await post("/api/admin/node-users/delete", { token: owner.token, username: "max" });
+  assert.equal((await post("/api/auth/login", { username: "max", password: "neues-passwort" })).data.error, "invalid_login");
+});

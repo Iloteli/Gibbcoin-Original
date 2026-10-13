@@ -345,7 +345,7 @@
       <button type="button" id="adPinSet">PIN speichern</button>
     </div>
     <div class="stabs" role="tablist">
-      <button type="button" class="stab adtab active" data-ad="users">👥 Konten</button><button type="button" class="stab adtab" data-ad="games">🎮 Spiele</button><button type="button" class="stab adtab" data-ad="tools">🛠 Tools</button><button type="button" class="stab adtab" data-ad="audit">📜 Protokoll</button><button type="button" class="stab adtab" data-ad="visitors">📈 Besucher</button>
+      <button type="button" class="stab adtab active" data-ad="users">👥 Konten</button><button type="button" class="stab adtab" data-ad="games">🎮 Spiele</button><button type="button" class="stab adtab" data-ad="tools">🛠 Tools</button><button type="button" class="stab adtab" data-ad="audit">📜 Protokoll</button><button type="button" class="stab adtab" data-ad="visitors">📈 Besucher</button><button type="button" class="stab adtab" data-ad="nodeusers">🔐 Chain-Konten</button>
     </div>
     <div class="adpanel" data-adp="users">
       <form class="ad-create" id="adCreate" autocomplete="off">
@@ -390,6 +390,18 @@
     <div class="adpanel" data-adp="audit" hidden>
       <div class="field"><label for="adAuditSearch">Protokoll durchsuchen</label><input id="adAuditSearch" placeholder="Aktion, Name, Grund" autocomplete="off" /></div>
       <div class="list" id="adAudit"></div>
+    </div>
+    <div class="adpanel" data-adp="nodeusers" hidden>
+      <p class="muted" style="margin:0 0 10px">Anmeldungen für <b>diese Chain-Seite</b> (getrennt von den Konten der Hauptseite). Jedes Chain-Konto hat ein eigenes Wallet auf der Chain.</p>
+      <form class="ad-create" id="nuCreate" autocomplete="off">
+        <strong>Neues Chain-Konto</strong>
+        <div class="sgrid">
+          <div class="field"><label for="nuName">Benutzername</label><input id="nuName" required pattern="[a-z0-9._-]{3,40}" placeholder="z. B. lea" /><small>3–40 Zeichen: a–z, 0–9, . _ -</small></div>
+          <div class="field"><label for="nuPass">Passwort</label><input id="nuPass" required minlength="8" placeholder="mind. 8 Zeichen" /><small><a href="#" id="nuGen">Passwort erzeugen</a> · der Person mitteilen</small></div>
+        </div>
+        <div class="actions"><button class="primary" type="submit">Chain-Konto erstellen</button></div>
+      </form>
+      <div class="list" id="nuList"></div>
     </div>
     <div class="adpanel" data-adp="visitors" hidden>
       <div class="ca-quick" id="adRange"><button type="button" data-days="7" class="active">7 Tage</button><button type="button" data-days="30">30 Tage</button><button type="button" data-days="3650">Alles</button></div>
@@ -960,7 +972,7 @@ const needPin = () => { if (!/^\d{4}$/.test(adminPin)) { say("adMsg", adErrors.a
 document.querySelectorAll(".adtab").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll(".adtab").forEach((x) => x.classList.toggle("active", x === b));
   document.querySelectorAll(".adpanel").forEach((pnl) => { pnl.hidden = pnl.dataset.adp !== b.dataset.ad; });
-  void adLoad(b.dataset.ad);
+  if (b.dataset.ad === "nodeusers") void nuLoad(); else void adLoad(b.dataset.ad);
 }));
 $("adPinCheck").onclick = async () => {
   const pin = $("adPin").value.trim();
@@ -1125,6 +1137,45 @@ $("adCreate").addEventListener("submit", async (e) => {
     $("adNewEmail").value = ""; $("adNewUser").value = ""; $("adNewPass").value = "";
     await adLoad("users");
   } catch (err) { say("adMsg", createErrors[err.message] || adErrors[err.message] || err.message, true); }
+});
+
+// ---------- Chain-Konten (Anmeldungen für diese Seite) ----------
+const genPass = () => { const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => chars[b % chars.length]).join(""); };
+const nuErrors = { invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", username_taken: "Dieser Benutzername ist schon vergeben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert.", user_not_found: "Konto nicht gefunden.", account_is_protected: "Das Owner-Konto ist geschützt." };
+const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] || e.message, true);
+async function nuLoad() {
+  try {
+    const users = (await api("/api/admin/node-users", {})).users ?? [];
+    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? "" : '<button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>'}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
+  } catch (e) { nuFail(e); }
+}
+$("nuGen").addEventListener("click", (e) => { e.preventDefault(); $("nuPass").value = genPass(); });
+$("nuCreate").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const r = await api("/api/admin/node-users/create", { username: $("nuName").value.trim().toLowerCase(), password: $("nuPass").value });
+    say("adMsg", `Chain-Konto ${r.username} erstellt – Passwort der Person mitteilen.`);
+    $("nuName").value = ""; $("nuPass").value = "";
+    await nuLoad(); await refresh();
+  } catch (err) { nuFail(err); }
+});
+$("nuList").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-nu]"); if (!btn) return;
+  const user = btn.closest("[data-user]").dataset.user;
+  try {
+    if (btn.dataset.nu === "password") {
+      const pw = prompt(`Neues Passwort für ${user} (mind. 8 Zeichen):`, genPass());
+      if (!pw) return;
+      await api("/api/admin/node-users/password", { username: user, password: pw });
+      say("adMsg", `Neues Passwort für ${user} gesetzt: ${pw} – der Person mitteilen. Bestehende Anmeldungen wurden beendet.`);
+    }
+    if (btn.dataset.nu === "delete") {
+      if (!confirm(`Chain-Konto ${user} löschen? Die Anmeldung wird entfernt, das Wallet bleibt in der Kette.`)) return;
+      await api("/api/admin/node-users/delete", { username: user });
+      say("adMsg", `Chain-Konto ${user} gelöscht.`);
+    }
+  } catch (err) { nuFail(err); }
+  await nuLoad();
 });
 </script>
 </body>

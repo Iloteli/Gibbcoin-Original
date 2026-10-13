@@ -333,6 +333,36 @@ export class Blockchain {
     return { address: u.address, username: u.username, role: u.role };
   }
 
+  // ---------- Chain-Logins verwalten (nur Owner) ----------
+  listUsers() {
+    return Object.entries(this.users).map(([key, u]) => ({
+      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null,
+      balance: this.accounts[u.address]?.balance ?? 0,
+    })).sort((a, b) => a.key.localeCompare(b.key));
+  }
+
+  setUserPassword(username, password) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("user_not_found");
+    if (u.role === "super_admin") throw new Error("account_is_protected");
+    if (String(password ?? "").length < 8 || String(password).length > 200) throw new Error("weak_password");
+    u.salt = randomBytes(16).toString("hex");
+    u.hash = this.hashPassword(password, u.salt);
+    this.save();
+    return { username: u.username };
+  }
+
+  deleteUser(username) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("user_not_found");
+    if (u.role === "super_admin" || key === this.ownerKey) throw new Error("account_is_protected");
+    delete this.users[key]; // nur die Anmeldung – das Wallet und seine Blöcke bleiben in der Kette
+    this.save();
+    return { username: u.username, address: u.address };
+  }
+
   userByAddress(address) {
     return Object.values(this.users).find((u) => u.address === address) || null;
   }

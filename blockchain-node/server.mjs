@@ -108,6 +108,13 @@ const saveSessions = () => {
   try { const tmp = `${SESSION_FILE}.tmp`; _write(tmp, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 }); _rename(tmp, SESSION_FILE); } catch { /* nur im Speicher */ }
 };
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // Sitzungen laufen nach 12 Stunden ab
+// Alle Sitzungen eines Kontos beenden (nach Löschen oder Passwortwechsel)
+const dropSessionsOf = (username) => {
+  const name = String(username ?? "").toLowerCase();
+  let changed = false;
+  for (const [k, sess] of sessions) if (String(sess.username ?? "").toLowerCase() === name) { sessions.delete(k); changed = true; }
+  if (changed) saveSessions();
+};
 const OWNER_IDLE_MS = 30 * 60 * 1000;          // Owner wird nach 30 Minuten ohne Aktivität abgemeldet
 
 // Zweiter Faktor für den Owner: Einmal-Code vom Server ("sudo gibb-code"), 5 Minuten gültig, einmal nutzbar.
@@ -358,6 +365,28 @@ const routes = {
     const r = await settingsSync.deleteAccount(String(body.userId ?? ""), String(body.pin ?? ""));
     note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} gelöscht`);
     void settingsSync.syncAccounts();
+    return r;
+  },
+  // Anmeldungen für die Chain-Seite selbst (nur Owner)
+  "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers() }; },
+  "POST /api/admin/node-users/create": async (_, body) => {
+    await requireOwner(body);
+    const u = chain.registerUser(String(body.username ?? ""), String(body.password ?? ""));
+    note("auth", `Chain-Konto ${u.username} angelegt`);
+    return u;
+  },
+  "POST /api/admin/node-users/password": async (_, body) => {
+    await requireOwner(body);
+    const r = chain.setUserPassword(String(body.username ?? ""), String(body.password ?? ""));
+    dropSessionsOf(r.username);
+    note("auth", `Neues Passwort für Chain-Konto ${r.username}`);
+    return r;
+  },
+  "POST /api/admin/node-users/delete": async (_, body) => {
+    await requireOwner(body);
+    const r = chain.deleteUser(String(body.username ?? ""));
+    dropSessionsOf(r.username);
+    note("auth", `Chain-Konto ${r.username} gelöscht`);
     return r;
   },
   "POST /api/admin/create-account": async (_, body) => {
