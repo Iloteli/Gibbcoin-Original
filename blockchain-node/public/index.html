@@ -345,7 +345,7 @@
   <section class="card settings-card owner-only" id="settingsCard">
     <h2>Einstellungen <span id="pushStatus"></span></h2>
     <p class="muted" id="syncHint" style="margin:0 0 12px">Gilt für die Chain-Seite und die Hauptseite – beim Speichern wird alles übertragen.</p>
-    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
+    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
       <div class="spanel" data-panel="chain">
         <p class="muted spanel-desc">Gilt für die Chain-Seite und das Mining auf der Hauptseite.</p>
         <div class="sgrid">
@@ -393,6 +393,17 @@
           <label class="switch"><input type="checkbox" id="wBuy" /><span class="knob"></span><span class="switch-text"><b>Kaufen erlaubt</b><small>Hauptseite: mit Karte/TWINT und Credits</small></span></label>
           <label class="switch"><input type="checkbox" id="wBank" /><span class="knob"></span><span class="switch-text"><b>Kauf per Banküberweisung</b><small>IBAN anzeigen, Zahlung hier bestätigen</small></span></label>
           <label class="switch"><input type="checkbox" id="wSell" /><span class="knob"></span><span class="switch-text"><b>Verkaufen erlaubt</b><small>Hauptseite: an die Bank gegen Credits</small></span></label>
+        </div>
+      </div>
+      <div class="spanel" data-panel="tabs" hidden>
+        <p class="muted spanel-desc">Welche Tabs auf der Hauptseite sichtbar sind. Home und Konto sind immer sichtbar. Ausgeschaltete Tabs verschwinden bei allen innerhalb einer Minute.</p>
+        <div class="switches">
+          <label class="switch"><input type="checkbox" class="tab-switch" data-tab="send" /><span class="knob"></span><span class="switch-text"><b>Senden</b><small>Tab auf der Hauptseite anzeigen</small></span></label>
+          <label class="switch"><input type="checkbox" class="tab-switch" data-tab="games" /><span class="knob"></span><span class="switch-text"><b>Spiele</b><small>Tab auf der Hauptseite anzeigen</small></span></label>
+          <label class="switch"><input type="checkbox" class="tab-switch" data-tab="community" /><span class="knob"></span><span class="switch-text"><b>Community</b><small>Tab auf der Hauptseite anzeigen</small></span></label>
+          <label class="switch"><input type="checkbox" class="tab-switch" data-tab="activity" /><span class="knob"></span><span class="switch-text"><b>Aktivität</b><small>Tab auf der Hauptseite anzeigen</small></span></label>
+          <label class="switch"><input type="checkbox" class="tab-switch" data-tab="chain" /><span class="knob"></span><span class="switch-text"><b>Blockchain</b><small>Tab auf der Hauptseite anzeigen</small></span></label>
+          <label class="switch"><input type="checkbox" class="tab-switch" data-tab="market" /><span class="knob"></span><span class="switch-text"><b>Kaufen</b><small>Tab auf der Hauptseite anzeigen</small></span></label>
         </div>
       </div>
       <div class="spanel" data-panel="server" hidden>
@@ -680,7 +691,7 @@ function renderSettings(s) {
   $("wMining").checked = w.miningEnabled !== false; $("wRealTx").checked = w.requireRealTx !== false;
   $("wStep").value = w.marketStepPercent ?? 0.05; $("wMinPrice").value = w.minPrice ?? 0.25; $("wMaxPrice").value = w.maxPrice ?? 50;
   $("wMaxTrade").value = w.maxTrade ?? 1000; $("wSellLimit").value = w.dailySellLimit ?? 0;
-  $("wBuy").checked = w.buyEnabled === true; $("wSell").checked = w.sellEnabled === true; $("wBank").checked = w.bankEnabled === true; $("wBankIban").value = w.bankIban ?? ""; $("wBankHolder").value = w.bankHolder ?? "";
+  $("wBuy").checked = w.buyEnabled === true; $("wSell").checked = w.sellEnabled === true; $("wBank").checked = w.bankEnabled === true; document.querySelectorAll(".tab-switch").forEach((el) => { el.checked = !(w.disabledTabs ?? []).includes(el.dataset.tab); }); $("wBankIban").value = w.bankIban ?? ""; $("wBankHolder").value = w.bankHolder ?? "";
 }
 
 $("blocks").addEventListener("click", (e) => { const item = e.target.closest(".item"); if (!item) return; const h = Number(item.dataset.h); openBlock = openBlock === h ? null : h; refresh(); });
@@ -722,7 +733,7 @@ document.querySelectorAll(".stab").forEach((b) => b.addEventListener("click", ()
 const markDirty = (dirty) => { settingsDirty = dirty; $("dirtyHint").hidden = !dirty; $("discardSettings").hidden = !dirty; $("settingsCard").classList.toggle("is-dirty", dirty); };
 $("settingsCard").addEventListener("input", (e) => { if (e.target.matches("input")) { markDirty(true); say("settingsMsg", ""); } });
 $("discardSettings").onclick = async () => { markDirty(false); $("wPrice").value = ""; await refresh(); };
-$("saveSettings").onclick = async () => { try { const r = await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value, websitePrice: $("wPrice").value, website: { cooldownSeconds: $("wCooldown").value, halvingBlocks: $("wHalving").value, maxBlocksPerDay: $("wMaxPerDay").value, miningEnabled: $("wMining").checked, requireRealTx: $("wRealTx").checked, marketStepPercent: $("wStep").value, minPrice: $("wMinPrice").value, maxPrice: $("wMaxPrice").value, maxTrade: $("wMaxTrade").value, dailySellLimit: $("wSellLimit").value, buyEnabled: $("wBuy").checked, sellEnabled: $("wSell").checked, bankEnabled: $("wBank").checked, bankIban: $("wBankIban").value, bankHolder: $("wBankHolder").value } }); markDirty(false); $("wPrice").value = ""; say("settingsMsg", r.websitePush?.ok ? "Gespeichert und an die Hauptseite übertragen." : r.websitePush?.error === "not_configured" ? "Gespeichert." : `Gespeichert – Hauptseite nicht aktualisiert (${r.websitePush?.error ?? "?"}).`); await refresh(); } catch (e) { fail("settingsMsg", e); } };
+$("saveSettings").onclick = async () => { try { const r = await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value, websitePrice: $("wPrice").value, website: { cooldownSeconds: $("wCooldown").value, halvingBlocks: $("wHalving").value, maxBlocksPerDay: $("wMaxPerDay").value, miningEnabled: $("wMining").checked, requireRealTx: $("wRealTx").checked, marketStepPercent: $("wStep").value, minPrice: $("wMinPrice").value, maxPrice: $("wMaxPrice").value, maxTrade: $("wMaxTrade").value, dailySellLimit: $("wSellLimit").value, buyEnabled: $("wBuy").checked, sellEnabled: $("wSell").checked, bankEnabled: $("wBank").checked, disabledTabs: [...document.querySelectorAll(".tab-switch")].filter((el) => !el.checked).map((el) => el.dataset.tab), bankIban: $("wBankIban").value, bankHolder: $("wBankHolder").value } }); markDirty(false); $("wPrice").value = ""; say("settingsMsg", r.websitePush?.ok ? "Gespeichert und an die Hauptseite übertragen." : r.websitePush?.error === "not_configured" ? "Gespeichert." : `Gespeichert – Hauptseite nicht aktualisiert (${r.websitePush?.error ?? "?"}).`); await refresh(); } catch (e) { fail("settingsMsg", e); } };
 
 // ---------- Anmeldung (lokal) ----------
 let booted = false;

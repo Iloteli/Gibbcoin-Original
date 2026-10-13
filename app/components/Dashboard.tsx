@@ -174,6 +174,21 @@ export function Dashboard({ user }: Props) {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [activeView, setActiveView] = useState<DashboardView>("home");
+  // Tabs, die auf der Chain-Seite ausgeschaltet wurden
+  const [disabledTabs, setDisabledTabs] = useState<string[]>([]);
+  useEffect(() => {
+    const loadTabs = async () => {
+      const supabase = getSupabase();
+      if (!supabase) return;
+      const { data, error: tabsError } = await supabase.rpc("get_site_features");
+      if (!tabsError && data) setDisabledTabs(((data as { disabled_tabs?: string[] }).disabled_tabs ?? []).map(String));
+    };
+    const first = window.setTimeout(() => void loadTabs(), 0);
+    const timer = window.setInterval(() => void loadTabs(), 60_000);
+    return () => { window.clearTimeout(first); window.clearInterval(timer); };
+  }, []);
+  const visibleViews = dashboardViews.filter((view) => !disabledTabs.includes(view.key));
+  if (activeView !== "home" && activeView !== "admin" && disabledTabs.includes(activeView)) setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -558,7 +573,7 @@ export function Dashboard({ user }: Props) {
             <span className="brand-copy"><strong>GIBB Coin</strong><span>Wallet</span></span>
           </a>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
-            {dashboardViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
+            {visibleViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
           </nav>
           <div className="header-actions">
             <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
@@ -579,7 +594,7 @@ export function Dashboard({ user }: Props) {
         {offlineMode && <div className="offline-banner" role="status"><strong>Offline-Modus</strong><span>Du siehst den zuletzt gespeicherten Stand. Schreibende Aktionen sind pausiert.</span><button type="button" onClick={() => void loadData()}>Neu verbinden</button></div>}
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
-          {dashboardViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
+          {visibleViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
           {profile?.role !== "user" && <button className={activeView === "admin" ? "active" : ""} aria-current={activeView === "admin" ? "page" : undefined} type="button" onClick={() => openView("admin")}><span aria-hidden="true">⚙</span>Admin</button>}
         </nav>
         <KeyboardHelp activeView={activeView} onNavigate={openView} />

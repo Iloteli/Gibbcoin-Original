@@ -59,6 +59,12 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
       });
       if (!features.ok) throw new Error(`admin_features_http_${features.status}`);
       const w = chain.settings.website ?? {};
+      const tabs = await fetchImpl(`${url}/rest/v1/rpc/node_set_site_tabs`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_disabled: Array.isArray(w.disabledTabs) ? w.disabledTabs : [] }),
+      });
+      if (!tabs.ok && tabs.status !== 404) throw new Error(`tabs_http_${tabs.status}`);
       const bank = await fetchImpl(`${url}/rest/v1/rpc/node_set_bank_settings`, {
         method: "POST",
         headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },

@@ -42,6 +42,7 @@ export function defaultWebsiteSettings() {
     buyEnabled: false, sellEnabled: false, dailySellLimit: 0,
     adminCoinGrants: false,
     bankEnabled: false, bankIban: "", bankHolder: "",
+    disabledTabs: [],
   };
 }
 
@@ -58,6 +59,10 @@ function sanitizeWebsite(current, patch) {
   num("marketStepPercent", 0, 5); num("minPrice", 0.01, 100_000); num("maxPrice", 0.01, 100_000);
   num("maxTrade", 1, 100_000); num("dailySellLimit", 0, 10_000_000);
   for (const key of ["cooldownSeconds", "halvingBlocks", "maxBlocksPerDay", "maxTrade", "dailySellLimit"]) next[key] = Math.round(next[key]);
+  if (patch.disabledTabs !== undefined) {
+    const allowed = ["send", "games", "community", "activity", "chain", "market"];
+    next.disabledTabs = Array.isArray(patch.disabledTabs) ? [...new Set(patch.disabledTabs.map(String).filter((t) => allowed.includes(t)))] : [];
+  }
   if (patch.bankIban !== undefined) next.bankIban = String(patch.bankIban).toUpperCase().replace(/\s+/g, "").slice(0, 40);
   if (patch.bankHolder !== undefined) next.bankHolder = String(patch.bankHolder).trim().slice(0, 80);
   for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled", "adminCoinGrants", "bankEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
