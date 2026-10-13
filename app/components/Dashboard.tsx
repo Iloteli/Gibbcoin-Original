@@ -184,8 +184,11 @@ export function Dashboard({ user }: Props) {
     const timer = window.setInterval(() => void loadTabs(), 60_000);
     return () => { window.clearTimeout(first); window.clearInterval(timer); };
   }, []);
-  const visibleViews = dashboardViews.filter((view) => !disabledTabs.includes(view.key));
-  if (activeView !== "home" && activeView !== "admin" && disabledTabs.includes(activeView)) setActiveView("home");
+  // Ilja sieht auch ausgeschaltete Tabs (markiert), alle anderen nicht
+  const seesHiddenTabs = (user.email ?? "").toLowerCase() === "ilja.podorieszach@icloud.com";
+  const hiddenTabs = seesHiddenTabs ? [] : disabledTabs;
+  const visibleViews = dashboardViews.filter((view) => !hiddenTabs.includes(view.key));
+  if (activeView !== "home" && activeView !== "admin" && hiddenTabs.includes(activeView)) setActiveView("home");
   if (activeView === "admin") setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
@@ -203,7 +206,7 @@ export function Dashboard({ user }: Props) {
   // Der Blockchain-Miner bleibt nach dem ersten Besuch aktiv, auch wenn man in eine andere Ansicht wechselt.
   const [chainVisited, setChainVisited] = useState(false);
   const [communityTab, setCommunityTab] = useState<"rewards" | "ranking" | "groups" | "reports">("rewards");
-  if (communityTab === "reports" && disabledTabs.includes("support")) setCommunityTab("rewards");
+  if (communityTab === "reports" && hiddenTabs.includes("support")) setCommunityTab("rewards");
   if (activeView === "chain" && !chainVisited) setChainVisited(true);
 
   const loadData = useCallback(async () => {
@@ -593,7 +596,7 @@ export function Dashboard({ user }: Props) {
         {offlineMode && <div className="offline-banner" role="status"><strong>Offline-Modus</strong><span>Du siehst den zuletzt gespeicherten Stand. Schreibende Aktionen sind pausiert.</span><button type="button" onClick={() => void loadData()}>Neu verbinden</button></div>}
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
-          {visibleViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
+          {visibleViews.map((view) => <button className={`${activeView === view.key ? "active" : ""}${disabledTabs.includes(view.key) ? " tab-off" : ""}`} title={disabledTabs.includes(view.key) ? "Für alle anderen ausgeblendet" : undefined} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
         </nav>
         <KeyboardHelp activeView={activeView} onNavigate={openView} />
 
@@ -670,7 +673,7 @@ export function Dashboard({ user }: Props) {
               ["ranking", "🏆", "Rangliste"],
               ["groups", "👥", "Gruppen"],
               ["reports", "🛟", "Support"],
-            ] as const).filter(([key]) => key !== "reports" || !disabledTabs.includes("support")).map(([key, icon, label]) => (
+            ] as const).filter(([key]) => key !== "reports" || !hiddenTabs.includes("support")).map(([key, icon, label]) => (
               <button key={key} type="button" role="tab" aria-selected={communityTab === key} className={communityTab === key ? "active" : ""} onClick={() => setCommunityTab(key)}><span aria-hidden="true">{icon}</span>{label}</button>
             ))}
           </div>

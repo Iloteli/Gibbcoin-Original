@@ -3058,3 +3058,8 @@ textarea:focus-visible {
 .support-privacy-grid p { margin: 0; }
 .support-desk { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 14px; }
 @media (max-width: 760px) { .support-hub-grid, .support-privacy-grid { grid-template-columns: 1fr; } }
+
+/* Ausgeschalteter Tab (nur für Ilja sichtbar) */
+.tab-off { opacity: .55; text-decoration: line-through; text-decoration-thickness: 1px; }
+.tab-off.active { opacity: 1; text-decoration: none; }
+.tab-off::after { content: " · aus"; font-size: 10px; text-decoration: none; }
