@@ -40,6 +40,7 @@ export function defaultWebsiteSettings() {
     miningEnabled: true, cooldownSeconds: 90, halvingBlocks: 0, maxBlocksPerDay: 0, requireRealTx: true,
     marketStepPercent: 0.05, minPrice: 0.25, maxPrice: 50, maxTrade: 1000,
     buyEnabled: false, sellEnabled: false, dailySellLimit: 0,
+    adminCoinGrants: false,
   };
 }
 
@@ -56,7 +57,7 @@ function sanitizeWebsite(current, patch) {
   num("marketStepPercent", 0, 5); num("minPrice", 0.01, 100_000); num("maxPrice", 0.01, 100_000);
   num("maxTrade", 1, 100_000); num("dailySellLimit", 0, 10_000_000);
   for (const key of ["cooldownSeconds", "halvingBlocks", "maxBlocksPerDay", "maxTrade", "dailySellLimit"]) next[key] = Math.round(next[key]);
-  for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
+  for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled", "adminCoinGrants"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
   if (next.minPrice > next.maxPrice) throw new Error("invalid_price_range");
   return next;
 }

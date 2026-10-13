@@ -52,6 +52,12 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
       if (!res.ok) throw new Error(`http_${res.status}`);
       const result = await res.json();
       if (!result?.ok) throw new Error(result?.error ?? "push_failed");
+      const features = await fetchImpl(`${url}/rest/v1/rpc/node_set_admin_features`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_features: { coin_grants: Boolean(chain.settings.website?.adminCoinGrants) } }),
+      });
+      if (!features.ok) throw new Error(`admin_features_http_${features.status}`);
       if (state.lastError) note("settings", "Einstellungen werden wieder an die Hauptseite übertragen");
       state.lastPush = Date.now();
       state.lastError = null;

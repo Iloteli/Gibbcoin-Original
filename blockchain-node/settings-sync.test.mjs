@@ -19,12 +19,14 @@ test("builds the main-site payload from chain page settings", () => {
 
 test("pushes with the secret key and reports missing configuration", async () => {
   const chain = new Blockchain(null);
-  let sent = null;
-  const fetchImpl = async (url, init) => { sent = { url, body: JSON.parse(init.body) }; return { ok: true, json: async () => ({ ok: true }) }; };
+  const calls = [];
+  const fetchImpl = async (url, init) => { calls.push({ url, body: JSON.parse(init.body) }); return { ok: true, json: async () => ({ ok: true }) }; };
   const sync = createSettingsSync({ chain, fetchImpl, env: { SUPABASE_URL: "https://x", SUPABASE_ANON_KEY: "k", NODE_SETTINGS_KEY: "s3cret" }, intervalMs: 1e9 });
   assert.deepEqual(await sync.push(), { ok: true });
-  assert.match(sent.url, /node_push_settings$/);
-  assert.equal(sent.body.p_key, "s3cret");
+  assert.match(calls[0].url, /node_push_settings$/);
+  assert.match(calls[1].url, /node_set_admin_features$/);
+  assert.equal(calls[1].body.p_features.coin_grants, false);
+  assert.equal(calls[0].body.p_key, "s3cret");
   const noKey = createSettingsSync({ chain, env: { SUPABASE_URL: "https://x", SUPABASE_ANON_KEY: "k" } });
   assert.equal(noKey.enabled, false);
   assert.equal(noKey.status().lastError, "no_key");

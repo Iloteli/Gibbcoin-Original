@@ -49,6 +49,7 @@ function adjustmentError(code?: string, rpcMessage?: string) {
   if (code?.startsWith("admin_pin_")) return pinError(code);
   const message = `${code ?? ""} ${rpcMessage ?? ""}`;
   if (message.includes("mfa_required")) return "Bestätige diese Sitzung zuerst mit deinem Zwei-Faktor-Code.";
+  if (message.includes("coin_grants_disabled")) return "Coins geben ist zurzeit ausgeschaltet.";
   if (message.includes("invalid_admin_amount")) return "Der Betrag ist zu gross oder ungültig.";
   if (message.includes("invalid_admin_reason")) return "Der Grund muss zwischen 3 und 120 Zeichen lang sein.";
   if (message.includes("insufficient_balance")) return "Dieses Konto besitzt nicht genügend Coins.";
@@ -125,6 +126,17 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("Admin-Gutschrift");
   const [adjustmentMode, setAdjustmentMode] = useState<AdjustmentMode>("credit");
+  // "Coins geben" wird auf der Chain-Seite ein- und ausgeschaltet (Standard: aus).
+  const [coinGrants, setCoinGrants] = useState(true);
+  useEffect(() => {
+    const timer = window.setTimeout(async () => {
+      const supabase = getSupabase();
+      if (!supabase) return;
+      const { data, error: featureError } = await supabase.rpc("get_admin_features");
+      if (!featureError && data) setCoinGrants(Boolean((data as { coin_grants?: boolean }).coin_grants));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
   const [adminSessionPin, setAdminSessionPin] = useState("");
   const [entryPin, setEntryPin] = useState("");
   const [entryPinError, setEntryPinError] = useState("");
@@ -202,10 +214,10 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
   }, [query, users]);
 
   const adjustmentUsers = useMemo(
-    () => adjustmentMode === "remove"
+    () => adjustmentMode === "remove" || !coinGrants
       ? filteredUsers.filter((item) => item.user_id === currentUserId || item.role !== "super_admin" || currentRole === "super_admin")
       : currentRole === "super_admin" ? filteredUsers : filteredUsers.filter((item) => item.user_id !== currentUserId),
-    [adjustmentMode, currentRole, currentUserId, filteredUsers],
+    [adjustmentMode, coinGrants, currentRole, currentUserId, filteredUsers],
   );
 
   const adminStats = useMemo(() => ({
@@ -219,7 +231,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
   // This only controls which buttons are shown. Every destructive action is
   // independently authorized by Supabase with the same immutable account id.
   const isPrimaryOwner = currentRole === "super_admin" && (currentUserEmail ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL;
-  const removingCoins = adjustmentMode === "remove";
+  const removingCoins = adjustmentMode === "remove" || !coinGrants;
   const adminAccessPending = pinStatus === null;
   const adminAccessRequired = Boolean(pinStatus?.has_pin) && !adminAccessGranted;
 
@@ -615,10 +627,10 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
         <div className="admin-coin-stats-reset"><p>{coinStats.since ? `Gezählt seit ${new Date(coinStats.since).toLocaleString("de-CH", { dateStyle: "short", timeStyle: "short" })}.` : "Gezählt seit deiner ersten Admin-Aktion."} Der Reset verändert weder Wallets noch Buchungen.</p><button className="secondary compact" type="button" disabled={Boolean(actionBusy)} onClick={openStatsReset}>Plus/Minus zurücksetzen</button></div>
       </div>
 
-      <div className="admin-reserve">
+      {coinGrants && <div className="admin-reserve">
         <div><span>Unbegrenzte Admin-Reserve</span><strong>∞ GIBB</strong><p>{currentRole === "super_admin" ? "Als Owner darfst du Coins für andere und für dein eigenes Konto erzeugen." : "Admins erzeugen Coins nur für andere Konten. Eigengutschriften sind serverseitig gesperrt."}</p></div>
         {currentRole === "super_admin" ? <button className="secondary compact" type="button" onClick={() => { chooseAdjustmentMode("credit"); setQuery(""); setTargetId(currentUserId); document.getElementById("admin-amount")?.focus(); }}>Mir selbst Coins geben</button> : <span>Eigengutschrift gesperrt</span>}
-      </div>
+      </div>}
 
       {!pinStatus?.has_pin && <form className="pin-setup" id="admin-pin-setup" onSubmit={savePin}>
         <div><strong>1. Admin-PIN einrichten</strong><p>Lege einmalig vier Ziffern fest. Der PIN wird gehasht gespeichert und ist für andere Admins nicht sichtbar.</p></div>
@@ -637,7 +649,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
       <details id="admin-coins" className="admin-panel-section admin-coins-section admin-collapsible" open>
         <summary className="admin-section-kicker"><span>03</span><div><strong>Coins verwalten</strong><small>Gutschriften und Abzüge mit Begründung</small></div><b aria-hidden="true">⌄</b></summary>
         <div className="admin-credit-head"><div><strong>{removingCoins ? "Coins von einem Benutzer entfernen" : pinStatus?.has_pin ? "Coins aus der Admin-Reserve gutschreiben" : "2. Coins gutschreiben"}</strong><p>{removingCoins ? currentRole === "super_admin" ? "Als Owner kannst du Coins von deinem eigenen und von fremden Konten entziehen. Andere Admins können dein Owner-Guthaben nicht verändern. Kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : "Als Admin kannst du Coins von deinem eigenen und von anderen Benutzerkonten entziehen. Das Owner-Konto bleibt geschützt, kein Guthaben fällt unter null und jeder Abzug wird protokolliert." : currentRole === "super_admin" ? "Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben. Jede Gutschrift wird protokolliert." : "Nur an andere Konten. Eigengutschriften sind serverseitig gesperrt und jede erlaubte Gutschrift wird protokolliert."}</p></div><span>{pinStatus?.has_pin ? "PIN geschützt" : "PIN fehlt"}</span></div>
-        <div className="admin-adjust-tabs" role="tablist" aria-label="Coin-Aktion"><button type="button" role="tab" aria-selected={!removingCoins} className={!removingCoins ? "active" : ""} onClick={() => chooseAdjustmentMode("credit")}>Coins geben</button><button type="button" role="tab" aria-selected={removingCoins} className={removingCoins ? "active remove" : ""} onClick={() => chooseAdjustmentMode("remove")}>Coins entfernen</button></div>
+        <div className="admin-adjust-tabs" role="tablist" aria-label="Coin-Aktion">{coinGrants && <button type="button" role="tab" aria-selected={!removingCoins} className={!removingCoins ? "active" : ""} onClick={() => chooseAdjustmentMode("credit")}>Coins geben</button>}<button type="button" role="tab" aria-selected={removingCoins} className={removingCoins ? "active remove" : ""} onClick={() => chooseAdjustmentMode("remove")}>Coins entfernen</button></div>
         <form className={`admin-adjust-form ${!pinStatus?.has_pin ? "awaiting-pin" : ""}`} onSubmit={requestAdjustment}>
         <div className="field"><label htmlFor="admin-user-search">Benutzer suchen</label><input className="input" id="admin-user-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Name oder Benutzername" /></div>
         <div className="field"><label htmlFor="admin-target">{removingCoins ? "Benutzer" : "Empfänger"}</label><select className="input" id="admin-target" value={targetId} onChange={(event) => setTargetId(event.target.value)}><option value="">Benutzer auswählen …</option>{adjustmentUsers.map((item) => <option key={item.user_id} value={item.user_id}>{item.user_id === currentUserId ? "Ich · " : ""}{item.display_name} (@{item.username}) · {item.balance} GIBB</option>)}</select></div>
