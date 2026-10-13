@@ -10,8 +10,6 @@ import { AbuseReports } from "./AbuseReports";
 import { AccountEssentials } from "./AccountEssentials";
 import { AccountReadiness } from "./AccountReadiness";
 import { ActivitySummary } from "./ActivitySummary";
-import { AdminPanel } from "./AdminPanel";
-import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainExplorer } from "./BlockchainExplorer";
 import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { MarketView } from "./MarketView";
@@ -57,7 +55,7 @@ function viewFromHash(hash: string): DashboardView {
   if (["#chain", "#blockchain", "#mining"].includes(hash)) return "chain";
   if (["#market", "#kaufen", "#buy"].includes(hash)) return "market";
   if (hash === "#account") return "account";
-  if (hash === "#admin") return "admin";
+  if (hash === "#admin") return "home";
   if (["#send-coins", "#qr-code", "#requests", "#buy-coins"].includes(hash)) return "send";
   if (hash === "#game-center") return "games";
   if (["#group-wallets", "#reports"].includes(hash)) return "community";
@@ -595,7 +593,6 @@ export function Dashboard({ user }: Props) {
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
           {visibleViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
-          {profile?.role !== "user" && <button className={activeView === "admin" ? "active" : ""} aria-current={activeView === "admin" ? "page" : undefined} type="button" onClick={() => openView("admin")}><span aria-hidden="true">⚙</span>Admin</button>}
         </nav>
         <KeyboardHelp activeView={activeView} onNavigate={openView} />
 
@@ -722,7 +719,6 @@ export function Dashboard({ user }: Props) {
         <PwaInstallCard />
         </div>
 
-        {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div>{offlineMode ? <section className="card card-pad offline-placeholder"><strong>Adminpanel offline gesperrt</strong><p>Administrative Aktionen benötigen immer eine aktuelle MFA- und Serverprüfung.</p></section> : <><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} currentUserEmail={user.email} onChanged={loadData} onExit={() => openView("home")} />}</>}</div>}
       </main>
       <UserProfileModal />
       {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}

@@ -177,6 +177,26 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   }
   const listWebsiteUsers = async () => (await rpc("node_list_users", {})).users ?? [];
   const adjustWebsiteBalance = async (userId, amount, reason) => rpc("node_adjust_balance", { p_user: userId, p_amount: amount, p_reason: reason });
+  // Admin-Funktionen der Hauptseite als Owner aufrufen (Ergebnis wie bei supabase.rpc)
+  const ownerCall = async (fn, args = {}) => {
+    const result = await rpc("node_owner_call", { p_fn: fn, p_args: args });
+    const rows = Array.isArray(result.rows) ? result.rows : [];
+    // Einfacher Rückgabewert (z. B. jsonb) -> Wert; Tabellen-Funktion -> Liste von Zeilen (wie supabase.rpc)
+    return result.table === false ? rows[0] ?? null : rows;
+  };
+  const setAccountStatus = (userId, status, minutes, reason) => rpc("node_set_account_status", { p_user: userId, p_status: status, p_minutes: minutes ?? null, p_reason: reason ?? null });
+  const deleteAccount = (userId, pin) => rpc("node_delete_account", { p_user: userId, p_pin: pin });
+  async function sendPasswordReset(userId) {
+    const auth = await rpc("node_password_reset", { p_user: userId });
+    const res = await fetchImpl(`${url}/auth/v1/recover`, {
+      method: "POST",
+      headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ email: auth.email }),
+    });
+    if (!res.ok) throw new Error("email_delivery_failed");
+    await rpc("node_password_reset", { p_user: userId, p_sent: true });
+    return { ok: true, display_name: auth.display_name };
+  }
   const listBankOrders = async () => (await rpc("node_list_bank_orders", {})).orders ?? [];
   const decideBankOrder = async (id, paid) => rpc("node_decide_bank_order", { p_id: id, p_paid: Boolean(paid) });
 
@@ -186,5 +206,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, status: () => ({ ...state }) };
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, status: () => ({ ...state }) };
 }

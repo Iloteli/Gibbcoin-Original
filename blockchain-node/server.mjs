@@ -337,6 +337,29 @@ const routes = {
   },
   "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
   // Coins der Website-Benutzer geben/abziehen (nur Owner der Chain-Seite)
+  // Admin-Bereich der Hauptseite (nur Owner der Chain-Seite)
+  "POST /api/admin/call": async (_, body) => {
+    await requireOwner(body);
+    const fn = String(body.fn ?? "");
+    const args = body.args && typeof body.args === "object" && !Array.isArray(body.args) ? body.args : {};
+    return { data: await settingsSync.ownerCall(fn, args) };
+  },
+  "POST /api/admin/status": async (_, body) => {
+    await requireOwner(body);
+    const minutes = body.minutes == null || body.minutes === "" ? null : Number(body.minutes);
+    const r = await settingsSync.setAccountStatus(String(body.userId ?? ""), body.status === "locked" ? "locked" : "active", minutes, String(body.reason ?? ""));
+    note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} ${body.status === "locked" ? "gebannt" : "entbannt"}`);
+    void settingsSync.syncAccounts();
+    return r;
+  },
+  "POST /api/admin/delete": async (_, body) => {
+    await requireOwner(body);
+    const r = await settingsSync.deleteAccount(String(body.userId ?? ""), String(body.pin ?? ""));
+    note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} gelöscht`);
+    void settingsSync.syncAccounts();
+    return r;
+  },
+  "POST /api/admin/password-reset": async (_, body) => { await requireOwner(body); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
   "POST /api/bank/orders": async (_, body) => { await requireOwner(body); return { orders: await settingsSync.listBankOrders() }; },
   "POST /api/bank/decide": async (_, body) => {

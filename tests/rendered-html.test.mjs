@@ -271,7 +271,7 @@ test("reserves account bans and Owner deletion for Ilja as the only primary Owne
   assert.doesNotMatch(adminPanel, /get_my_admin_account_capabilities/);
   assert.doesNotMatch(adminPanel, /Nur der Haupt-Owner|Haupt-Owner aktiv/);
   assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
-  assert.match(dashboard, /currentUserEmail=\{user\.email\}/);
+  assert.doesNotMatch(dashboard, /<AdminPanel/); // Admin-Bereich liegt auf der Chain-Seite
   // Ilja wird per Migration selbst Owner (super_admin).
   assert.match(promoteMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
   assert.match(promoteMigration, /set role = 'super_admin'/);
@@ -402,7 +402,7 @@ test("unlocks the Admin panel once per visit without persisting the PIN", async 
     readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260826164000_add_admin_panel_pin_session_check.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(dashboard, /activeView === "admin" && <AdminPanel/);
+  assert.doesNotMatch(dashboard, /activeView === "admin" && <AdminPanel/); // Admin-Bereich liegt auf der Chain-Seite
   assert.match(adminPanel, /admin_verify_pin/);
   assert.match(adminPanel, /setAdminSessionPin\(entryPin\)/);
   assert.match(adminPanel, /p_pin: adminSessionPin/);
@@ -765,4 +765,17 @@ test("guards the production Supabase migration workflow behind manual confirmati
   // Der Staging-Workflow bleibt unangetastet und verweigert weiterhin die Produktion.
   assert.match(staging, /Production project refused/);
   assert.match(readme, /production-supabase\.yml/);
+});
+
+test("moves the admin area to the chain page (owner, server code, admin PIN)", async () => {
+  const [chainPage, server, migration] = await Promise.all([
+    readFile(new URL("../blockchain-node/public/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../blockchain-node/server.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20261013220000_chain_page_admin.sql", import.meta.url), "utf8"),
+  ]);
+  assert.match(chainPage, /id="adminCard"/);
+  assert.match(server, /"POST \/api\/admin\/call": async \(_, body\) => \{\s*await requireOwner\(body\);/);
+  assert.match(migration, /function public\.node_owner_call/);
+  assert.match(migration, /private\.node_key_ok\(p_key\)/);
+  assert.match(migration, /function_not_allowed/);
 });

@@ -177,6 +177,26 @@
   .bank-order .acts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
   .bank-order .acts button { padding: 7px 11px; font-size: 12px; }
   .bank-order.done { opacity: .55; }
+
+  /* ===== Admin (Hauptseite) ===== */
+  .ad-pin { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto; gap: 10px 12px; align-items: end; margin-bottom: 14px; }
+  .ad-pin .field label { margin: 0 0 5px; font-weight: 700; color: var(--text); }
+  .ad-pin .field small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
+  .ad-pin button { margin-bottom: 22px; }
+  .ad-users { max-height: 520px; margin-top: 10px; }
+  .ad-user { grid-template-columns: minmax(0, 1fr) !important; cursor: default !important; gap: 8px !important; }
+  .ad-user .top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .ad-user .badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .ad-badge { font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--muted); }
+  .ad-badge.owner { color: var(--amber); border-color: rgba(246,200,95,.4); }
+  .ad-badge.admin { color: var(--green); border-color: rgba(117,245,154,.4); }
+  .ad-badge.locked { color: var(--red); border-color: rgba(255,120,120,.4); }
+  .ad-user .acts { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .ad-user .acts select, .ad-user .acts button { width: auto; padding: 6px 10px; font-size: 12px; }
+  .ad-h { margin: 18px 0 8px; font-size: 13px; }
+  .ad-health { display: grid; gap: 6px; margin-top: 10px; font-size: 12px; }
+  .ca-quick button.active { background: var(--green); color: #07100a; border-color: transparent; }
+  @media (max-width: 760px) { .ad-pin { grid-template-columns: 1fr; } .ad-pin button { margin-bottom: 0; } }
 </style>
 </head>
 <body>
@@ -310,6 +330,60 @@
       <div class="msg" id="verifyMsg"></div>
     </section>
   </div>
+
+  <section class="card admin-card owner-only" id="adminCard">
+    <h2>Admin <span id="adState">Hauptseite verwalten</span></h2>
+    <div class="ad-pin">
+      <div class="field"><label for="adPin">Admin-PIN</label><input id="adPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 Ziffern" /><small>Für geschützte Aktionen (Spiele, Löschen, Tools …)</small></div>
+      <button type="button" id="adPinCheck">PIN prüfen</button>
+      <div class="field"><label for="adNewPin">Neuen PIN festlegen</label><input id="adNewPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 Ziffern" /><small>Ersetzt deinen bisherigen Admin-PIN</small></div>
+      <button type="button" id="adPinSet">PIN speichern</button>
+    </div>
+    <div class="stabs" role="tablist">
+      <button type="button" class="stab adtab active" data-ad="users">👥 Konten</button><button type="button" class="stab adtab" data-ad="games">🎮 Spiele</button><button type="button" class="stab adtab" data-ad="tools">🛠 Tools</button><button type="button" class="stab adtab" data-ad="audit">📜 Protokoll</button><button type="button" class="stab adtab" data-ad="visitors">📈 Besucher</button>
+    </div>
+    <div class="adpanel" data-adp="users">
+      <div class="field"><label for="adSearch">Benutzer suchen</label><input id="adSearch" placeholder="Name oder Benutzername" autocomplete="off" /></div>
+      <div class="list ad-users" id="adUsers"><div class="muted">Wird geladen …</div></div>
+    </div>
+    <div class="adpanel" data-adp="games" hidden>
+      <div class="switches" id="adGames"></div>
+      <h3 class="ad-h">Globale Spielgrenzen</h3>
+      <div class="sgrid">
+        <div class="field"><label for="adMaxWager">Max. Einsatz pro Spiel</label><input id="adMaxWager" type="number" min="1" placeholder="kein Limit" /><small>GIBB · leer = kein Limit</small></div>
+        <div class="field"><label for="adDailyLoss">Max. Verlust pro Tag</label><input id="adDailyLoss" type="number" min="1" placeholder="kein Limit" /><small>GIBB · leer = kein Limit</small></div>
+        <div class="field"><label for="adCooldown">Pause zwischen Spielen</label><input id="adCooldown" type="number" min="0" max="3600" /><small>Sekunden (0–3600)</small></div>
+      </div>
+      <div class="actions"><button type="button" class="primary" id="adSaveLimits">Grenzen speichern</button></div>
+      <h3 class="ad-h">Dino Run</h3>
+      <div class="sgrid">
+        <div class="field"><label for="adDinoSpeed">Tempo</label><input id="adDinoSpeed" type="number" min="1" max="5" /><small>1–5</small></div>
+        <div class="field"><label for="adDinoDiff">Schwierigkeit</label><input id="adDinoDiff" type="number" min="1" max="5" /><small>1–5</small></div>
+      </div>
+      <div class="actions"><button type="button" class="primary" id="adSaveDino">Dino Run speichern</button></div>
+    </div>
+    <div class="adpanel" data-adp="tools" hidden>
+      <div class="actions"><button type="button" class="primary" id="adHealth">System jetzt prüfen</button></div>
+      <div id="adHealthOut" class="ad-health"></div>
+      <h3 class="ad-h">Funktionen</h3>
+      <div class="list" id="adOps"></div>
+      <h3 class="ad-h">Überweisungen freigeben ab</h3>
+      <div class="sgrid"><div class="field"><label for="adThreshold">Schwellenwert</label><input id="adThreshold" type="number" min="1" max="100000" /><small>GIBB · grössere Überweisungen brauchen eine Freigabe</small></div></div>
+      <div class="actions"><button type="button" id="adSaveThreshold">Schwellenwert speichern</button></div>
+      <h3 class="ad-h">Support-Fälle</h3>
+      <div class="list" id="adTickets"></div>
+    </div>
+    <div class="adpanel" data-adp="audit" hidden>
+      <div class="field"><label for="adAuditSearch">Protokoll durchsuchen</label><input id="adAuditSearch" placeholder="Aktion, Name, Grund" autocomplete="off" /></div>
+      <div class="list" id="adAudit"></div>
+    </div>
+    <div class="adpanel" data-adp="visitors" hidden>
+      <div class="ca-quick" id="adRange"><button type="button" data-days="7" class="active">7 Tage</button><button type="button" data-days="30">30 Tage</button><button type="button" data-days="3650">Alles</button></div>
+      <div class="stats" id="adVisitStats" style="margin-top:10px"></div>
+      <div class="list" id="adVisitDays" style="margin-top:10px"></div>
+    </div>
+    <div class="msg" id="adMsg"></div>
+  </section>
 
   <section class="card bank-card owner-only" id="bankCard">
     <h2>Banküberweisungen <span id="bankCount">Kauf per IBAN</span></h2>
@@ -744,7 +818,7 @@ $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
 const authErrors = { second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
 function onAuthed(me) {
-  setTimeout(() => { void caLoad(); void bankLoad(); }, 0);
+  setTimeout(() => { void caLoad(); void bankLoad(); void adLoad("users"); }, 0);
   myAddress = me.address;
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
   document.body.classList.toggle("is-owner", me.role === "super_admin");
@@ -842,6 +916,168 @@ $("bankOrders").addEventListener("click", async (e) => {
   await bankLoad();
 });
 setInterval(() => { if (document.visibilityState === "visible") void bankLoad(); }, 30000);
+
+// ---------- Admin (Hauptseite) ----------
+let adminPin = "", adUsers = [], adAuditRows = [], adDays = 7;
+const adErrors = { admin_pin_invalid: "Admin-PIN falsch.", admin_pin_locked: "Admin-PIN nach zu vielen Fehlversuchen gesperrt – lege einen neuen fest.", admin_pin_not_set: "Noch kein Admin-PIN – lege oben einen fest.", admin_pin_required: "Bitte zuerst den Admin-PIN eingeben.", account_is_protected: "Dieses Konto ist geschützt.", cannot_lock_own_account: "Das eigene Konto kann nicht gebannt werden.", email_delivery_failed: "Die E-Mail konnte nicht verschickt werden.", function_not_allowed: "Diese Aktion ist nicht erlaubt.", ...caErrors };
+const adFail = (e) => say("adMsg", adErrors[e.message] || errors[e.message] || e.message, true);
+const adCall = async (fn, args = {}) => {
+  const r = await api("/api/admin/call", { fn, args });
+  const data = r.data;
+  if (data && typeof data === "object" && !Array.isArray(data) && data.ok === false) throw new Error(data.error || "failed");
+  return data;
+};
+const needPin = () => { if (!/^\d{4}$/.test(adminPin)) { say("adMsg", adErrors.admin_pin_required, true); return false; } return true; };
+document.querySelectorAll(".adtab").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".adtab").forEach((x) => x.classList.toggle("active", x === b));
+  document.querySelectorAll(".adpanel").forEach((pnl) => { pnl.hidden = pnl.dataset.adp !== b.dataset.ad; });
+  void adLoad(b.dataset.ad);
+}));
+$("adPinCheck").onclick = async () => {
+  const pin = $("adPin").value.trim();
+  try { const r = await adCall("admin_verify_pin", { p_pin: pin }); const res = Array.isArray(r) ? r[0] : r; if (res && res.ok === false) throw new Error(res.error); adminPin = pin; say("adMsg", "Admin-PIN bestätigt – geschützte Aktionen sind freigeschaltet."); $("adState").textContent = "PIN freigeschaltet"; }
+  catch (e) { adminPin = ""; adFail(e); }
+};
+$("adPinSet").onclick = async () => {
+  const pin = $("adNewPin").value.trim();
+  if (!/^\d{4}$/.test(pin)) { say("adMsg", "Der PIN muss genau 4 Ziffern haben.", true); return; }
+  try { await adCall("owner_reset_admin_pin", { p_new_pin: pin }); adminPin = pin; $("adNewPin").value = ""; say("adMsg", "Neuer Admin-PIN gespeichert und freigeschaltet."); $("adState").textContent = "PIN freigeschaltet"; }
+  catch (e) { adFail(e); }
+};
+
+const roleLabel = (r) => r === "super_admin" ? "Owner" : r === "admin" ? "Admin" : "Benutzer";
+function adRenderUsers() {
+  const q = $("adSearch").value.trim().toLowerCase();
+  const list = adUsers.filter((u) => !q || `${u.display_name} ${u.username}`.toLowerCase().includes(q));
+  $("adUsers").innerHTML = list.map((u) => {
+    const locked = u.wallet_status === "locked";
+    return `<div class="item ad-user" data-id="${h(u.user_id)}" data-name="${h(u.display_name || u.username)}">
+      <div class="top"><div><b>${h(u.display_name || u.username)}</b> <small class="muted">@${h(u.username)} · ${fmt(u.balance)} GIBB</small></div>
+      <div class="badges"><span class="ad-badge ${u.role === "super_admin" ? "owner" : u.role === "admin" ? "admin" : ""}">${roleLabel(u.role)}</span>${locked ? `<span class="ad-badge locked" title="${h(u.lock_reason || "")}">gebannt${u.locked_until ? " bis " + new Date(u.locked_until).toLocaleString("de-CH") : ""}</span>` : ""}${u.visual_role ? `<span class="ad-badge">Fun-Rang</span>` : ""}</div></div>
+      <div class="acts">
+        <select data-act="role"><option value="user"${u.role === "user" ? " selected" : ""}>Benutzer</option><option value="admin"${u.role === "admin" ? " selected" : ""}>Admin</option><option value="super_admin"${u.role === "super_admin" ? " selected" : ""}>Owner</option></select>
+        ${locked ? `<button data-act="unban">Entbannen</button>` : `<select data-act="ban"><option value="">Bannen …</option><option value="60">1 Stunde</option><option value="1440">1 Tag</option><option value="10080">7 Tage</option><option value="forever">dauerhaft</option></select>`}
+        <select data-act="fun"><option value=""${!u.visual_role ? " selected" : ""}>Kein Fun-Rang</option><option value="demo_admin"${u.visual_role === "demo_admin" ? " selected" : ""}>Fun: Admin</option><option value="demo_owner"${u.visual_role === "demo_owner" ? " selected" : ""}>Fun: Owner</option></select>
+        <button data-act="reset">Passwort-Reset</button>
+        <button class="danger" data-act="delete">Löschen</button>
+      </div></div>`;
+  }).join("") || `<div class="muted">Keine Benutzer gefunden.</div>`;
+}
+$("adSearch").addEventListener("input", adRenderUsers);
+$("adUsers").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-act]"); if (!sel) return;
+  const row = sel.closest(".ad-user"); const id = row.dataset.id; const name = row.dataset.name;
+  try {
+    if (sel.dataset.act === "role") {
+      if (!confirm(`${name} wird ${roleLabel(sel.value)}. Fortfahren?`)) { adRenderUsers(); return; }
+      await adCall("admin_set_role", { p_target_user_id: id, p_role: sel.value, p_reason: "Chain-Seite" });
+      say("adMsg", `${name} ist jetzt ${roleLabel(sel.value)}.`);
+    } else if (sel.dataset.act === "ban") {
+      if (!sel.value) return;
+      const reason = prompt(`Grund für den Bann von ${name}:`, "Verstoss gegen die Regeln");
+      if (reason === null) { adRenderUsers(); return; }
+      await api("/api/admin/status", { userId: id, name, status: "locked", minutes: sel.value === "forever" ? null : Number(sel.value), reason });
+      say("adMsg", `${name} wurde gebannt.`);
+    } else if (sel.dataset.act === "fun") {
+      if (!needPin()) { adRenderUsers(); return; }
+      await adCall("admin_set_visual_role", { p_target_user_id: id, p_visual_role: sel.value || null, p_pin: adminPin });
+      say("adMsg", `Fun-Rang von ${name} gespeichert.`);
+    }
+  } catch (err) { adFail(err); }
+  await adLoad("users");
+});
+$("adUsers").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-act]"); if (!btn) return;
+  const row = btn.closest(".ad-user"); const id = row.dataset.id; const name = row.dataset.name;
+  try {
+    if (btn.dataset.act === "unban") { await api("/api/admin/status", { userId: id, name, status: "active" }); say("adMsg", `${name} wurde entbannt.`); }
+    if (btn.dataset.act === "reset") { if (!confirm(`Passwort-Reset-E-Mail an ${name} schicken?`)) return; await api("/api/admin/password-reset", { userId: id }); say("adMsg", `Reset-E-Mail an ${name} verschickt.`); }
+    if (btn.dataset.act === "delete") {
+      if (!needPin()) return;
+      if (prompt(`Konto ${name} endgültig löschen? Zum Bestätigen LÖSCHEN eintippen.`) !== "LÖSCHEN") return;
+      const r = await api("/api/admin/delete", { userId: id, name, pin: adminPin });
+      say("adMsg", `${r.display_name || name} wurde gelöscht.`);
+    }
+  } catch (err) { adFail(err); }
+  await adLoad("users");
+});
+
+async function adLoad(part) {
+  if (!document.body.classList.contains("is-owner")) return;
+  try {
+    if (part === "users") { adUsers = (await adCall("admin_list_users", { p_query: "" })) ?? []; adRenderUsers(); }
+    if (part === "games") {
+      const [center, dino, limits] = await Promise.all([adCall("get_game_center_state"), adCall("get_dino_admin_state"), adCall("get_global_game_limits")]);
+      const settings = (Array.isArray(center) ? center[0] : center)?.settings ?? [];
+      $("adGames").innerHTML = settings.map((g) => `<label class="switch"><input type="checkbox" data-game="${h(g.game_key)}"${g.enabled ? " checked" : ""} /><span class="knob"></span><span class="switch-text"><b>${h(g.label)}</b><small>${g.enabled ? "aktiv" : "ausgeschaltet"}</small></span></label>`).join("");
+      const d = Array.isArray(dino) ? dino[0] : dino; const l = Array.isArray(limits) ? limits[0] : limits;
+      $("adDinoSpeed").value = d?.speed_level ?? 1; $("adDinoDiff").value = d?.difficulty_level ?? 1;
+      $("adMaxWager").value = l?.max_wager ?? ""; $("adDailyLoss").value = l?.daily_loss_limit ?? ""; $("adCooldown").value = l?.cooldown_seconds ?? 0;
+    }
+    if (part === "tools") {
+      const ops = (await adCall("admin_list_operations")) ?? [];
+      $("adOps").innerHTML = (Array.isArray(ops) ? ops : []).map((o) => `<div class="item bank-order" data-op="${h(o.operation_key)}"><div><b>${h(o.label)}</b><br><small class="muted">${h(o.description || "")}</small></div><div class="acts"><select data-opstatus><option value="enabled"${o.status === "enabled" ? " selected" : ""}>Aktiv</option><option value="disabled"${o.status === "disabled" ? " selected" : ""}>Deaktiviert</option><option value="configured"${o.status === "configured" ? " selected" : ""}>Konfiguriert</option></select></div></div>`).join("") || `<div class="muted">Keine Funktionen.</div>`;
+      adOpsData = Array.isArray(ops) ? ops : [];
+      const center = await adCall("admin_list_control_center_page", { p_page: 1, p_page_size: 12 }).catch(() => null);
+      const c = Array.isArray(center) ? center[0] : center;
+      $("adTickets").innerHTML = (c?.tickets ?? []).map((t) => `<div class="item bank-order" data-case="${h(t.id)}" data-prio="${h(t.priority)}"><div><b>${h(t.subject)}</b><br><small class="muted">${h(t.priority)}</small></div><div class="acts"><select data-casestatus>${["open", "in_progress", "waiting", "closed"].map((st) => `<option value="${st}"${t.status === st ? " selected" : ""}>${({ open: "Offen", in_progress: "In Arbeit", waiting: "Wartet", closed: "Geschlossen" })[st]}</option>`).join("")}</select></div></div>`).join("") || `<div class="muted">Keine Support-Fälle.</div>`;
+    }
+    if (part === "audit") { adAuditRows = (await adCall("admin_list_audit_logs", { p_limit: 200 })) ?? []; adRenderAudit(); }
+    if (part === "visitors") {
+      const v = await adCall("admin_visitor_stats", { p_days: adDays }); const s = Array.isArray(v) ? v[0] : v;
+      $("adVisitStats").innerHTML = [["Besucher (Zeitraum)", s?.range_unique_visitors ?? 0], ["Aufrufe (Zeitraum)", s?.range_page_views ?? 0], ["Besucher gesamt", s?.total_unique_visitors ?? 0], ["Aufrufe gesamt", s?.total_page_views ?? 0]].map(([k, val]) => `<div><span>${k}</span><strong>${fmt(val)}</strong></div>`).join("");
+      $("adVisitDays").innerHTML = (s?.daily ?? []).slice().reverse().map((d) => `<div class="tx"><div>${new Date(d.day).toLocaleDateString("de-CH")}</div><small class="muted">${fmt(d.unique_visitors)} Besucher · ${fmt(d.page_views)} Aufrufe</small></div>`).join("");
+    }
+  } catch (err) { adFail(err); }
+}
+let adOpsData = [];
+function adRenderAudit() {
+  const q = $("adAuditSearch").value.trim().toLowerCase();
+  $("adAudit").innerHTML = adAuditRows.filter((a) => !q || `${a.action} ${a.admin_username ?? ""} ${a.target_username ?? ""} ${a.reason ?? ""}`.toLowerCase().includes(q)).map((a) => `<div class="tx"><div><b>${h(a.action)}</b> · ${h(a.admin_username ?? "System")} → ${h(a.target_username ?? "–")}<br><small class="muted">${h(a.reason ?? "")}</small></div><small class="muted">${new Date(a.created_at).toLocaleString("de-CH")}</small></div>`).join("") || `<div class="muted">Keine Einträge.</div>`;
+}
+$("adAuditSearch").addEventListener("input", adRenderAudit);
+$("adGames").addEventListener("change", async (e) => {
+  const box = e.target.closest("input[data-game]"); if (!box) return;
+  if (!needPin()) { box.checked = !box.checked; return; }
+  try { await adCall("admin_set_game_enabled", { p_game_key: box.dataset.game, p_enabled: box.checked, p_pin: adminPin }); say("adMsg", "Spiel gespeichert."); } catch (err) { adFail(err); }
+  await adLoad("games");
+});
+$("adSaveLimits").onclick = async () => {
+  if (!needPin()) return;
+  const num = (v) => v === "" ? null : Number(v);
+  try { await adCall("admin_set_global_game_limits", { p_max_wager: num($("adMaxWager").value), p_daily_loss_limit: num($("adDailyLoss").value), p_cooldown_seconds: Number($("adCooldown").value || 0), p_pin: adminPin }); say("adMsg", "Spielgrenzen gespeichert."); } catch (err) { adFail(err); }
+};
+$("adSaveDino").onclick = async () => {
+  if (!needPin()) return;
+  try { await adCall("admin_set_dino_game_settings", { p_speed_level: Number($("adDinoSpeed").value), p_difficulty_level: Number($("adDinoDiff").value), p_pin: adminPin }); say("adMsg", "Dino Run gespeichert."); } catch (err) { adFail(err); }
+};
+$("adHealth").onclick = async () => {
+  if (!needPin()) return;
+  try {
+    const r = await adCall("admin_run_health_check", { p_pin: adminPin }); const res = Array.isArray(r) ? r[0] : r;
+    $("adHealthOut").innerHTML = Object.entries(res?.checks ?? {}).map(([k, v]) => `<div class="tx"><div>${h(k)}</div><b>${h(v?.status ?? "?")}</b></div>`).join("");
+    say("adMsg", "Systemprüfung abgeschlossen.");
+  } catch (err) { adFail(err); }
+};
+$("adOps").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-opstatus]"); if (!sel || !needPin()) return;
+  const key = sel.closest("[data-op]").dataset.op; const op = adOpsData.find((o) => o.operation_key === key);
+  try { await adCall("admin_update_operation", { p_operation_key: key, p_status: sel.value, p_configuration: op?.configuration ?? {}, p_pin: adminPin }); say("adMsg", "Funktion gespeichert."); } catch (err) { adFail(err); }
+  await adLoad("tools");
+});
+$("adTickets").addEventListener("change", async (e) => {
+  const sel = e.target.closest("select[data-casestatus]"); if (!sel || !needPin()) return;
+  const row = sel.closest("[data-case]");
+  try { await adCall("admin_update_case", { p_case_id: row.dataset.case, p_status: sel.value, p_priority: row.dataset.prio, p_pin: adminPin }); say("adMsg", "Support-Fall gespeichert."); } catch (err) { adFail(err); }
+});
+$("adSaveThreshold").onclick = async () => {
+  if (!needPin()) return;
+  try { await adCall("admin_set_transfer_threshold", { p_school_key: "default", p_threshold: Number($("adThreshold").value), p_pin: adminPin }); say("adMsg", "Schwellenwert gespeichert."); } catch (err) { adFail(err); }
+};
+document.querySelectorAll("#adRange button").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll("#adRange button").forEach((x) => x.classList.toggle("active", x === b));
+  adDays = Number(b.dataset.days); void adLoad("visitors");
+}));
 </script>
 </body>
 </html>
