@@ -11,6 +11,33 @@
 -- ---------------------------------------------------------------------------
 -- Ledger: neuer Transaktionstyp und Blockzuordnung
 -- ---------------------------------------------------------------------------
+-- Kompatibilität: In der Supabase-Cloud wurde die Ledger-Tabelle ohne chain_index angelegt
+-- (Reihenfolge der Hash-Kette dort: created_at, id). Die Blöcke brauchen eine laufende Nummer.
+-- Fehlt die Spalte, wird sie angelegt und in Ketten-Reihenfolge aufgefüllt; neue Buchungen
+-- bekommen die nächste Nummer automatisch. Bei frischen Datenbanken existiert sie bereits.
+do $compat$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'transactions' and column_name = 'chain_index'
+  ) then
+    alter table public.transactions add column chain_index bigint;
+    with ordered as (
+      select t.id, pg_catalog.row_number() over (order by t.created_at, t.id) as rn
+      from public.transactions t
+    )
+    update public.transactions t set chain_index = ordered.rn from ordered where ordered.id = t.id;
+    create sequence if not exists public.transactions_chain_index_seq owned by public.transactions.chain_index;
+    perform pg_catalog.setval('public.transactions_chain_index_seq',
+      coalesce((select max(chain_index) from public.transactions), 0) + 1, false);
+    alter table public.transactions
+      alter column chain_index set default pg_catalog.nextval('public.transactions_chain_index_seq'::regclass),
+      alter column chain_index set not null;
+    create unique index if not exists transactions_chain_index_key on public.transactions(chain_index);
+  end if;
+end;
+$compat$;
+
 alter table public.transactions drop constraint if exists transactions_type_check;
 alter table public.transactions
   add constraint transactions_type_check check (
