@@ -106,5 +106,21 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void push(); void cleanupAccounts(); }, intervalMs).unref();
   }
 
-  return { enabled, push, cleanupAccounts, status: () => ({ ...state }) };
+  // Coins der Website-Benutzer verwalten (nur über die Chain-Seite).
+  async function rpc(name, body) {
+    if (!enabled) throw new Error(state.lastError === "no_key" ? "no_key" : "not_configured");
+    const res = await fetchImpl(`${url}/rest/v1/rpc/${name}`, {
+      method: "POST",
+      headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ p_key: secret, ...body }),
+    });
+    if (!res.ok) throw new Error(`http_${res.status}`);
+    const result = await res.json();
+    if (!result?.ok) throw new Error(result?.error ?? "failed");
+    return result;
+  }
+  const listWebsiteUsers = async () => (await rpc("node_list_users", {})).users ?? [];
+  const adjustWebsiteBalance = async (userId, amount, reason) => rpc("node_adjust_balance", { p_user: userId, p_amount: amount, p_reason: reason });
+
+  return { enabled, push, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, status: () => ({ ...state }) };
 }

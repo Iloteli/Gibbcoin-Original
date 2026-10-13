@@ -314,6 +314,18 @@ const routes = {
   },
   "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); const website = await settingsSync.push({ price: body.websitePrice }); return { ...s, websitePush: website }; },
   "POST /api/tamper": async (_, body) => { await requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
+  // Coins der Website-Benutzer geben/abziehen (nur Owner der Chain-Seite)
+  "POST /api/website/users": async (_, body) => { await requireOwner(body); return { users: await settingsSync.listWebsiteUsers() }; },
+  "POST /api/website/adjust": async (_, body) => {
+    await requireOwner(body);
+    const amount = Math.trunc(Number(body.amount));
+    if (!Number.isFinite(amount) || amount === 0) throw new Error("invalid_amount");
+    const reason = String(body.reason ?? "").trim().slice(0, 120);
+    if (reason.length < 3) throw new Error("reason_required");
+    const result = await settingsSync.adjustWebsiteBalance(String(body.userId ?? ""), amount, reason);
+    note("wallet", `${amount > 0 ? "Gutschrift" : "Abzug"} ${Math.abs(amount)} GIBB auf der Hauptseite (${String(body.name ?? body.userId).slice(0, 40)}): ${reason}`);
+    return result;
+  },
   "POST /api/market/reset-prices": async (_, body) => { await requireOwner(body); const r = chain.resetPrices(1); const website = await settingsSync.push({ price: 1 }); note("settings", "Kurse zurückgesetzt (1 Rp)"); return { ...r, websitePush: website }; },
   "POST /api/reset": async (_, body) => { await requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };

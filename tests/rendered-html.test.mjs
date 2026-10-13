@@ -227,7 +227,6 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
     readFile(new URL("../supabase/migrations/20260824122242_complete_admin_controls_and_poker.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/owner-delete-account/index.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(adminPanel, /item\.user_id === currentUserId \|\| item\.role !== "super_admin"/);
   assert.match(adminPanel, /admin_coin_stats/);
   assert.match(adminPanel, /admin_reset_coin_stats/);
   assert.match(adminPanel, /Guthaben und Transaktionsverlauf blieben unverändert/);
@@ -283,20 +282,22 @@ test("reserves account bans and Owner deletion for Ilja as the only primary Owne
   assert.match(adminPanel, /statusTarget && <div className="modal-backdrop"/);
 });
 
-test("prevents normal Admins from self-credit while preserving Owner self-credit", async () => {
-  const [adminPanel, migration] = await Promise.all([
+test("moves coin grants and removals from the main site to the chain page", async () => {
+  const [adminPanel, migration, chainPage, server] = await Promise.all([
     readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../supabase/migrations/20260825075432_prevent_admin_self_credit.sql", import.meta.url), "utf8"),
+    readFile(new URL("../supabase/migrations/20261013180000_chain_page_coin_admin.sql", import.meta.url), "utf8"),
+    readFile(new URL("../blockchain-node/public/index.html", import.meta.url), "utf8"),
+    readFile(new URL("../blockchain-node/server.mjs", import.meta.url), "utf8"),
   ]);
-  assert.match(migration, /p_amount > 0[\s\S]*p_target_user_id = v_admin_user_id[\s\S]*v_admin_role = 'admin'/);
-  assert.match(migration, /cannot_credit_own_coins/);
-  assert.match(migration, /set search_path = ''/);
-  assert.match(migration, /revoke all on function public\.admin_adjust_balance_secure/);
-  assert.match(adminPanel, /currentRole === "super_admin" \? filteredUsers : filteredUsers\.filter/);
-  assert.match(adminPanel, /Admins dürfen ihrem eigenen Konto keine Coins gutschreiben/);
-  assert.match(adminPanel, /Eigengutschriften sind serverseitig gesperrt/);
-  assert.match(adminPanel, /currentRole === "super_admin" \? <button[\s\S]*Mir selbst Coins geben/);
-  assert.match(adminPanel, /Als Owner darfst du auch deinem eigenen Konto Coins gutschreiben/);
+  // Hauptseite: kein Coin-Formular mehr, Server lehnt Änderungen ab.
+  assert.doesNotMatch(adminPanel, /admin_adjust_balance_secure/);
+  assert.doesNotMatch(adminPanel, /id="admin-coins"/);
+  assert.match(migration, /'coins_on_chain_page'/);
+  // Chain-Seite: Geben und Abziehen nur mit Schlüssel und nur für den Owner.
+  assert.match(migration, /function public\.node_adjust_balance/);
+  assert.match(migration, /private\.node_key_ok\(p_key\)/);
+  assert.match(server, /"POST \/api\/website\/adjust": async \(_, body\) => \{\s*await requireOwner\(body\);/);
+  assert.match(chainPage, /id="coinAdminCard"/);
 });
 
 test("lets every group member withdraw shared coins only into their own wallet", async () => {
