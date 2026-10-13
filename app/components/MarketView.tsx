@@ -31,7 +31,7 @@ const errors: Record<string, string> = {
   bank_amount_too_small: "Per Überweisung sind mindestens CHF 1.00 nötig – bitte mehr GIBB wählen.",
   bank_disabled: "Kauf per Überweisung ist gerade nicht verfügbar.",
   too_many_open_orders: "Du hast schon 3 offene Überweisungen. Bitte warte, bis sie bestätigt sind, oder storniere eine.",
-  purchases_disabled: "Kauf mit echtem Geld ist noch nicht freigeschaltet.",
+  purchases_disabled: "Kartenzahlung ist noch nicht eingerichtet – bitte per Banküberweisung kaufen.",
   payment_not_configured: "Zahlungen sind noch nicht eingerichtet (Stripe).",
   not_authenticated: "Bitte melde dich erneut an.",
 };
@@ -50,6 +50,7 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
   const [bank, setBank] = useState<BankDetails | null>(null);
   const [bankOrders, setBankOrders] = useState<BankOrder[]>([]);
   const [newOrder, setNewOrder] = useState<BankOrder | null>(null);
+  const [cardUnavailable, setCardUnavailable] = useState(false);
 
   const load = useCallback(async () => {
     const supabase = getSupabase();
@@ -135,6 +136,7 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
       if (kind === "stripe") {
         const result = await createCheckoutSession(gibb);
         if (result.url) { window.location.assign(result.url); return; }
+        if (result.error === "purchases_disabled" || result.error === "payment_not_configured") setCardUnavailable(true);
         setError(errors[result.error ?? ""] ?? "Der Kauf konnte nicht gestartet werden.");
         return;
       }
@@ -193,10 +195,10 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
             <h3>Kaufen</h3>
             <p className="market-sum">{quote?.ok ? rp(quote.buy_rappen ?? 0) : "–"}<small>{quote?.ok ? ` = ${chf(quote.buy_rappen ?? 0)}` : ""}</small></p>
             <small className="field-hint">Kurs danach: {quote?.ok ? rp(quote.price_after_buy ?? 0) : "–"}</small>
-            <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>
+            {!cardUnavailable && <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>}
             <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (state?.my_credits ?? 0) < (quote.buy_rappen ?? 0)} onClick={() => void act("credits")}>{busy === "credits" ? "Kauft …" : "Mit Credits kaufen"}</button>
             {bank?.enabled && <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (quote.buy_rappen ?? 0) < 100} onClick={() => void orderBank()}>{busy === "bank" ? "Bestellung wird erstellt …" : "Per Banküberweisung kaufen"}</button>}
-            {quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
+            {!cardUnavailable && quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
             {bank?.enabled && quote?.ok && (quote.buy_rappen ?? 0) < 100 && <small className="field-hint">Per Überweisung erst ab CHF 1.00.</small>}
           </article>
           <article className="market-box sell">
