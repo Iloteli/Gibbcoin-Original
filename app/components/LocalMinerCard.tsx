@@ -81,7 +81,7 @@ export function LocalMinerCard({ userId, name, balance }: { userId: string; name
     let active = true;
     const poll = async () => {
       try {
-        if (!registeredRef.current) { await call("/api/register", { supabaseId: userId, name, balance }); registeredRef.current = true; }
+        if (!registeredRef.current) { await call("/api/register", { supabaseId: userId, name }).catch(() => {}); registeredRef.current = true; }
         const stats = await call("/api/stats") as { settings: NodeSettings };
         if (!active) return;
         setOnline(true);

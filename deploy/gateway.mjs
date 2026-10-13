@@ -26,7 +26,7 @@ const server = createServer((req, res) => {
   const { target, path, label } = route(req.url);
   const upstream = request({
     hostname: target.hostname, port: target.port, method: req.method, path,
-    headers: { ...req.headers, host: target.host, "x-forwarded-prefix": label === "/" ? "" : label },
+    headers: { ...req.headers, host: target.host, "x-forwarded-prefix": label === "/" ? "" : label, "x-forwarded-for": req.headers["x-forwarded-for"] || req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "gateway" },
   }, (up) => { res.writeHead(up.statusCode ?? 502, up.headers); up.pipe(res); });
   upstream.on("error", () => {
     if (!res.headersSent) res.writeHead(502, { "content-type": "text/plain; charset=utf-8" });
@@ -39,7 +39,7 @@ const server = createServer((req, res) => {
 server.on("upgrade", (req, socket, head) => {
   const { target, path } = route(req.url);
   const upstream = connect(Number(target.port || 80), target.hostname, () => {
-    const headers = { ...req.headers, host: target.host };
+    const headers = { ...req.headers, host: target.host, "x-forwarded-for": req.headers["x-forwarded-for"] || req.headers["cf-connecting-ip"] || req.socket.remoteAddress || "gateway" };
     const lines = [`${req.method} ${path} HTTP/${req.httpVersion}`, ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`)];
     upstream.write(`${lines.join("\r\n")}\r\n\r\n`);
     if (head?.length) upstream.write(head);

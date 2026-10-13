@@ -353,7 +353,7 @@ export function Dashboard({ user }: Props) {
     let node = defaultNodeUrl();
     try { node = localStorage.getItem("gibb-node-url") || node; } catch { /* ignore */ }
     const controller = new AbortController();
-    fetch(`${node}/api/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ supabaseId: user.id, name: profile.username || profile.display_name || "Konto", balance: wallet?.balance ?? 0 }), signal: controller.signal }).catch(() => {});
+    void getSupabase()?.auth.getSession().then(({ data }) => fetch(`${node}/api/register`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ supabaseId: user.id, name: profile.username || profile.display_name || "Konto", supabaseToken: data.session?.access_token }), signal: controller.signal })).catch(() => {});
     return () => controller.abort();
   }, [profile, user.id, wallet?.balance]);
 

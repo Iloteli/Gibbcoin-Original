@@ -68,7 +68,11 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
     let registered = false;
     const poll = async () => {
       try {
-        if (!registered) { await call("/api/register", { supabaseId: userId, name, balance }); registered = true; }
+        if (!registered) {
+          const { data } = await getSupabase()?.auth.getSession() ?? { data: { session: null } };
+          await call("/api/register", { supabaseId: userId, name, supabaseToken: data.session?.access_token }).catch(() => {});
+          registered = true;
+        }
         const s = await call(`/api/miner-status?address=${encodeURIComponent(`sb_${userId}`)}`) as { account: { balance: number } | null };
         if (!active) return;
         setOnline(true);

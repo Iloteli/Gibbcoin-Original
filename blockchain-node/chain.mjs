@@ -80,6 +80,16 @@ export class Blockchain {
     return String(process.env.GIBB_OWNER || "ilja").trim().toLowerCase();
   }
 
+  // Der Owner-Name ist reserviert: Owner wird man nur mit dem geheimen Einrichtungscode
+  // aus der Server-Umgebung (GIBB_OWNER_SETUP_CODE, mindestens 8 Zeichen). Ohne Code
+  // kann niemand den Namen registrieren – sonst könnte ihn sich ein Fremder zuerst sichern.
+  ownerCodeValid(code) {
+    const expected = String(process.env.GIBB_OWNER_SETUP_CODE ?? "");
+    const given = String(code ?? "");
+    if (expected.length < 8 || given.length !== expected.length) return false;
+    return timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+  }
+
   // Stellt sicher, dass es genau EINEN Owner gibt: den konfigurierten Nutzer
   // (ilja). Existiert er, wird er super_admin; jeder andere super_admin wird
   // auf "user" zurückgestuft. Es wird nie jemand anderes zum Owner gemacht.
@@ -87,7 +97,7 @@ export class Blockchain {
     const owner = this.users?.[this.ownerKey];
     let changed = false;
     for (const [key, u] of Object.entries(this.users || {})) {
-      const shouldBeOwner = key === this.ownerKey;
+      const shouldBeOwner = key === this.ownerKey && u.ownerVerified === true;
       const target = shouldBeOwner ? "super_admin" : (u.role === "super_admin" ? "user" : u.role);
       if (u.role !== target) { u.role = target; changed = true; }
     }
@@ -222,30 +232,40 @@ export class Blockchain {
 
   // Registriert einen Benutzer mit Passwort und legt sein Wallet an. Der erste
   // Benutzer wird automatisch Owner (super_admin); alle weiteren sind normale Nutzer.
-  registerUser(username, password) {
+  registerUser(username, password, { setupCode } = {}) {
     const key = String(username ?? "").trim().toLowerCase();
     const name = String(username ?? "").trim().slice(0, 40);
     if (key.length < 3 || key.length > 40 || !/^[a-z0-9_.-]+$/.test(key)) throw new Error("invalid_username");
-    if (String(password ?? "").length < 6) throw new Error("weak_password");
+    if (String(password ?? "").length < 8 || String(password).length > 200) throw new Error("weak_password");
     if (this.users[key]) throw new Error("username_taken");
+    const isOwner = key === this.ownerKey;
+    if (isOwner && !this.ownerCodeValid(setupCode)) throw new Error("owner_name_reserved");
     const { address } = this.createWallet(name);
     const salt = randomBytes(16).toString("hex");
     // Owner-Rolle bekommt ausschließlich der konfigurierte Owner (ilja),
     // egal in welcher Reihenfolge registriert wird. Alle anderen sind Nutzer.
-    const role = key === this.ownerKey ? "super_admin" : "user";
-    this.users[key] = { address, salt, hash: this.hashPassword(password, salt), role, username: name, createdAt: Date.now() };
+    const role = isOwner ? "super_admin" : "user";
+    this.users[key] = { address, salt, hash: this.hashPassword(password, salt), role, username: name, createdAt: Date.now(), ...(isOwner ? { ownerVerified: true } : {}) };
     this.ensureOwner(); // stellt sicher, dass es keinen zweiten Owner gibt
     this.save();
     return { address, username: name, role: this.users[key].role };
   }
 
-  verifyUser(username, password) {
+  verifyUser(username, password, { setupCode } = {}) {
     const key = String(username ?? "").trim().toLowerCase();
     const u = this.users[key];
+    // Unbekannte Namen kosten gleich viel Rechenzeit wie falsche Passwörter (kein Ausspähen von Namen).
+    const salt = u?.salt ?? "0".repeat(32);
+    const got = Buffer.from(this.hashPassword(String(password ?? "").slice(0, 200), salt), "hex");
     if (!u) throw new Error("invalid_login");
-    const got = Buffer.from(this.hashPassword(password, u.salt), "hex");
     const want = Buffer.from(u.hash, "hex");
     if (got.length !== want.length || !timingSafeEqual(got, want)) throw new Error("invalid_login");
+    // Bestehendes Konto mit dem Owner-Namen: Owner erst nach Bestätigung mit dem Einrichtungscode.
+    if (key === this.ownerKey && !u.ownerVerified && this.ownerCodeValid(setupCode)) {
+      u.ownerVerified = true;
+      this.ensureOwner();
+      this.save();
+    }
     return { address: u.address, username: u.username, role: u.role };
   }
 

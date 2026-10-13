@@ -97,7 +97,30 @@ function note(kind, message) {
 // Anmelde-Sitzungen: token -> { address, username, role }. Nur im Speicher.
 import { randomBytes as _rnd } from "node:crypto";
 const sessions = new Map();
+const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // Sitzungen laufen nach 12 Stunden ab
+const newSession = (u) => {
+  const token = _rnd(32).toString("hex");
+  sessions.set(token, { address: u.address, username: u.username, role: u.role, expires: Date.now() + SESSION_TTL_MS });
+  return token;
+};
+setInterval(() => { const now = Date.now(); for (const [t, s] of sessions) if (s.expires < now) sessions.delete(t); }, 60_000).unref();
+
+// Schutz gegen Passwort-Raten (Sperre für 15 Minuten nach zu vielen Fehlversuchen).
+const loginFailures = new Map(); // key -> { count, until }
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+// Pro Name 5 Versuche; pro IP 30 (in der Schule teilen sich viele dieselbe öffentliche IP).
+const loginBlocked = (...keys) => keys.some((k) => { const f = loginFailures.get(k); return f && f.until > Date.now() && f.count >= (k.startsWith("ip:") ? 30 : 5); });
+const loginFailed = (...keys) => {
+  for (const k of keys) {
+    const f = loginFailures.get(k);
+    if (!f || f.until < Date.now()) loginFailures.set(k, { count: 1, until: Date.now() + LOGIN_WINDOW_MS });
+    else f.count += 1;
+  }
+  if (loginFailures.size > 5000) loginFailures.clear();
+};
+
 // NO_AUTH=1: keine Anmeldung nötig – jeder Aufruf läuft als lokaler "Gast" mit Owner-Rechten.
+// Nur für direkte Aufrufe am Rechner selbst (nicht über Tunnel/Gateway von aussen).
 const NO_AUTH = process.env.NO_AUTH === "1";
 let guestSession = null;
 const getGuest = () => {
@@ -108,7 +131,13 @@ const getGuest = () => {
   }
   return guestSession;
 };
-const sessionOf = (body) => (body && body.token && sessions.get(body.token)) || (NO_AUTH ? getGuest() : null);
+const sessionOf = (body) => {
+  const sess = body && typeof body.token === "string" ? sessions.get(body.token) : null;
+  if (sess && sess.expires > Date.now()) return sess;
+  if (sess) sessions.delete(body.token);
+  return NO_AUTH && body?.__direct === true ? getGuest() : null;
+};
+const requireSession = (body) => { const sess = sessionOf(body); if (!sess) throw new Error("login_required"); return sess; };
 const websiteOwnerSession = createWebsiteOwnerCheck();
 // Owner: Node-Login (token) ODER Owner der GibbCoin-Website (supabaseToken, geprüft bei der eigenen Datenbank).
 const requireOwner = async (body) => {
@@ -123,17 +152,29 @@ const routes = {
   "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
-    const u = chain.registerUser(body.username, body.password);
-    const token = _rnd(24).toString("hex");
-    sessions.set(token, { address: u.address, username: u.username, role: u.role });
+    const ipKey = `ip:${body.__ip}`;
+    if (loginBlocked(ipKey)) throw new Error("too_many_attempts");
+    let u;
+    try { u = chain.registerUser(body.username, body.password, { setupCode: body.setupCode }); }
+    catch (error) { if (error.message === "owner_name_reserved") loginFailed(ipKey); throw error; }
+    const token = newSession(u);
     note("auth", `Neuer Nutzer registriert: ${u.username}${u.role === "super_admin" ? " (Owner)" : ""}`);
     return { token, ...u };
   },
   "POST /api/auth/login": (_, body) => {
-    const u = chain.verifyUser(body.username, body.password);
-    const token = _rnd(24).toString("hex");
-    sessions.set(token, { address: u.address, username: u.username, role: u.role });
+    const nameKey = `name:${String(body.username ?? "").trim().toLowerCase()}`;
+    const ipKey = `ip:${body.__ip}`;
+    if (loginBlocked(nameKey, ipKey)) throw new Error("too_many_attempts");
+    let u;
+    try { u = chain.verifyUser(body.username, body.password, { setupCode: body.setupCode }); }
+    catch (error) { loginFailed(nameKey, ipKey); throw error; }
+    loginFailures.delete(nameKey);
+    const token = newSession(u);
     return { token, ...u };
+  },
+  "POST /api/auth/logout": (_, body) => {
+    if (typeof body.token === "string") sessions.delete(body.token);
+    return { ok: true };
   },
   "POST /api/auth/me": (_, body) => {
     const sess = sessionOf(body);
@@ -144,8 +185,13 @@ const routes = {
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
   "POST /api/local-miner": async (_, body) => { await requireOwner(body); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
   // Von der echten Website: aktuelles Konto anmelden, damit es hier erscheint.
-  "POST /api/register": (_, body) => {
-    const acc = chain.upsertWebsiteAccount(body.supabaseId, body.name, Number(body.balance));
+  // Nur mit gültigem Website-Login und nur für das eigene Konto. Ein vom Browser geschicktes
+  // Guthaben wird NICHT übernommen (sonst könnte sich jeder Coins geben).
+  "POST /api/register": async (_, body) => {
+    const user = await websiteUser(body?.supabaseToken);
+    if (!user) throw new Error("login_required");
+    if (body.supabaseId && body.supabaseId !== user.userId) throw new Error("not_your_account");
+    const acc = chain.upsertWebsiteAccount(user.userId, user.username, 0);
     note("sync", `Konto von der Website angemeldet: ${acc.name} (${acc.address})`);
     return { address: acc.address, name: acc.name, balance: acc.balance, cash: acc.cash };
   },
@@ -184,20 +230,27 @@ const routes = {
     return block;
   },
   "GET /api/mempool": () => chain.mempool,
-  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, a]) => ({ address, ...a, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
+  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, { supabaseId: _sid, ...a }]) => ({ address, ...a, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
   "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
   "POST /api/order": (_, body) => {
+    const sess = requireSession(body);
+    if (body.address && body.address !== sess.address) throw new Error("not_your_account");
+    body.address = sess.address;
     const r = chain.placeOrder(body.address, body.side, body.price, body.amount);
     note("market", `${chain.accounts[body.address]?.name ?? body.address}: ${body.side === "buy" ? "Kauf" : "Verkauf"} ${body.amount} GIBB zu ${body.price} Rp${r.fills.length ? ` – ${r.fills.length} Handel, Kurs ${r.price} Rp` : " (im Buch)"}`);
     return r;
   },
-  "POST /api/order-cancel": (_, body) => chain.cancelOrder(body.address, body.order_id),
+  "POST /api/order-cancel": (_, body) => {
+    const sess = requireSession(body);
+    if (body.address && body.address !== sess.address) throw new Error("not_your_account");
+    return chain.cancelOrder(sess.address, body.order_id);
+  },
   "GET /api/verify": () => chain.verify(),
-  "POST /api/wallets": (_, body) => chain.createWallet(body.name),
+  "POST /api/wallets": async (_, body) => { await requireOwner(body); return chain.createWallet(body.name); },
   "POST /api/transactions": (_, body) => {
-    const sess = sessionOf(body);
-    const from = sess ? sess.address : body.from; // eingeloggt: nur vom eigenen Konto senden
-    if (sess && body.from && body.from !== sess.address) throw new Error("not_your_account");
+    const sess = requireSession(body); // Senden nur angemeldet und nur vom eigenen Konto
+    const from = sess.address;
+    if (body.from && body.from !== sess.address) throw new Error("not_your_account");
     // Empfänger darf Adresse ODER Benutzername sein.
     let to = body.to;
     if (to && !chain.accounts[to]) { const u = chain.users[String(to).trim().toLowerCase()]; if (u) to = u.address; }
@@ -263,9 +316,20 @@ const requestHandler = async (req, res) => {
       let body = {};
       if (req.method === "POST") {
         const chunks = [];
-        for await (const chunk of req) chunks.push(chunk);
+        let size = 0;
+        for await (const chunk of req) {
+          size += chunk.length;
+          if (size > 1_000_000) return json(res, 413, { error: "request_too_large" });
+          chunks.push(chunk);
+        }
         const raw = Buffer.concat(chunks).toString("utf8");
         body = raw ? JSON.parse(raw) : {};
+        if (!body || typeof body !== "object" || Array.isArray(body)) body = {};
+        // Interne Felder setzt nur der Server (nie vom Client übernehmen).
+        const forwarded = req.headers["cf-connecting-ip"] || req.headers["x-forwarded-for"];
+        const remote = req.socket.remoteAddress ?? "";
+        body.__ip = String(forwarded || remote).split(",")[0].trim();
+        body.__direct = !forwarded && /^(::1|127\.|::ffff:127\.)/.test(remote);
       }
       const data = await routes[key](url, body);
       return json(res, 200, data);

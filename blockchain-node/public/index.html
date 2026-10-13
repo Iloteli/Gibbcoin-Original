@@ -134,7 +134,9 @@
     <label for="authUser">Benutzername</label>
     <input id="authUser" autocomplete="username" placeholder="z. B. ilja">
     <label for="authPass" style="margin-top:8px">Passwort</label>
-    <input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 6 Zeichen">
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 8 Zeichen">
+    <label for="authCode" style="margin-top:8px">Owner-Code <span class="muted">(nur für den Owner, sonst leer lassen)</span></label>
+    <input id="authCode" type="password" autocomplete="off" placeholder="leer lassen">
     <div class="actions"><button class="primary" id="authGo" style="width:100%">Anmelden</button></div>
     <div class="msg" id="authMsg"></div>
   </div>
@@ -568,7 +570,7 @@ let authMode = "login";
 function setMode(m) { authMode = m; $("tabLogin").classList.toggle("active", m === "login"); $("tabReg").classList.toggle("active", m === "reg"); $("authGo").textContent = m === "login" ? "Anmelden" : "Konto erstellen"; $("authPass").autocomplete = m === "login" ? "current-password" : "new-password"; }
 $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
-const authErrors = { invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 6 Zeichen haben." };
+const authErrors = { invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
 function onAuthed(me) {
   myAddress = me.address;
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
@@ -581,12 +583,14 @@ $("authGo").onclick = async () => {
   const username = $("authUser").value.trim(); const password = $("authPass").value;
   $("authMsg").textContent = ""; $("authMsg").className = "msg";
   try {
-    const r = await api(authMode === "login" ? "/api/auth/login" : "/api/auth/register", { username, password });
+    const setupCode = $("authCode").value || undefined;
+    const r = await api(authMode === "login" ? "/api/auth/login" : "/api/auth/register", { username, password, setupCode });
+    $("authCode").value = "";
     authToken = r.token; onAuthed(r);
   } catch (e) { $("authMsg").textContent = authErrors[e.message] || "Fehlgeschlagen. Läuft der Node?"; $("authMsg").className = "msg err"; }
 };
 $("authPass").addEventListener("keydown", (e) => { if (e.key === "Enter") $("authGo").click(); });
-$("logout").onclick = () => { authToken = null; myAddress = null; try { localStorage.removeItem("gibb-auth"); } catch {} location.reload(); };
+$("logout").onclick = () => { if (authToken) api("/api/auth/logout", {}).catch(() => {}); authToken = null; myAddress = null; try { localStorage.removeItem("gibb-auth"); } catch {} location.reload(); };
 
 (async () => {
   { try { const me = await api("/api/auth/me", {}); if (me.ok) { onAuthed(me); return; } } catch {} authToken = null; }
