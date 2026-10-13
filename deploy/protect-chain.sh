@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Schützt https://chain.DOMAIN mit einer Browser-Anmeldung: nur der Benutzer "ilja" kommt rein.
 # Ohne Angabe wird ein zufälliges Passwort erzeugt und EINMAL angezeigt.
+# (Nutzt "basicauth" – die Schreibweise, die alle Caddy-2-Versionen verstehen.)
 #   sudo bash deploy/protect-chain.sh                 -> neues Zufallspasswort
 #   sudo CHAIN_PASSWORD='...' bash deploy/protect-chain.sh   -> eigenes Passwort (mind. 10 Zeichen)
 #   sudo bash deploy/protect-chain.sh --off           -> Schutz wieder entfernen
@@ -20,7 +21,7 @@ PASSWORD="${CHAIN_PASSWORD:-$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-16
 if [ "${#PASSWORD}" -lt 10 ]; then echo "Passwort muss mindestens 10 Zeichen haben." >&2; exit 1; fi
 HASH="$(caddy hash-password --plaintext "$PASSWORD")"
 cat > "$AUTH_FILE" <<CADDY
-basicauth {  # alte Schreibweise: funktioniert in allen Caddy-2-Versionen
+basicauth {
 	$CHAIN_USER $HASH
 }
 CADDY
