@@ -650,7 +650,7 @@ export function Dashboard({ user }: Props) {
         <div className="view-heading"><span>PROOF OF WORK</span><h1>Blockchain</h1><p>{profile?.role === "super_admin" ? "Blöcke, Merkle-Roots und CPU-Mining – nachprüfbar für alle." : "Mine GIBB direkt im Browser – dein Rechner löst echte Blöcke."}</p></div>
         {activeView === "chain" && <BlockchainOverview userId={user.id} />}
         <BrowserMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} />
-        {profile?.role === "super_admin" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
+        {profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com" && activeView === "chain" && <LocalMinerCard userId={user.id} name={profile?.username || profile?.display_name || "Konto"} balance={wallet?.balance ?? 0} isAdmin={true} />}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">
@@ -684,7 +684,6 @@ export function Dashboard({ user }: Props) {
 
         {(profile?.role === "admin" || profile?.role === "super_admin") && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Admin"><div className="view-heading"><span>GESCHÜTZTER BEREICH</span><h1>Admin</h1><p>Sicherheit, Rollen und Wallet-Verwaltung an einem Ort.</p></div>{offlineMode ? <section className="card card-pad offline-placeholder"><strong>Adminpanel offline gesperrt</strong><p>Administrative Aktionen benötigen immer eine aktuelle MFA- und Serverprüfung.</p></section> : <><AdminSecurityCenter />{activeView === "admin" && <AdminPanel currentRole={profile.role} currentUserId={user.id} currentUserEmail={user.email} onChanged={loadData} onExit={() => openView("home")} />}</>}</div>}
         <p className="disclaimer">GIBB Coin ist ein internes Schulprojekt. Coins können nicht mit echtem Geld gekauft werden, sind kein gesetzliches Zahlungsmittel, nicht auszahlbar und nur in der App nutzbar. Die dargestellte Hash-Kette ist serverseitig geprüft und keine öffentliche Blockchain.</p>
-        <a className="creator-credit" href="https://robyn-projektportal.pxfyvkgcs6.chatgpt.site" target="_blank" rel="noopener noreferrer" aria-label="Alle Projekte von Robyn Rüfenacht öffnen">Diese Seite wurde von <strong>Robyn Rüfenacht</strong> erstellt.</a>
       </main>
       <UserProfileModal />
       {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}

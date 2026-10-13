@@ -32,7 +32,7 @@ test("accepts only website owners verified by the own database", async () => {
   const fetchImpl = async (url, init) => {
     if (url.endsWith("/auth/v1/user")) {
       const token = init.headers.authorization.replace("Bearer ", "");
-      if (token === "valid-owner-token-xxxxxxxx") return { ok: true, json: async () => ({ id: "owner-id" }) };
+      if (token === "valid-owner-token-xxxxxxxx") return { ok: true, json: async () => ({ id: "owner-id", email: "Ilja.Podorieszach@icloud.com" }) };
       if (token === "valid-user-token-xxxxxxxxx") return { ok: true, json: async () => ({ id: "user-id" }) };
       return { ok: false, json: async () => ({}) };
     }
@@ -51,7 +51,7 @@ test("verifies cloud owners with the public key and the user's own token", async
   const seen = [];
   const fetchImpl = async (url, init) => {
     seen.push({ url, apikey: init.headers.apikey, auth: init.headers.authorization });
-    if (url.endsWith("/auth/v1/user")) return { ok: true, json: async () => ({ id: "owner-id" }) };
+    if (url.endsWith("/auth/v1/user")) return { ok: true, json: async () => ({ id: "owner-id", email: "Ilja.Podorieszach@icloud.com" }) };
     return { ok: true, json: async () => [{ role: "super_admin", username: "ilja" }] };
   };
   const check = createWebsiteOwnerCheck({ env: { SUPABASE_URL: "https://cloud.example", SUPABASE_ANON_KEY: "public-key" }, fetchImpl });
@@ -59,4 +59,13 @@ test("verifies cloud owners with the public key and the user's own token", async
   assert.equal(seen[1].apikey, "public-key");
   assert.equal(seen[1].auth, "Bearer cloud-user-token-xxxxxxxxxx");
   assert.equal(createWalletCredit({ env: { SUPABASE_URL: "https://cloud.example", SUPABASE_ANON_KEY: "public-key" } }).enabled, false);
+});
+
+test("only Ilja gets the node owner area, even if another account is super_admin", async () => {
+  const fetchImpl = async (url) => {
+    if (url.endsWith("/auth/v1/user")) return { ok: true, json: async () => ({ id: "robyn-id", email: "robyn@example.com" }) };
+    return { ok: true, json: async () => [{ role: "super_admin", username: "robyn" }] };
+  };
+  const check = createWebsiteOwnerCheck({ env, fetchImpl });
+  assert.equal(await check("other-owner-token-xxxxxxxxx"), null);
 });

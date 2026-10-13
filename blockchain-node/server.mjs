@@ -12,7 +12,8 @@ import { dirname, join } from "node:path";
 import { Blockchain } from "./chain.mjs";
 import { startFallbackMiner } from "./fallback-miner.mjs";
 import { createWalletCredit } from "./wallet-credit.mjs";
-import { createWebsiteOwnerCheck } from "./website-owner.mjs";
+import { createWebsiteOwnerCheck, createWebsiteUserCheck } from "./website-owner.mjs";
+import { startServerMining } from "./server-mining.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -32,6 +33,17 @@ if (!chain.accounts[FALLBACK_ADDRESS]) {
   chain.save();
 }
 const walletCredit = createWalletCredit({ note: (kind, msg) => note(kind, msg) });
+// Server-Mining für Website-Nutzer (läuft weiter, auch wenn der Browser-Tab zu ist).
+const serverMining = startServerMining(chain, {
+  file: join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "server-miners.json"),
+  note: (m) => note("block", m),
+  onBlock: (block) => {
+    recentBlocks.unshift({ height: block.height, hash: block.hash, miner_label: block.miner_label, attempts: block.attempts, ms: block.mining_ms, hashrate: block.hashrate, at: Date.now() });
+    recentBlocks.length = Math.min(recentBlocks.length, 12);
+    walletCredit.onBlock(block);
+  },
+});
+const websiteUser = createWebsiteUserCheck();
 const fallbackMiner = startFallbackMiner(chain, { getAddress: () => FALLBACK_ADDRESS, note: (m) => note("block", m) });
 
 const localMiner = {
@@ -211,6 +223,21 @@ const routes = {
       if (error.message !== "stale_block") note("error", `Block abgelehnt: ${error.message}`);
       throw error;
     }
+  },
+  // Server-Mining: Status lesen (öffentlich) und für das eigene Website-Konto ein-/ausschalten.
+  "GET /api/server-mining": (url) => serverMining.status(url.searchParams.get("address")),
+  "POST /api/server-mining": async (_, body) => {
+    const user = await websiteUser(body?.supabaseToken);
+    if (!user) throw new Error("login_required");
+    const address = `sb_${user.userId}`;
+    if (!chain.accounts[address]) chain.upsertWebsiteAccount(user.userId, user.username, 0);
+    if (body.enabled) {
+      const s = serverMining.enable(address, user.username);
+      note("mining", `Server-Mining eingeschaltet für ${user.username}`);
+      return s;
+    }
+    note("mining", `Server-Mining ausgeschaltet für ${user.username}`);
+    return serverMining.disable(address);
   },
   "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
   "POST /api/tamper": async (_, body) => { await requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },

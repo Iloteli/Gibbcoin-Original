@@ -8,6 +8,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { defaultNodeUrl } from "../lib/node-url";
+import { getSupabase } from "../lib/supabase";
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "../lib/blockchain-core";
 
 // Standard-Node-Adresse: siehe defaultNodeUrl (Port 8787 oder Pfad /node).
@@ -40,6 +41,8 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
   const [error, setError] = useState("");
   const [flash, setFlash] = useState(false);
   const [cores, setCores] = useState(0);
+  const [serverMining, setServerMining] = useState<{ enabled: boolean; blocks: number; activeMiners: number } | null>(null);
+  const [serverBusy, setServerBusy] = useState(false);
 
   const m = useRef({ want: false, workers: [] as Worker[], workerUrl: null as string | null, template: null as Template | null, startedAt: 0, hashes: 0, timer: 0 as number });
   const coresRef = useRef(0); // 0 = alle Kerne des Geräts
@@ -70,6 +73,10 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
         if (!active) return;
         setOnline(true);
         setNodeBalance(s.account?.balance ?? null);
+        try {
+          const sm = await call(`/api/server-mining?address=${encodeURIComponent(`sb_${userId}`)}`) as { enabled: boolean; blocks: number; activeMiners: number };
+          if (active) setServerMining(sm);
+        } catch { /* älterer Node ohne Server-Mining */ }
         try {
           const stats = await call("/api/stats") as { settings?: { browserMinerThreads?: number } };
           coresRef.current = Number(stats.settings?.browserMinerThreads) || 0;
@@ -182,6 +189,25 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
     };
   }, []);
 
+  // Server-Mining: der Server mint für dieses Konto weiter, auch wenn der Tab geschlossen ist.
+  const toggleServerMining = useCallback(async () => {
+    if (!serverMining) return;
+    setServerBusy(true); setError("");
+    try {
+      const { data } = await getSupabase()?.auth.getSession() ?? { data: { session: null } };
+      const token = data.session?.access_token;
+      if (!token) throw new Error("login_required");
+      const next = await call("/api/server-mining", { enabled: !serverMining.enabled, supabaseToken: token }) as { enabled: boolean; blocks: number; activeMiners: number };
+      setServerMining(next);
+      setMessage(next.enabled ? "Server-Mining ist an: Der Server mint jetzt für dich weiter – du kannst den Tab schliessen." : "Server-Mining ist aus.");
+    } catch (e) {
+      const code = e instanceof Error ? e.message : "";
+      setError(code === "login_required" ? "Bitte melde dich neu an, um Server-Mining zu nutzen." : "Server-Mining konnte nicht umgeschaltet werden.");
+    } finally {
+      setServerBusy(false);
+    }
+  }, [call, serverMining]);
+
   const expected = difficulty ? 2 ** difficulty : 0;
 
   const progress = expected ? Math.min(100, Math.round(hashes / expected * 100)) : 0;
@@ -218,7 +244,17 @@ export function BrowserMinerCard({ userId, name, balance }: { userId: string; na
               <span aria-hidden="true">{running ? "⏹" : "⛏"}</span>{running ? "Mining stoppen" : "Minen"}
             </button>
           </div>
-          <small className="field-hint">Ein Browser-Kern schafft rund 100–300 kH/s. Läuft nur, solange dieser Tab offen ist.</small>
+          <small className="field-hint">Ein Browser-Kern schafft rund 100–300 kH/s. Browser-Mining läuft nur, solange dieser Tab offen ist.</small>
+          {serverMining && (
+            <div className="local-miner-actions server-mining-toggle">
+              <button className={`browser-miner-btn ${serverMining.enabled ? "secondary" : "primary"}`} type="button" disabled={serverBusy} onClick={() => void toggleServerMining()}>
+                <span aria-hidden="true">{serverMining.enabled ? "⏹" : "☁"}</span>{serverMining.enabled ? "Server-Mining ausschalten" : "Auf dem Server weiter minen"}
+              </button>
+              <small className="field-hint">{serverMining.enabled
+                ? `Läuft auf dem Server – auch bei geschlossenem Tab. ${fmt(serverMining.blocks)} ${serverMining.blocks === 1 ? "Block" : "Blöcke"} für dich gefunden · ${serverMining.activeMiners} ${serverMining.activeMiners === 1 ? "Konto" : "Konten"} teilen sich den Server.`
+                : "Der Server mint für dich weiter, auch wenn du den Tab schliesst. Alle eingeschalteten Konten kommen reihum dran."}</small>
+            </div>
+          )}
           {message && !error && <div className="message">{message}</div>}
           {error && <div className="message error">{error}</div>}
         </>
