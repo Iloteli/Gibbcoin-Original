@@ -54,7 +54,7 @@ function adjustmentError(code?: string, rpcMessage?: string) {
   if (message.includes("insufficient_balance")) return "Dieses Konto besitzt nicht genügend Coins.";
   if (message.includes("cannot_credit_own_coins")) return "Admins dürfen ihrem eigenen Konto keine Coins gutschreiben.";
   if (message.includes("cannot_remove_own_coins")) return "Du kannst Coins nur anderen Konten entziehen.";
-  if (message.includes("cannot_remove_owner_coins")) return "Das Owner-Guthaben ist geschützt und kann von keinem Admin entzogen werden.";
+  if (message.includes("cannot_remove_owner_coins")) return "Dieses Konto ist geschützt.";
   if (message.includes("wallet_not_found")) return "Für dieses Konto wurde kein Wallet gefunden.";
   if (message.includes("account_locked")) return "Dein Admin-Konto ist gesperrt.";
   if (message.includes("admin_required")) return "Für diese Aktion fehlen dir die Adminrechte.";
@@ -203,7 +203,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
 
   const adjustmentUsers = useMemo(
     () => adjustmentMode === "remove"
-      ? filteredUsers.filter((item) => item.user_id === currentUserId || item.role !== "super_admin")
+      ? filteredUsers.filter((item) => item.user_id === currentUserId || item.role !== "super_admin" || currentRole === "super_admin")
       : currentRole === "super_admin" ? filteredUsers : filteredUsers.filter((item) => item.user_id !== currentUserId),
     [adjustmentMode, currentRole, currentUserId, filteredUsers],
   );
@@ -329,7 +329,7 @@ export function AdminPanel({ currentRole, currentUserId, currentUserEmail, onCha
     if (!removingCoins && currentRole === "admin" && targetId === currentUserId) { setError("Admins dürfen ihrem eigenen Konto keine Coins gutschreiben."); return; }
     if (!Number.isInteger(parsed) || parsed <= 0) { setError("Gib einen positiven, ganzen Coinbetrag ein."); return; }
     const target = users.find((item) => item.user_id === targetId);
-    if (removingCoins && target?.role === "super_admin" && targetId !== currentUserId) { setError("Vom Owner-Konto können keine Coins entzogen werden."); return; }
+    if (removingCoins && target?.role === "super_admin" && targetId !== currentUserId && currentRole !== "super_admin") { setError("Vom Owner-Konto können keine Coins entzogen werden."); return; }
     if (removingCoins && target && target.balance < parsed) { setError("Dieses Konto besitzt nicht genügend Coins."); return; }
     if (reason.trim().length < 3) { setError(`Gib einen kurzen Grund für ${removingCoins ? "den Abzug" : "die Gutschrift"} ein.`); return; }
     if (!adminAccessGranted || !/^\d{4}$/.test(adminSessionPin)) {

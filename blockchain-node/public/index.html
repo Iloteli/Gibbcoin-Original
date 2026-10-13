@@ -252,6 +252,7 @@
       </div>
       <div class="msg" id="verifyMsg"></div>
       <h2 style="margin-top:18px">Einstellungen</h2>
+      <p class="muted" id="syncHint" style="margin:0 0 8px" hidden>Belohnung, Blockzeit, Schwierigkeit, Tx pro Block, Kurs, Gebühr und Markt kommen von der Hauptseite (Admin · Blockchain / Admin · Coinwert) und werden dort geändert.</p>
       <div class="row">
         <div><label>Belohnung pro Block</label><input id="sReward" type="number" min="0" /></div>
         <div><label>Ziel-Blockzeit (s)</label><input id="sTarget" type="number" min="1" /></div>
@@ -336,6 +337,9 @@ async function refresh() {
     renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
+    const synced = Boolean(s.settingsSync?.enabled);
+    $("syncHint").hidden = !synced;
+    ["sReward", "sTarget", "sMin", "sMax", "sMaxTx", "sStartPrice", "sFee", "sMarket"].forEach((id) => { $(id).disabled = synced; });
     fillSelect($("minerAddress")); fillSelect($("txFrom")); fillSelect($("txTo"));
   if (myAddress) ["minerAddress", "orderAddress", "txFrom"].forEach((id) => { const el = $(id); if (el && [...el.options].some((o) => o.value === myAddress)) el.value = myAddress; });
     // Neuer Block von jemand anderem? Dann ist unsere Vorlage veraltet.

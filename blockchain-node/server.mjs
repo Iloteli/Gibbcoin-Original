@@ -14,6 +14,7 @@ import { startFallbackMiner } from "./fallback-miner.mjs";
 import { createWalletCredit } from "./wallet-credit.mjs";
 import { createWebsiteOwnerCheck, createWebsiteUserCheck } from "./website-owner.mjs";
 import { startServerMining } from "./server-mining.mjs";
+import { createSettingsSync } from "./settings-sync.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -33,6 +34,7 @@ if (!chain.accounts[FALLBACK_ADDRESS]) {
   chain.save();
 }
 const walletCredit = createWalletCredit({ note: (kind, msg) => note(kind, msg) });
+const settingsSync = createSettingsSync({ chain, note: (kind, msg) => note(kind, msg) });
 // Server-Mining für Website-Nutzer (läuft weiter, auch wenn der Browser-Tab zu ist).
 const serverMining = startServerMining(chain, {
   file: join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "server-miners.json"),
@@ -149,7 +151,7 @@ const requireOwner = async (body) => {
 };
 
 const routes = {
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, fallbackMiner: fallbackMiner.status() }),
+  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, settingsSync: settingsSync.status(), fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
     const ipKey = `ip:${body.__ip}`;
@@ -301,7 +303,7 @@ const routes = {
     note("mining", `Server-Mining ausgeschaltet für ${user.username}`);
     return serverMining.disable(address);
   },
-  "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(body); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
+  "POST /api/settings": async (_, body) => { await requireOwner(body); const s = chain.updateSettings(settingsSync.filterPatch(body)); note("settings", `Einstellungen geändert: Belohnung ${s.reward}, Schwierigkeit ${s.difficultyBits} Bit${s.autoAdjust ? " (auto)" : ""}, Ziel ${s.targetSeconds} s`); return s; },
   "POST /api/tamper": async (_, body) => { await requireOwner(body); const r = chain.tamper(body.height); note("tamper", `Demo: Block #${r.height} manipuliert (Transaktion ${r.transaction})`); return r; },
   "POST /api/reset": async (_, body) => { await requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
