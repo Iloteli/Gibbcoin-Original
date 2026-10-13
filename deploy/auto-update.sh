@@ -24,4 +24,9 @@ if [ -f /etc/systemd/system/gibb-website.service ]; then
 fi
 systemctl restart gibb-node.service
 [ -f /etc/systemd/system/gibb-gateway.service ] && systemctl restart gibb-gateway.service
+# Offene Seiten laden die neue Version automatisch (sobald die Website wieder antwortet).
+if [ -f /etc/systemd/system/gibb-website.service ]; then
+  for _ in $(seq 1 60); do curl -fs -o /dev/null http://127.0.0.1:3000/ && break; sleep 1; done
+  mkdir -p /var/lib/gibbcoin && date +%s%N > /var/lib/gibbcoin/reload && chmod 644 /var/lib/gibbcoin/reload
+fi
 echo "GIBB Coin aktualisiert auf $(git rev-parse --short HEAD)"

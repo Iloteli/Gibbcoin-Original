@@ -10,12 +10,19 @@ const CHECK_MS = 5_000;
 export function MaintenanceWatch() {
   useEffect(() => {
     let stopped = false;
+    let reloadSeen: string | null | undefined;
     const check = async () => {
       try {
         const res = await fetch(`/__status?t=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) return;
-        const status = (await res.json()) as { maintenance?: boolean };
-        if (!status.maintenance || stopped) return;
+        const status = (await res.json()) as { maintenance?: boolean; reload?: string | null };
+        if (stopped) return;
+        // "sudo gibb-neuladen": Seite bei allen neu laden (Anmeldung bleibt erhalten).
+        if (!status.maintenance) {
+          if (reloadSeen === undefined) reloadSeen = status.reload ?? null;
+          else if ((status.reload ?? null) !== reloadSeen) { stopped = true; window.location.replace(window.location.href); }
+          return;
+        }
         stopped = true;
         const supabase = getSupabase();
         if (supabase) await supabase.auth.signOut({ scope: "local" }).catch(() => undefined);

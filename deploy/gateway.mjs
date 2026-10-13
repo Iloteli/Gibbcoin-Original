@@ -14,6 +14,9 @@ const NODE = new URL(process.env.NODE_TARGET ?? "http://127.0.0.1:80");
 const SUPABASE = new URL(process.env.SUPABASE_TARGET ?? "http://127.0.0.1:8000");
 // Wartungsmodus: Existiert diese Datei, ist die Website vorübergehend offline (deploy/maintenance.sh).
 const MAINTENANCE_FILE = process.env.MAINTENANCE_FILE ?? "/var/lib/gibbcoin/maintenance";
+// "sudo gibb-neuladen" schreibt hier einen Zeitstempel hinein: offene Tabs laden dann neu.
+const RELOAD_FILE = process.env.RELOAD_FILE ?? "/var/lib/gibbcoin/reload";
+const reloadStamp = () => { try { return readFileSync(RELOAD_FILE, "utf8").trim().slice(0, 40) || null; } catch { return null; } };
 // Datei-Inhalt (optional, JSON): { "until": "<ISO-Zeit>", "message": "<Text>" }. Leer = unbegrenzt.
 // Ist "until" vorbei, ist die Website automatisch wieder online (Datei wird entfernt).
 function maintenanceState() {
@@ -79,7 +82,7 @@ const server = createServer((req, res) => {
   if (req.url === "/__status" || req.url.startsWith("/__status?")) {
     res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
     const state = maintenanceState();
-    res.end(JSON.stringify({ maintenance: Boolean(state), until: state?.until ?? null, message: state?.message ?? "" }));
+    res.end(JSON.stringify({ maintenance: Boolean(state), until: state?.until ?? null, message: state?.message ?? "", reload: reloadStamp() }));
     return;
   }
   const maintenance = maintenanceState();
