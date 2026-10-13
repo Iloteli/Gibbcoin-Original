@@ -46,3 +46,17 @@ test("accepts only website owners verified by the own database", async () => {
   assert.equal(await check(undefined), null);
   assert.equal(await createWebsiteOwnerCheck({ env: {}, fetchImpl })("valid-owner-token-xxxxxxxx"), null);
 });
+
+test("verifies cloud owners with the public key and the user's own token", async () => {
+  const seen = [];
+  const fetchImpl = async (url, init) => {
+    seen.push({ url, apikey: init.headers.apikey, auth: init.headers.authorization });
+    if (url.endsWith("/auth/v1/user")) return { ok: true, json: async () => ({ id: "owner-id" }) };
+    return { ok: true, json: async () => [{ role: "super_admin", username: "ilja" }] };
+  };
+  const check = createWebsiteOwnerCheck({ env: { SUPABASE_URL: "https://cloud.example", SUPABASE_ANON_KEY: "public-key" }, fetchImpl });
+  assert.equal((await check("cloud-user-token-xxxxxxxxxx")).role, "super_admin");
+  assert.equal(seen[1].apikey, "public-key");
+  assert.equal(seen[1].auth, "Bearer cloud-user-token-xxxxxxxxxx");
+  assert.equal(createWalletCredit({ env: { SUPABASE_URL: "https://cloud.example", SUPABASE_ANON_KEY: "public-key" } }).enabled, false);
+});
