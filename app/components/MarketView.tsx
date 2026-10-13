@@ -11,7 +11,7 @@ type MarketState = {
   my_gibb: number; my_credits: number;
   buy_enabled?: boolean; sell_enabled?: boolean; daily_sell_limit?: number; my_sold_24h?: number;
 };
-type BankDetails = { enabled: boolean; iban: string; holder: string };
+type BankDetails = { enabled: boolean; iban: string; holder: string; card_enabled?: boolean; credits_enabled?: boolean };
 type BankOrder = { id: string; gibb: number; rappen: number; reference: string; status: "pending" | "paid" | "cancelled" | "rejected"; created_at: string };
 type Quote = {
   ok: boolean; error?: string; gibb?: number; price?: number; buy_rappen?: number; buy_possible?: boolean;
@@ -30,6 +30,7 @@ const errors: Record<string, string> = {
   amount_too_small: "Mit Karte/TWINT sind mindestens CHF 0.50 nötig – bitte mehr GIBB wählen.",
   bank_amount_too_small: "Per Überweisung sind mindestens CHF 1.00 nötig – bitte mehr GIBB wählen.",
   bank_disabled: "Kauf per Überweisung ist gerade nicht verfügbar.",
+  credits_disabled: "Kaufen mit Credits ist gerade ausgeschaltet.",
   too_many_open_orders: "Du hast schon 3 offene Überweisungen. Bitte warte, bis sie bestätigt sind, oder storniere eine.",
   purchases_disabled: "Kartenzahlung ist noch nicht eingerichtet – bitte per Banküberweisung kaufen.",
   payment_not_configured: "Zahlungen sind noch nicht eingerichtet (Stripe).",
@@ -195,10 +196,10 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
             <h3>Kaufen</h3>
             <p className="market-sum">{quote?.ok ? rp(quote.buy_rappen ?? 0) : "–"}<small>{quote?.ok ? ` = ${chf(quote.buy_rappen ?? 0)}` : ""}</small></p>
             <small className="field-hint">Kurs danach: {quote?.ok ? rp(quote.price_after_buy ?? 0) : "–"}</small>
-            {!cardUnavailable && <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>}
-            <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (state?.my_credits ?? 0) < (quote.buy_rappen ?? 0)} onClick={() => void act("credits")}>{busy === "credits" ? "Kauft …" : "Mit Credits kaufen"}</button>
-            {bank?.enabled && <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (quote.buy_rappen ?? 0) < 100} onClick={() => void orderBank()}>{busy === "bank" ? "Bestellung wird erstellt …" : "Per Banküberweisung kaufen"}</button>}
-            {!cardUnavailable && quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
+            {!cardUnavailable && bank?.card_enabled === true && <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>}
+            {bank?.credits_enabled !== false && <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (state?.my_credits ?? 0) < (quote.buy_rappen ?? 0)} onClick={() => void act("credits")}>{busy === "credits" ? "Kauft …" : "Mit Credits kaufen"}</button>}
+            {bank?.enabled && <button className={bank.card_enabled ? "secondary" : "primary"} type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (quote.buy_rappen ?? 0) < 100} onClick={() => void orderBank()}>{busy === "bank" ? "Bestellung wird erstellt …" : "Per Banküberweisung kaufen"}</button>}
+            {!cardUnavailable && bank?.card_enabled === true && quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
             {bank?.enabled && quote?.ok && (quote.buy_rappen ?? 0) < 100 && <small className="field-hint">Per Überweisung erst ab CHF 1.00.</small>}
           </article>
           <article className="market-box sell">

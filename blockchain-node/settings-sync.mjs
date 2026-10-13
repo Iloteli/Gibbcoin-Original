@@ -70,6 +70,12 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
         headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
         body: JSON.stringify({ p_key: secret, p_enabled: Boolean(w.bankEnabled), p_iban: w.bankIban ?? "", p_holder: w.bankHolder ?? "" }),
       });
+      const card = await fetchImpl(`${url}/rest/v1/rpc/node_set_payment_methods`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_card: Boolean(w.cardEnabled), p_credits: w.creditsEnabled !== false }),
+      });
+      if (!card.ok && card.status !== 404) throw new Error(`card_http_${card.status}`);
       if (bank.ok) {
         const bankResult = await bank.json();
         if (!bankResult?.ok) throw new Error(bankResult?.error ?? "bank_failed");

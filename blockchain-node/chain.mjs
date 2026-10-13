@@ -42,7 +42,7 @@ export function defaultWebsiteSettings() {
     marketStepPercent: 0.05, minPrice: 0.25, maxPrice: 50, maxTrade: 1000,
     buyEnabled: false, sellEnabled: false, dailySellLimit: 0,
     adminCoinGrants: false,
-    bankEnabled: false, bankIban: "", bankHolder: "",
+    bankEnabled: false, bankIban: "", bankHolder: "", cardEnabled: false, creditsEnabled: true,
     disabledTabs: [],
   };
 }
@@ -66,7 +66,7 @@ function sanitizeWebsite(current, patch) {
   }
   if (patch.bankIban !== undefined) next.bankIban = String(patch.bankIban).toUpperCase().replace(/\s+/g, "").slice(0, 40);
   if (patch.bankHolder !== undefined) next.bankHolder = String(patch.bankHolder).trim().slice(0, 80);
-  for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled", "adminCoinGrants", "bankEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
+  for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled", "adminCoinGrants", "bankEnabled", "cardEnabled", "creditsEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
   if (next.minPrice > next.maxPrice) throw new Error("invalid_price_range");
   return next;
 }

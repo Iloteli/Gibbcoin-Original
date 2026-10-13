@@ -202,6 +202,14 @@
   .ad-create .field label { margin: 0 0 5px; font-weight: 700; color: var(--text); }
   .ad-create .field small { display: block; margin-top: 4px; color: var(--muted); font-size: 11px; }
   .ad-create a { color: var(--green); }
+
+  /* ===== Zahlarten ===== */
+  .pay-methods { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+  .pay-method { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+  .pay-method b { font-size: 14px; }
+  .pay-method .state { font-size: 12px; font-weight: 800; }
+  .pay-method .state.on { color: var(--green); } .pay-method .state.off { color: var(--muted); }
+  .pay-method small { color: var(--muted); font-size: 11px; }
 </style>
 </head>
 <body>
@@ -411,6 +419,13 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
+  <section class="card pay-card owner-only" id="payCard">
+    <h2>Zahlarten <span>Kaufen-Tab der Hauptseite</span></h2>
+    <p class="muted" style="margin:0 0 12px">Ein Klick schaltet die Kaufart sofort für alle ein oder aus.</p>
+    <div class="pay-methods" id="payMethods"></div>
+    <div class="msg" id="payMsg"></div>
+  </section>
+
   <section class="card bank-card owner-only" id="bankCard">
     <h2>Banküberweisungen <span id="bankCount">Kauf per IBAN</span></h2>
     <p class="muted" style="margin:0 0 12px">Bestellungen aus dem Kaufen-Tab. Prüfe auf deinem Konto, ob der Betrag mit dem Verwendungszweck eingegangen ist, und bestätige dann die Zahlung – erst dann werden die GIBB gutgeschrieben.</p>
@@ -608,6 +623,7 @@ async function refresh() {
     renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
+    renderPayMethods(s.settings);
     const push = s.settingsSync ?? {};
     $("caSync").textContent = push.accountSyncError ? `Abgleich fehlgeschlagen (${push.accountSyncError})` : push.lastAccountSync ? `${push.websiteUsers} Konten · abgeglichen ${new Date(push.lastAccountSync).toLocaleTimeString("de-CH")}` : "Hauptseite · alle Benutzer";
     $("pushStatus").textContent = !push.configured ? "" : !push.enabled ? "Hauptseite: Schlüssel fehlt – auf dem Server einmal „sudo gibb-chain-key“ ausführen." : push.lastError ? `Hauptseite: Übertragung fehlgeschlagen (${push.lastError}).` : push.lastPush ? `Hauptseite: zuletzt übertragen ${new Date(push.lastPush).toLocaleTimeString("de-CH")}.` : "Hauptseite: wird übertragen …";
@@ -1182,6 +1198,31 @@ $("nuList").addEventListener("click", async (e) => {
     }
   } catch (err) { nuFail(err); }
   await nuLoad();
+});
+
+// ---------- Zahlarten (sofort schalten) ----------
+const payMethods = [
+  { key: "cardEnabled", label: "💳 Karte / TWINT", hint: "Über Stripe – nur aktivieren, wenn Stripe eingerichtet ist", def: false },
+  { key: "creditsEnabled", label: "🪙 Mit Credits kaufen", hint: "Bezahlen mit Credits aus Verkäufen", def: true },
+  { key: "bankEnabled", label: "🏦 Banküberweisung", hint: "Braucht IBAN unter Einstellungen → Markt & Coinwert", def: false },
+];
+function renderPayMethods(settings) {
+  const w = settings?.website ?? {};
+  $("payMethods").innerHTML = payMethods.map((m) => {
+    const on = w[m.key] === undefined ? m.def : w[m.key] === true;
+    return `<div class="pay-method"><b>${m.label}</b><span class="state ${on ? "on" : "off"}">${on ? "● Aktiv" : "○ Deaktiviert"}</span><small>${m.hint}</small><button type="button" class="${on ? "danger" : "primary"}" data-pay="${m.key}" data-on="${on ? "1" : "0"}">${on ? "Deaktivieren" : "Aktivieren"}</button></div>`;
+  }).join("");
+}
+$("payMethods").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-pay]"); if (!btn) return;
+  const next = btn.dataset.on !== "1";
+  btn.disabled = true;
+  try {
+    const r = await api("/api/settings", { website: { [btn.dataset.pay]: next } });
+    say("payMsg", r.websitePush?.ok ? `${next ? "Aktiviert" : "Deaktiviert"} – gilt jetzt auf der Hauptseite.` : `Gespeichert – Hauptseite noch nicht aktualisiert (${r.websitePush?.error ?? "?"}).`, !r.websitePush?.ok);
+    renderPayMethods(r);
+    await refresh();
+  } catch (err) { say("payMsg", errors[err.message] || err.message, true); btn.disabled = false; }
 });
 </script>
 </body>
