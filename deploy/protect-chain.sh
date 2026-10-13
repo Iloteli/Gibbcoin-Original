@@ -20,7 +20,7 @@ PASSWORD="${CHAIN_PASSWORD:-$(openssl rand -base64 18 | tr -d '/+=' | cut -c1-16
 if [ "${#PASSWORD}" -lt 10 ]; then echo "Passwort muss mindestens 10 Zeichen haben." >&2; exit 1; fi
 HASH="$(caddy hash-password --plaintext "$PASSWORD")"
 cat > "$AUTH_FILE" <<CADDY
-basic_auth {
+basicauth {  # alte Schreibweise: funktioniert in allen Caddy-2-Versionen
 	$CHAIN_USER $HASH
 }
 CADDY
@@ -33,7 +33,13 @@ if ! grep -q "import $AUTH_FILE" /etc/caddy/Caddyfile; then
   cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
   mv /tmp/Caddyfile.new /etc/caddy/Caddyfile
 fi
-caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
+if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+  echo "Caddy-Konfiguration ungültig – Schutz wird zurückgenommen." >&2
+  rm -f "$AUTH_FILE"
+  [ -f /etc/caddy/Caddyfile.bak ] && cp /etc/caddy/Caddyfile.bak /etc/caddy/Caddyfile
+  caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+  exit 1
+fi
 systemctl reload caddy
 echo
 echo "Chain-Seite ist jetzt geschützt."
