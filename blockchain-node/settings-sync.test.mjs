@@ -31,3 +31,33 @@ test("pushes with the secret key and reports missing configuration", async () =>
   assert.equal(noKey.enabled, false);
   assert.equal(noKey.status().lastError, "no_key");
 });
+
+test("removes website accounts that were deleted on the main site", async () => {
+  const chain = new Blockchain(null);
+  const keep = "11111111-1111-4111-8111-111111111111", gone = "22222222-2222-4222-8222-222222222222";
+  chain.upsertWebsiteAccount(keep, "Ilja", 0);
+  chain.upsertWebsiteAccount(gone, "Weg", 0);
+  const local = chain.createWallet("Lokal").address;
+  const removed = [];
+  const fetchImpl = async (url, init) => {
+    const body = JSON.parse(init.body);
+    assert.deepEqual(body.p_ids.sort(), [keep, gone].sort());
+    return { ok: true, json: async () => ({ ok: true, existing: [keep] }) };
+  };
+  const sync = createSettingsSync({ chain, fetchImpl, env: { SUPABASE_URL: "https://x", SUPABASE_ANON_KEY: "k", NODE_SETTINGS_KEY: "s" }, intervalMs: 1e9, onAccountRemoved: (a) => removed.push(a) });
+  assert.deepEqual(await sync.cleanupAccounts(), { ok: true, removed: 1 });
+  assert.ok(chain.accounts[`sb_${keep}`]);
+  assert.equal(chain.accounts[`sb_${gone}`], undefined);
+  assert.ok(chain.accounts[local]);
+  assert.deepEqual(removed, [`sb_${gone}`]);
+  assert.equal(chain.verify().valid, true);
+});
+
+test("keeps all accounts when the main site cannot be asked", async () => {
+  const chain = new Blockchain(null);
+  chain.upsertWebsiteAccount("33333333-3333-4333-8333-333333333333", "X", 0);
+  const fetchImpl = async () => ({ ok: true, json: async () => ({ ok: false, error: "invalid_key" }) });
+  const sync = createSettingsSync({ chain, fetchImpl, env: { SUPABASE_URL: "https://x", SUPABASE_ANON_KEY: "k", NODE_SETTINGS_KEY: "s" }, intervalMs: 1e9 });
+  assert.equal((await sync.cleanupAccounts()).removed, 0);
+  assert.equal(Object.keys(chain.accounts).filter((a) => a.startsWith("sb_")).length, 1);
+});

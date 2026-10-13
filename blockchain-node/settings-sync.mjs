@@ -33,7 +33,7 @@ export function buildPushPayload(settings, { price } = {}) {
   return { blockchain, market };
 }
 
-export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalThis.fetch, env = process.env, intervalMs = 10 * 60_000 } = {}) {
+export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalThis.fetch, env = process.env, intervalMs = 10 * 60_000, onAccountRemoved = () => {} } = {}) {
   const url = (env.SUPABASE_URL ?? "").replace(/\/$/, "");
   const apiKey = env.SUPABASE_SERVICE_ROLE_KEY || env.SUPABASE_ANON_KEY || "";
   const secret = env.NODE_SETTINGS_KEY ?? "";
@@ -69,10 +69,42 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     }
   }
 
-  if (enabled) {
-    setTimeout(() => { void push(); }, 3000).unref();
-    setInterval(() => { void push(); }, intervalMs).unref();
+  // Gelöschte Website-Konten auch hier entfernen.
+  async function cleanupAccounts() {
+    if (!enabled) return { ok: false, removed: 0 };
+    const ids = Object.keys(chain.accounts)
+      .filter((a) => a.startsWith("sb_") && chain.accounts[a]?.source === "supabase")
+      .map((a) => a.slice(3))
+      .filter((id) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    if (!ids.length) return { ok: true, removed: 0 };
+    try {
+      const res = await fetchImpl(`${url}/rest/v1/rpc/node_existing_users`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_ids: ids }),
+      });
+      if (!res.ok) throw new Error(`http_${res.status}`);
+      const result = await res.json();
+      if (!result?.ok || !Array.isArray(result.existing)) throw new Error(result?.error ?? "invalid_response");
+      const existing = new Set(result.existing.map((id) => String(id).toLowerCase()));
+      let removed = 0;
+      for (const id of ids) {
+        if (existing.has(id.toLowerCase())) continue;
+        const address = `sb_${id}`;
+        const name = chain.accounts[address]?.name ?? id;
+        if (chain.removeWebsiteAccount(address)) { removed += 1; onAccountRemoved(address); note("wallet", `Gelöschtes Website-Konto entfernt: ${name}`); }
+      }
+      return { ok: true, removed };
+    } catch (error) {
+      note("error", `Abgleich gelöschter Konten fehlgeschlagen: ${error.message}`);
+      return { ok: false, removed: 0, error: error.message };
+    }
   }
 
-  return { enabled, push, status: () => ({ ...state }) };
+  if (enabled) {
+    setTimeout(() => { void push(); void cleanupAccounts(); }, 3000).unref();
+    setInterval(() => { void push(); void cleanupAccounts(); }, intervalMs).unref();
+  }
+
+  return { enabled, push, cleanupAccounts, status: () => ({ ...state }) };
 }

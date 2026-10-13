@@ -34,7 +34,7 @@ if (!chain.accounts[FALLBACK_ADDRESS]) {
   chain.save();
 }
 const walletCredit = createWalletCredit({ note: (kind, msg) => note(kind, msg) });
-const settingsSync = createSettingsSync({ chain, note: (kind, msg) => note(kind, msg) });
+const settingsSync = createSettingsSync({ chain, note: (kind, msg) => note(kind, msg), onAccountRemoved: (address) => serverMining?.disable(address) });
 // Server-Mining für Website-Nutzer (läuft weiter, auch wenn der Browser-Tab zu ist).
 const serverMining = startServerMining(chain, {
   file: join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "server-miners.json"),

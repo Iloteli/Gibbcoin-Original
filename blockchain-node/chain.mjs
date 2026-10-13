@@ -312,6 +312,19 @@ export class Blockchain {
     return { address, ...this.accounts[address] };
   }
 
+  // Gelöschtes Website-Konto entfernen (nur sb_-Konten). Alte Blöcke bleiben gültig, weil
+  // Website-Konten bei der Prüfung nicht nachgerechnet werden. Offene Aufträge und
+  // unbestätigte Transaktionen dieses Kontos fallen weg.
+  removeWebsiteAccount(address) {
+    const account = this.accounts[address];
+    if (!account || !String(address).startsWith("sb_") || account.source !== "supabase") return false;
+    delete this.accounts[address];
+    this.orders = this.orders.filter((o) => o.address !== address);
+    this.mempool = this.mempool.filter((tx) => tx.from !== address && tx.to !== address);
+    this.save();
+    return true;
+  }
+
   // Konto der echten Website (Supabase-Nutzer) anlegen oder aktualisieren.
   // Adresse = sb_<supabaseId>, damit es mit der Massen-Synchronisierung zusammenpasst.
   // WICHTIG: overwriteBalance nur beim ausdrücklichen Admin-Sync setzen. Die laufende
