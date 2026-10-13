@@ -13,6 +13,7 @@ import { ActivitySummary } from "./ActivitySummary";
 import { AdminPanel } from "./AdminPanel";
 import { AdminSecurityCenter } from "./AdminSecurityCenter";
 import { BlockchainExplorer } from "./BlockchainExplorer";
+import { CommunityLeaderboard } from "./CommunityLeaderboard";
 import { GroupWallets } from "./GroupWallets";
 import { GameCenter } from "./GameCenter";
 import { KeyboardHelp } from "./KeyboardHelp";
@@ -185,6 +186,7 @@ export function Dashboard({ user }: Props) {
 
   // Der Blockchain-Miner bleibt nach dem ersten Besuch aktiv, auch wenn man in eine andere Ansicht wechselt.
   const [chainVisited, setChainVisited] = useState(false);
+  const [communityTab, setCommunityTab] = useState<"rewards" | "ranking" | "groups" | "reports">("rewards");
   if (activeView === "chain" && !chainVisited) setChainVisited(true);
 
   const loadData = useCallback(async () => {
@@ -554,7 +556,7 @@ export function Dashboard({ user }: Props) {
           </a>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
             {dashboardViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
-          </nav>
+          </div>
           <div className="header-actions">
             <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
             <div className="menu-wrap">
@@ -644,8 +646,23 @@ export function Dashboard({ user }: Props) {
         </div>
 
         <div id="community" className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
-        <div className="view-heading"><span>GEMEINSAM & SICHER</span><h1>Community</h1><p>Gruppen-Wallets verwalten und verdächtige Vorgänge melden.</p></div>
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /><GroupWallets onChanged={loadData} /><AbuseReports transactions={transactions} isAdmin={profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com"} /></>}
+        <div className="view-heading"><span>GEMEINSAM & SICHER</span><h1>Community</h1><p>Belohnungen sammeln, dich mit anderen messen, gemeinsam sparen und Probleme melden.</p></div>
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Community-Aktionen sind offline pausiert</strong><p>Belohnungen, Shop, Gruppen und Meldungen benötigen eine bestätigte Serververbindung.</p></section> : <>
+          <div className="community-tabs" role="tablist" aria-label="Community-Bereiche">
+            {([
+              ["rewards", "🎁", "Belohnungen & Shop"],
+              ["ranking", "🏆", "Rangliste"],
+              ["groups", "👥", "Gruppen"],
+              ["reports", "🛡", "Melden"],
+            ] as const).map(([key, icon, label]) => (
+              <button key={key} type="button" role="tab" aria-selected={communityTab === key} className={communityTab === key ? "active" : ""} onClick={() => setCommunityTab(key)}><span aria-hidden="true">{icon}</span>{label}</button>
+            ))}
+          </div>
+          <div hidden={communityTab !== "rewards"}><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></div>
+          {communityTab === "ranking" && <CommunityLeaderboard userId={user.id} />}
+          <div hidden={communityTab !== "groups"}><GroupWallets onChanged={loadData} /></div>
+          <div hidden={communityTab !== "reports"}><AbuseReports transactions={transactions} isAdmin={profile?.role === "super_admin" && profile.email?.toLowerCase() === "ilja.podorieszach@icloud.com"} /></div>
+        </>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
