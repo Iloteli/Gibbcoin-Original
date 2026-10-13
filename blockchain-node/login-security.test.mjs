@@ -115,3 +115,19 @@ test("only the owner creates, resets and deletes chain logins; self-registration
   await post("/api/admin/node-users/delete", { token: owner.token, username: "max" });
   assert.equal((await post("/api/auth/login", { username: "max", password: "neues-passwort" })).data.error, "invalid_login");
 });
+
+test("chain logins can be deactivated per account and globally (owner stays able to log in)", async () => {
+  const writeCode = (code) => writeFileSync(codeFile, JSON.stringify({ hash: createHash("sha256").update(code).digest("hex"), expires: Date.now() + 300000 }));
+  writeCode("135790");
+  const owner = (await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "135790" })).data;
+  const lea = (await post("/api/auth/login", { username: "lea", password: "passwort123" })).data;
+  await post("/api/admin/node-users/disable", { token: owner.token, username: "lea", disabled: true });
+  assert.equal((await post("/api/auth/me", { token: lea.token })).data.ok, false);
+  assert.equal((await post("/api/auth/login", { username: "lea", password: "passwort123" })).data.error, "account_disabled");
+  await post("/api/admin/node-users/disable", { token: owner.token, username: "lea", disabled: false });
+  assert.ok((await post("/api/auth/login", { username: "lea", password: "passwort123" })).data.token);
+  await post("/api/settings", { token: owner.token, chainLoginsEnabled: false });
+  assert.equal((await post("/api/auth/login", { username: "lea", password: "passwort123" })).data.error, "chain_logins_disabled");
+  assert.equal((await post("/api/auth/me", { token: owner.token })).data.ok, true, "Owner bleibt angemeldet");
+  await post("/api/settings", { token: owner.token, chainLoginsEnabled: true });
+});

@@ -515,6 +515,7 @@
           <div class="field"><label for="sBrowserThreads">Browser-Miner Kerne</label><input id="sBrowserThreads" type="number" min="0" max="64" /><small>Browser-Miner der Hauptseite · 0 = alle Kerne</small></div>
         </div>
         <div class="switches">
+          <label class="switch"><input type="checkbox" id="sChainLogins" /><span class="knob"></span><span class="switch-text"><b>Chain-Konten dürfen sich anmelden</b><small>aus = nur der Owner kommt auf die Chain-Seite</small></span></label>
           <label class="switch"><input type="checkbox" id="sFallback" /><span class="knob"></span><span class="switch-text"><b>Reserve-Miner aktiv</b><small>mint nur, wenn sonst niemand mint</small></span></label>
         </div>
       </div>
@@ -772,7 +773,7 @@ function renderMarket(m, s) {
   $("myOrders").innerHTML = (m.myOrders || []).map((o) => `<div class="tx"><div>${o.side === "buy" ? "Kauf" : "Verkauf"} ${fmt(o.remaining)} GIBB @ ${price(o.price)} Rp<br><small class="muted">von ${fmt(o.amount)} · ${fmt(o.filled)} erfüllt</small></div><button class="danger" style="padding:6px 10px" data-cancel="${o.id}">Storno</button></div>`).join("") || `<div class="muted">Keine offenen Aufträge.</div>`;
   drawChart(m.history);
   updateOrderHint();
-  if (!settingsDirty) { $("sStartPrice").value = s.settings.startPrice; $("sStartCash").value = s.settings.startingCash; $("sFee").value = s.settings.tradingFeePercent; $("sMinOrder").value = s.settings.minOrderAmount; $("sMarket").checked = s.settings.marketEnabled; $("sFallback").checked = s.settings.fallbackMinerEnabled; $("sFallbackDelay").value = s.settings.fallbackDelaySeconds; $("sBrowserThreads").value = s.settings.browserMinerThreads; }
+  if (!settingsDirty) { $("sStartPrice").value = s.settings.startPrice; $("sStartCash").value = s.settings.startingCash; $("sFee").value = s.settings.tradingFeePercent; $("sMinOrder").value = s.settings.minOrderAmount; $("sMarket").checked = s.settings.marketEnabled; $("sFallback").checked = s.settings.fallbackMinerEnabled; $("sChainLogins").checked = s.settings.chainLoginsEnabled !== false; $("sFallbackDelay").value = s.settings.fallbackDelaySeconds; $("sBrowserThreads").value = s.settings.browserMinerThreads; }
 }
 function drawChart(history) {
   const svg = $("priceChart");
@@ -848,7 +849,7 @@ document.querySelectorAll(".stab").forEach((b) => b.addEventListener("click", ()
 const markDirty = (dirty) => { settingsDirty = dirty; $("dirtyHint").hidden = !dirty; $("discardSettings").hidden = !dirty; $("settingsCard").classList.toggle("is-dirty", dirty); };
 $("settingsCard").addEventListener("input", (e) => { if (e.target.matches("input")) { markDirty(true); say("settingsMsg", ""); } });
 $("discardSettings").onclick = async () => { markDirty(false); $("wPrice").value = ""; await refresh(); };
-$("saveSettings").onclick = async () => { try { const r = await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value, websitePrice: $("wPrice").value, website: { cooldownSeconds: $("wCooldown").value, halvingBlocks: $("wHalving").value, maxBlocksPerDay: $("wMaxPerDay").value, miningEnabled: $("wMining").checked, requireRealTx: $("wRealTx").checked, marketStepPercent: $("wStep").value, minPrice: $("wMinPrice").value, maxPrice: $("wMaxPrice").value, maxTrade: $("wMaxTrade").value, dailySellLimit: $("wSellLimit").value, buyEnabled: $("wBuy").checked, sellEnabled: $("wSell").checked, bankEnabled: $("wBank").checked, disabledTabs: [...document.querySelectorAll(".tab-switch")].filter((el) => !el.checked).map((el) => el.dataset.tab), bankIban: $("wBankIban").value, bankHolder: $("wBankHolder").value } }); markDirty(false); $("wPrice").value = ""; say("settingsMsg", r.websitePush?.ok ? "Gespeichert und an die Hauptseite übertragen." : r.websitePush?.error === "not_configured" ? "Gespeichert." : `Gespeichert – Hauptseite nicht aktualisiert (${r.websitePush?.error ?? "?"}).`); await refresh(); } catch (e) { fail("settingsMsg", e); } };
+$("saveSettings").onclick = async () => { try { const r = await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, chainLoginsEnabled: $("sChainLogins").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value, websitePrice: $("wPrice").value, website: { cooldownSeconds: $("wCooldown").value, halvingBlocks: $("wHalving").value, maxBlocksPerDay: $("wMaxPerDay").value, miningEnabled: $("wMining").checked, requireRealTx: $("wRealTx").checked, marketStepPercent: $("wStep").value, minPrice: $("wMinPrice").value, maxPrice: $("wMaxPrice").value, maxTrade: $("wMaxTrade").value, dailySellLimit: $("wSellLimit").value, buyEnabled: $("wBuy").checked, sellEnabled: $("wSell").checked, bankEnabled: $("wBank").checked, disabledTabs: [...document.querySelectorAll(".tab-switch")].filter((el) => !el.checked).map((el) => el.dataset.tab), bankIban: $("wBankIban").value, bankHolder: $("wBankHolder").value } }); markDirty(false); $("wPrice").value = ""; say("settingsMsg", r.websitePush?.ok ? "Gespeichert und an die Hauptseite übertragen." : r.websitePush?.error === "not_configured" ? "Gespeichert." : `Gespeichert – Hauptseite nicht aktualisiert (${r.websitePush?.error ?? "?"}).`); await refresh(); } catch (e) { fail("settingsMsg", e); } };
 
 // ---------- Anmeldung (lokal) ----------
 let booted = false;
@@ -857,7 +858,7 @@ let authMode = "login";
 function setMode(m) { authMode = m; $("tabLogin").classList.toggle("active", m === "login"); $("tabReg").classList.toggle("active", m === "reg"); $("authGo").textContent = m === "login" ? "Anmelden" : "Konto erstellen"; $("authPass").autocomplete = m === "login" ? "current-password" : "new-password"; }
 $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
-const authErrors = { second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
+const authErrors = { account_disabled: "Dieses Chain-Konto ist deaktiviert.", chain_logins_disabled: "Die Anmeldung ist gerade nur für den Owner möglich.", registration_disabled: "Konten werden vom Owner erstellt.", second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
 function onAuthed(me) {
   setTimeout(() => { void caLoad(); void bankLoad(); void adLoad("users"); }, 0);
   myAddress = me.address;
@@ -1141,12 +1142,12 @@ $("adCreate").addEventListener("submit", async (e) => {
 
 // ---------- Chain-Konten (Anmeldungen für diese Seite) ----------
 const genPass = () => { const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => chars[b % chars.length]).join(""); };
-const nuErrors = { invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", username_taken: "Dieser Benutzername ist schon vergeben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert.", user_not_found: "Konto nicht gefunden.", account_is_protected: "Das Owner-Konto ist geschützt." };
+const nuErrors = { account_disabled: "Dieses Konto ist deaktiviert.", chain_logins_disabled: "Anmeldungen sind gerade nur für den Owner möglich.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", username_taken: "Dieser Benutzername ist schon vergeben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert.", user_not_found: "Konto nicht gefunden.", account_is_protected: "Das Owner-Konto ist geschützt." };
 const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] || e.message, true);
 async function nuLoad() {
   try {
     const users = (await api("/api/admin/node-users", {})).users ?? [];
-    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? "" : '<button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>'}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
+    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? "" : `<button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
   } catch (e) { nuFail(e); }
 }
 $("nuGen").addEventListener("click", (e) => { e.preventDefault(); $("nuPass").value = genPass(); });
@@ -1168,6 +1169,11 @@ $("nuList").addEventListener("click", async (e) => {
       if (!pw) return;
       await api("/api/admin/node-users/password", { username: user, password: pw });
       say("adMsg", `Neues Passwort für ${user} gesetzt: ${pw} – der Person mitteilen. Bestehende Anmeldungen wurden beendet.`);
+    }
+    if (btn.dataset.nu === "toggle") {
+      const disable = btn.textContent === "Deaktivieren";
+      await api("/api/admin/node-users/disable", { username: user, disabled: disable });
+      say("adMsg", disable ? `${user} ist deaktiviert und wurde abgemeldet.` : `${user} ist wieder aktiv.`);
     }
     if (btn.dataset.nu === "delete") {
       if (!confirm(`Chain-Konto ${user} löschen? Die Anmeldung wird entfernt, das Wallet bleibt in der Kette.`)) return;

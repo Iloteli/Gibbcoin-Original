@@ -166,7 +166,8 @@ const getGuest = () => {
 };
 const sessionOf = (body) => {
   const sess = body && typeof body.token === "string" ? sessions.get(tokenKey(body.token)) : null;
-  if (sess && sess.expires > Date.now() && !(sess.role === "super_admin" && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
+  const blocked = sess && sess.role !== "super_admin" && (chain.settings.chainLoginsEnabled === false || chain.users[String(sess.username ?? "").toLowerCase()]?.disabled);
+  if (sess && !blocked && sess.expires > Date.now() && !(sess.role === "super_admin" && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
     sess.lastSeen = Date.now();
     return sess;
   }
@@ -380,6 +381,13 @@ const routes = {
     const r = chain.setUserPassword(String(body.username ?? ""), String(body.password ?? ""));
     dropSessionsOf(r.username);
     note("auth", `Neues Passwort für Chain-Konto ${r.username}`);
+    return r;
+  },
+  "POST /api/admin/node-users/disable": async (_, body) => {
+    await requireOwner(body);
+    const r = chain.setUserDisabled(String(body.username ?? ""), body.disabled === true);
+    if (r.disabled) dropSessionsOf(r.username);
+    note("auth", `Chain-Konto ${r.username} ${r.disabled ? "deaktiviert" : "aktiviert"}`);
     return r;
   },
   "POST /api/admin/node-users/delete": async (_, body) => {

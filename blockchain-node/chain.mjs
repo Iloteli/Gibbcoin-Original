@@ -31,6 +31,7 @@ const defaultSettings = {
   fallbackMinerEnabled: true,
   fallbackDelaySeconds: 60,
   browserMinerThreads: 0,  // Standard-Kernzahl des Browser-Miners (0 = alle Kerne des Geräts)
+  chainLoginsEnabled: true, // false = nur der Owner kann sich auf der Chain-Seite anmelden
   // Zusätzliche Einstellungen für die Hauptseite (Website-Mining und GIBB-Markt); werden übertragen.
   website: { ...defaultWebsiteSettings() },
 };
@@ -324,6 +325,10 @@ export class Blockchain {
     if (!u) throw new Error("invalid_login");
     const want = Buffer.from(u.hash, "hex");
     if (got.length !== want.length || !timingSafeEqual(got, want)) throw new Error("invalid_login");
+    if (u.role !== "super_admin") {
+      if (u.disabled) throw new Error("account_disabled");
+      if (this.settings.chainLoginsEnabled === false) throw new Error("chain_logins_disabled");
+    }
     // Bestehendes Konto mit dem Owner-Namen: Owner erst nach Bestätigung mit dem Einrichtungscode.
     if (key === this.ownerKey && !u.ownerVerified && this.ownerCodeValid(setupCode)) {
       u.ownerVerified = true;
@@ -336,7 +341,7 @@ export class Blockchain {
   // ---------- Chain-Logins verwalten (nur Owner) ----------
   listUsers() {
     return Object.entries(this.users).map(([key, u]) => ({
-      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null,
+      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null, disabled: Boolean(u.disabled),
       balance: this.accounts[u.address]?.balance ?? 0,
     })).sort((a, b) => a.key.localeCompare(b.key));
   }
@@ -351,6 +356,16 @@ export class Blockchain {
     u.hash = this.hashPassword(password, u.salt);
     this.save();
     return { username: u.username };
+  }
+
+  setUserDisabled(username, disabled) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("user_not_found");
+    if (u.role === "super_admin") throw new Error("account_is_protected");
+    u.disabled = Boolean(disabled);
+    this.save();
+    return { username: u.username, disabled: u.disabled };
   }
 
   deleteUser(username) {
@@ -639,6 +654,7 @@ export class Blockchain {
     if (patch.autoAdjust !== undefined) next.autoAdjust = Boolean(patch.autoAdjust);
     if (patch.marketEnabled !== undefined) next.marketEnabled = Boolean(patch.marketEnabled);
     if (patch.fallbackMinerEnabled !== undefined) next.fallbackMinerEnabled = Boolean(patch.fallbackMinerEnabled);
+    if (patch.chainLoginsEnabled !== undefined) next.chainLoginsEnabled = Boolean(patch.chainLoginsEnabled);
     next.website = sanitizeWebsite(this.settings.website, patch.website);
     next.reward = clamp(next.reward, 0, 10_000);
     next.minBits = clamp(next.minBits, 1, 40);
