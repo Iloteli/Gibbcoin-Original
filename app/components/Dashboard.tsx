@@ -23,6 +23,7 @@ import { PwaInstallCard } from "./PwaInstallCard";
 import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
 import { ProfileEditor } from "./ProfileEditor";
 import { SupportPrivacyCenter } from "./SupportPrivacyCenter";
+import { SupportDesk } from "./SupportDesk";
 import { TransactionDetails } from "./TransactionDetails";
 import { TransferApprovalCenter } from "./TransferApprovalCenter";
 import { QrWallet } from "./QrWallet";
@@ -55,7 +56,7 @@ function viewFromHash(hash: string): DashboardView {
   if (["#chain", "#blockchain", "#mining"].includes(hash)) return "chain";
   if (["#market", "#kaufen", "#buy"].includes(hash)) return "market";
   if (hash === "#account") return "account";
-  if (hash === "#admin") return "home";
+  if (hash === "#admin" || hash === "#support") return "admin";
   if (["#send-coins", "#qr-code", "#requests", "#buy-coins"].includes(hash)) return "send";
   if (hash === "#game-center") return "games";
   if (["#group-wallets", "#reports"].includes(hash)) return "community";
@@ -187,6 +188,7 @@ export function Dashboard({ user }: Props) {
   }, []);
   const visibleViews = dashboardViews.filter((view) => !disabledTabs.includes(view.key));
   if (activeView !== "home" && activeView !== "admin" && disabledTabs.includes(activeView)) setActiveView("home");
+  if (activeView === "admin" && profile && profile.role !== "super_admin") setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -593,6 +595,7 @@ export function Dashboard({ user }: Props) {
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">
           {visibleViews.map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}><span aria-hidden="true">{view.icon}</span>{view.label}</button>)}
+          {profile?.role === "super_admin" && <button className={activeView === "admin" ? "active" : ""} aria-current={activeView === "admin" ? "page" : undefined} type="button" onClick={() => openView("admin")}><span aria-hidden="true">🎧</span>Support</button>}
         </nav>
         <KeyboardHelp activeView={activeView} onNavigate={openView} />
 
@@ -718,6 +721,7 @@ export function Dashboard({ user }: Props) {
         {!offlineMode && <div id="support-privacy"><SupportPrivacyCenter /></div>}
         <PwaInstallCard />
         </div>
+        {profile?.role === "super_admin" && <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Support"><div className="view-heading"><span>OWNER</span><h1>Support</h1><p>Tickets der Nutzer beantworten und abschliessen.</p></div>{activeView === "admin" && !offlineMode && <SupportDesk />}</div>}
 
       </main>
       <UserProfileModal />
