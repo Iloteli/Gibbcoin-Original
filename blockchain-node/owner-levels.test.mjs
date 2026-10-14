@@ -152,6 +152,13 @@ test("basic can get admin rights one by one (accounts, games, coins); roles stay
   assert.equal((await post("/api/admin/delete", { token: basic.token, userId: ROBYN, pin: "1234" })).data.error, "not_owner");
   assert.equal((await post("/api/admin/create-account", { token: basic.token, email: "a@b.ch", username: "abc", password: "passwort123" })).data.error, "not_owner");
   assert.equal((await post("/api/admin/node-users", { token: basic.token })).data.error, "not_owner");
+  // Statistik, Ankündigung und Bonus für alle: nur mit eigenem Recht
+  assert.equal((await post("/api/owner/stats", { token: basic.token, days: 30 })).data.error, "not_owner");
+  assert.equal((await post("/api/announcement/set", { token: basic.token, enabled: true, message: "Hallo" })).data.error, "not_owner");
+  assert.equal((await post("/api/website/bulk", { token: basic.token, amount: 5, reason: "Bonus" })).data.error, "not_owner");
+  assert.notEqual((await post("/api/owner/stats", { token: ilja.token, days: 30 })).data.error, "not_owner");
+  assert.equal((await post("/api/website/bulk", { token: ilja.token, amount: 0, reason: "Bonus" })).data.error, "invalid_amount");
+  assert.equal((await post("/api/website/bulk", { token: ilja.token, amount: 5, reason: "" })).data.error, "reason_required");
   // Chain-Coins senden bleibt für Basic gesperrt
   assert.equal((await post("/api/transactions", { token: basic.token, to: "ilja", amount: 1 })).data.error, "basic_no_transfers");
   await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });

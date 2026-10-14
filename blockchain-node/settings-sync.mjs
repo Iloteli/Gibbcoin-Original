@@ -234,6 +234,10 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   const listVerifiedBuyers = async () => (await rpc("node_list_verified_buyers", {})).ids ?? [];
   const setBuyerVerified = (userId, verified) => rpc("node_set_buyer_verified", { p_user: userId, p_verified: Boolean(verified) });
   const listBankOrders = async () => (await rpc("node_list_bank_orders", {})).orders ?? [];
+  const ownerStats = async (days) => rpc("node_owner_stats", { p_days: days });
+  const bulkAdjust = async (amount, reason) => rpc("node_bulk_adjust", { p_amount: amount, p_reason: reason });
+  const getAnnouncement = async () => (await rpc("node_get_announcement", {})).announcement ?? { enabled: false };
+  const setAnnouncement = async (a) => rpc("node_set_announcement", { p_enabled: a.enabled, p_title: a.title, p_message: a.message, p_until: a.until, p_tone: a.tone });
   const deleteBankOrders = async (id) => rpc("node_delete_bank_orders", { p_id: id || null });
   const decideBankOrder = async (id, paid) => rpc("node_decide_bank_order", { p_id: id, p_paid: Boolean(paid) });
 
@@ -243,5 +247,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }

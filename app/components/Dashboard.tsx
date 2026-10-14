@@ -30,6 +30,7 @@ import { RewardsHub } from "./RewardsHub";
 import { SecurityOverview } from "./SecurityOverview";
 import { UserProfileModal } from "./UserProfileModal";
 import { HomePriceCard } from "./PriceChart";
+import { ThemeToggle } from "./ThemeToggle";
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
@@ -203,7 +204,9 @@ export function Dashboard({ user }: Props) {
   const [statsError, setStatsError] = useState("");
   const [statsServerBacked, setStatsServerBacked] = useState(true);
   const [transferReviewOpen, setTransferReviewOpen] = useState(false);
-  const [adminNotice, setAdminNotice] = useState<{ maintenance?: { enabled?: boolean; message?: string }; announcement?: { enabled?: boolean; title?: string; message?: string } } | null>(null);
+  const [adminNotice, setAdminNotice] = useState<{ maintenance?: { enabled?: boolean; message?: string }; announcement?: { enabled?: boolean; title?: string; message?: string; tone?: string } } | null>(null);
+  // Geschlossene Ankündigung merken (pro Inhalt), damit sie nicht bei jedem Laden wiederkommt
+  const [dismissedNotice, setDismissedNotice] = useState<string>(() => { try { return window.localStorage.getItem("gibb-notice-dismissed") ?? ""; } catch { return ""; } });
 
   // Der Blockchain-Miner bleibt nach dem ersten Besuch aktiv, auch wenn man in eine andere Ansicht wechselt.
   const [chainVisited, setChainVisited] = useState(false);
@@ -580,6 +583,7 @@ export function Dashboard({ user }: Props) {
             {visibleViews.slice(0, 5).map((view) => <button className={activeView === view.key ? "active" : ""} aria-current={activeView === view.key ? "page" : undefined} type="button" key={view.key} onClick={() => openView(view.key)}>{view.label}</button>)}
           </nav>
           <div className="header-actions">
+            <ThemeToggle />
             <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
             <div className="menu-wrap">
               <button className="profile-button" type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-haspopup="menu">
@@ -594,7 +598,7 @@ export function Dashboard({ user }: Props) {
 
       <main className="container main" id="top">
         {adminNotice?.maintenance?.enabled && <div className="global-alert" role="alert"><strong>Wartungsmodus</strong><span>{adminNotice.maintenance.message || "Einige Funktionen sind vorübergehend pausiert."}</span></div>}
-        {adminNotice?.announcement?.enabled && <div className="global-alert" role="status"><strong>{adminNotice.announcement.title || "Wichtiger Hinweis"}</strong><span>{adminNotice.announcement.message}</span></div>}
+        {adminNotice?.announcement?.enabled && dismissedNotice !== `${adminNotice.announcement.title}|${adminNotice.announcement.message}` && <div className={`global-alert announce-banner tone-${["success", "warning"].includes(adminNotice.announcement.tone ?? "") ? adminNotice.announcement.tone : "info"}`} role="status"><span className="announce-icon" aria-hidden="true">{adminNotice.announcement.tone === "warning" ? "⚠" : adminNotice.announcement.tone === "success" ? "✦" : "📣"}</span><strong>{adminNotice.announcement.title || "Wichtiger Hinweis"}</strong><span>{adminNotice.announcement.message}</span><button type="button" className="announce-close" aria-label="Hinweis schliessen" onClick={() => { const key = `${adminNotice.announcement?.title}|${adminNotice.announcement?.message}`; setDismissedNotice(key); try { window.localStorage.setItem("gibb-notice-dismissed", key); } catch { /* privat */ } }}>×</button></div>}
         {offlineMode && <div className="offline-banner" role="status"><strong>Offline-Modus</strong><span>Du siehst den zuletzt gespeicherten Stand. Schreibende Aktionen sind pausiert.</span><button type="button" onClick={() => void loadData()}>Neu verbinden</button></div>}
         {dataError && <div className="global-alert" role="alert"><span>{dataError}</span><button type="button" onClick={() => void loadData()}>Erneut laden</button></div>}
         <nav className="dashboard-tabs" id="dashboard-view-top" aria-label="Wallet-Bereiche">

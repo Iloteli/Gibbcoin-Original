@@ -28,6 +28,7 @@ export const PERMISSION_CATALOG = [
     ["a:accounts", "Konten ansehen, bannen, Passwort-Reset, Fun-Rang"], ["a:accountsCreate", "Neue Konten erstellen"], ["a:accountsDelete", "Konten löschen"],
     ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele verwalten"], ["a:tools", "Tools & Support-Fälle"],
     ["a:audit", "Protokoll ansehen"], ["a:visitors", "Besucher-Statistik"],
+    ["a:stats", "Statistik-Dashboard"], ["a:announce", "Ankündigung auf der Hauptseite"], ["a:bulk", "Bonus für alle"],
   ] },
 ];
 

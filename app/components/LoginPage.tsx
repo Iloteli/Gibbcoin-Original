@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
+import { ThemeToggle } from "./ThemeToggle";
 
 const REGISTRATION_COOLDOWN_MS = 60_000;
 const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000;
@@ -149,6 +150,7 @@ export function LoginPage() {
 
   return (
     <main className="auth-page">
+      <div className="auth-theme"><ThemeToggle /></div>
       <div className="auth-layout">
         <section className="auth-showcase" aria-label="GIBB Coin Vorteile">
           <div className="auth-brand"><span className="coin-mark auth-logo" aria-hidden="true">G</span><span><strong>GIBB Coin</strong><small>Wallet</small></span></div>

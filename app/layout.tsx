@@ -55,8 +55,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="de">
+    <html lang="de" suppressHydrationWarning>
       <head>
+        {/* Gespeichertes Design (hell/dunkel) vor dem ersten Zeichnen setzen, damit nichts aufblitzt */}
+        <script dangerouslySetInnerHTML={{ __html: 'try{if(localStorage.getItem("gibb-theme")==="light")document.documentElement.dataset.theme="light"}catch(e){}' }} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}

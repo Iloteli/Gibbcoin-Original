@@ -587,6 +587,32 @@ const routes = {
     note("wallet", `${amount > 0 ? "Gutschrift" : "Abzug"} ${Math.abs(amount)} GIBB auf der Hauptseite (${String(body.name ?? body.userId).slice(0, 40)}): ${reason}`);
     return result;
   },
+  // Statistik, Bonus für alle und Ankündigung (Full oder Basic mit Recht)
+  "POST /api/owner/stats": async (_, body) => {
+    await requireAdminPermission(body, "a:stats");
+    const days = [7, 30, 90, 365].includes(Number(body.days)) ? Number(body.days) : 30;
+    return settingsSync.ownerStats(days);
+  },
+  "POST /api/website/bulk": async (_, body) => {
+    await requireAdminPermission(body, "a:bulk");
+    const amount = Math.trunc(Number(body.amount));
+    if (!Number.isFinite(amount) || amount < 1 || amount > 10000) throw new Error("invalid_amount");
+    const reason = String(body.reason ?? "").trim().slice(0, 120);
+    if (reason.length < 3) throw new Error("reason_required");
+    const r = await settingsSync.bulkAdjust(amount, reason);
+    void settingsSync.syncAccounts();
+    note("wallet", `Bonus für alle: ${amount} GIBB an ${r.users ?? 0} Konten (${reason})`);
+    return r;
+  },
+  "POST /api/announcement/get": async (_, body) => { await requireAdminPermission(body, "a:announce"); return { announcement: await settingsSync.getAnnouncement() }; },
+  "POST /api/announcement/set": async (_, body) => {
+    await requireAdminPermission(body, "a:announce");
+    const hours = Number(body.hours);
+    const until = Number.isFinite(hours) && hours > 0 ? new Date(Date.now() + Math.min(hours, 24 * 90) * 3600_000).toISOString() : null;
+    const r = await settingsSync.setAnnouncement({ enabled: body.enabled === true, title: String(body.title ?? ""), message: String(body.message ?? ""), until, tone: String(body.tone ?? "info") });
+    note("settings", body.enabled === true ? `Ankündigung veröffentlicht: ${String(body.title || body.message || "").slice(0, 40)}` : "Ankündigung entfernt");
+    return r;
+  },
   "POST /api/market/reset-prices": async (_, body) => { await requireOwner(body); const r = chain.resetPrices(1); const website = await settingsSync.push({ price: 1 }); note("settings", "Kurse zurückgesetzt (1 Rp)"); return { ...r, websitePush: website }; },
   "POST /api/reset": async (_, body) => { await requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };
