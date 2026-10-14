@@ -187,7 +187,7 @@ const requireOwner = async (body) => {
 };
 
 // ---------- Owner der Hauptseite: Anmeldung mit E-Mail/Passwort der Website ----------
-// Jeder Website-Owner hat automatisch ein Basic-Konto; Ilja kann es auf Full upgraden (Full braucht den Server-Code).
+// Jeder Website-Owner hat automatisch ein Basic-Konto; Ilja kann es auf Full upgraden. Den Server-Code braucht nur Ilja.
 const SB_URL = (process.env.SUPABASE_URL ?? "").replace(/\/$/, "");
 const SB_KEY = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
 const PRIMARY_OWNER_EMAIL = String(process.env.NODE_OWNER_EMAIL ?? "ilja.podorieszach@icloud.com").toLowerCase();
@@ -204,7 +204,7 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
   const user = await websiteUser(auth.access_token);
   if (!user || user.role !== "super_admin") { loginFailed(nameKey, ipKey); throw new Error("not_owner_account"); }
   const level = ownerLevelOf(user.userId, user.email);
-  if (level === "full" && OWNER_2FA) {
+  if (String(user.email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL && OWNER_2FA) {
     if (!body.code) throw new Error("second_factor_required");
     if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
   }
@@ -271,10 +271,12 @@ const routes = {
     let u;
     try { u = chain.verifyUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { loginFailed(nameKey, ipKey); throw error; }
+    // Nur Ilja (das geschützte Owner-Konto) braucht den Server-Code
+    const isPrimaryOwner = u.role === "super_admin";
     // Stufe: Full = alle Rechte (wie der Owner), Basic = eingeschränkte Owner-Rechte
     if (u.role !== "super_admin" && u.level === "full") u.role = "super_admin";
     else if (u.role !== "super_admin" && u.level === "basic") u.role = "owner_basic";
-    if (u.role === "super_admin" && OWNER_2FA) {
+    if (isPrimaryOwner && OWNER_2FA) {
       if (!body.code) throw new Error("second_factor_required");
       if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
       note("auth", `Owner ${u.username} mit Server-Code angemeldet`);

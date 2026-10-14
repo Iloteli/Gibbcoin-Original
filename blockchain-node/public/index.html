@@ -1398,7 +1398,7 @@ $("nuCreate").addEventListener("submit", async (e) => {
 $("nuList").addEventListener("change", async (e) => {
   const sel = e.target.closest("select[data-nu-level]"); if (!sel) return;
   const user = sel.closest("[data-user]").dataset.user;
-  if (sel.value === "full" && !confirm(`${user} auf Full setzen? Dann hat das Konto alle Rechte wie du (Anmeldung mit Server-Code).`)) { await nuLoad(); return; }
+  if (sel.value === "full" && !confirm(`${user} auf Full setzen? Dann hat das Konto alle Rechte wie du (ohne Server-Code, den braucht nur Ilja).`)) { await nuLoad(); return; }
   try { await api("/api/admin/node-users/level", { username: user, level: sel.value }); say("adMsg", `${user} ist jetzt ${({ user: "Normal", basic: "Basic", full: "Full" })[sel.value]} (muss sich neu anmelden).`); }
   catch (err) { nuFail(err); }
   await nuLoad();

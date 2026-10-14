@@ -52,7 +52,7 @@ after(() => { child?.kill(); sb?.close(); });
 
 const serverCode = (code) => writeFileSync(join(dir, "owner-login-code.json"), JSON.stringify({ hash: createHash("sha256").update(code).digest("hex"), expires: Date.now() + 300000 }));
 
-test("website owners get a basic chain login; full needs an upgrade and the server code", async () => {
+test("website owners get a basic chain login; full needs an upgrade, only ilja needs the server code", async () => {
   assert.equal((await post("/api/auth/login", { username: "lea@x.ch", password: "lea-pass" })).data.error, "not_owner_account");
   assert.equal((await post("/api/auth/login", { username: "robyn@x.ch", password: "falsch" })).data.error, "invalid_login");
 
@@ -73,9 +73,8 @@ test("website owners get a basic chain login; full needs an upgrade and the serv
   assert.equal((await post("/api/admin/owner-level", { token: ilja.token, userId: ROBYN, level: "full" })).data.level, "full");
   assert.equal((await post("/api/auth/me", { token: basic.token })).data.ok, false, "alte Basic-Sitzung beendet");
 
-  assert.equal((await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data.error, "second_factor_required");
-  serverCode("333444");
-  const full = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass", code: "333444" })).data;
+  // Nur Ilja braucht den Server-Code, Full-Konten von anderen nicht
+  const full = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
   assert.equal(full.role, "super_admin");
   assert.ok(Array.isArray((await post("/api/admin/node-users", { token: full.token })).data.users));
 
@@ -111,7 +110,8 @@ test("full accounts decide what basic may change; local chain accounts can be ba
   await post("/api/admin/node-users/level", { token: ilja.token, username: "ghg", level: "basic" });
   assert.equal((await post("/api/auth/login", { username: "ghg", password: "passwort123" })).data.role, "owner_basic");
   await post("/api/admin/node-users/level", { token: ilja.token, username: "ghg", level: "full" });
-  assert.equal((await post("/api/auth/login", { username: "ghg", password: "passwort123" })).data.error, "second_factor_required");
+  assert.equal((await post("/api/auth/login", { username: "ghg", password: "passwort123" })).data.role, "super_admin");
+  assert.equal((await post("/api/auth/login", { username: "ilja", password: "passwort123" })).data.error, "second_factor_required");
   assert.equal((await post("/api/admin/node-users/level", { token: ilja.token, username: "ilja", level: "user" })).data.error, "account_is_protected");
   await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });
 });
