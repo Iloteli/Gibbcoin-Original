@@ -94,6 +94,13 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
     await load();
   };
 
+  const deleteBank = async (id: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    await supabase.rpc("delete_my_bank_order", { p_id: id });
+    await load();
+  };
+
   const copy = (text: string) => { void navigator.clipboard?.writeText(text.replace(/\s+/g, text.startsWith("GIBB-") ? "" : " ")).catch(() => undefined); setMessage("Kopiert."); };
 
 
@@ -242,6 +249,7 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
                 <span className="bank-status">{o.status === "pending" ? "wartet auf Zahlung" : o.status === "paid" ? "gutgeschrieben" : o.status === "cancelled" ? "storniert" : "abgelehnt"}</span>
                 {o.status === "pending" && <button type="button" className="secondary compact" onClick={() => { setNewOrder(o); window.scrollTo({ top: 0, behavior: "smooth" }); }}>Zahlungsdaten</button>}
                 {o.status === "pending" && <button type="button" className="secondary compact" onClick={() => void cancelBank(o.id)}>Stornieren</button>}
+                {(o.status === "rejected" || o.status === "cancelled") && <button type="button" className="secondary compact" onClick={() => void deleteBank(o.id)}>Entfernen</button>}
               </div>
             ))}
           </div>

@@ -512,6 +512,12 @@ const routes = {
   "POST /api/admin/password-reset": async (_, body) => { await requireOwner(body); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
   "POST /api/bank/orders": async (_, body) => { requirePermission(body, "a:bank"); return { orders: await settingsSync.listBankOrders() }; },
+  "POST /api/bank/delete": async (_, body) => {
+    requirePermission(body, "a:bank");
+    const r = await settingsSync.deleteBankOrders(body.id ? String(body.id) : null);
+    note("wallet", body.id ? `Abgelehnte Überweisung ${String(body.reference ?? body.id).slice(0, 20)} gelöscht` : `${r.deleted ?? 0} abgelehnte/stornierte Überweisungen gelöscht`);
+    return r;
+  },
   "POST /api/bank/decide": async (_, body) => {
     requirePermission(body, "a:bank");
     const result = await settingsSync.decideBankOrder(String(body.id ?? ""), body.paid === true);
@@ -560,7 +566,7 @@ const requestHandler = async (req, res) => {
   res.setHeader("referrer-policy", "no-referrer");
   res.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()");
   res.setHeader("cross-origin-opener-policy", "same-origin");
-  res.setHeader("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  res.setHeader("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   if (req.headers["x-forwarded-proto"] === "https") res.setHeader("strict-transport-security", "max-age=31536000");
   if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
   try {

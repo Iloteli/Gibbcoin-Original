@@ -234,6 +234,7 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   const listVerifiedBuyers = async () => (await rpc("node_list_verified_buyers", {})).ids ?? [];
   const setBuyerVerified = (userId, verified) => rpc("node_set_buyer_verified", { p_user: userId, p_verified: Boolean(verified) });
   const listBankOrders = async () => (await rpc("node_list_bank_orders", {})).orders ?? [];
+  const deleteBankOrders = async (id) => rpc("node_delete_bank_orders", { p_id: id || null });
   const decideBankOrder = async (id, paid) => rpc("node_decide_bank_order", { p_id: id, p_paid: Boolean(paid) });
 
   if (enabled) {
@@ -242,5 +243,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }

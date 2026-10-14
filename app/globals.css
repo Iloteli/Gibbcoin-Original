@@ -3082,3 +3082,28 @@ textarea:focus-visible {
 .swiss-qr-code .swiss-cross { position: absolute; left: 50%; top: 50%; width: 33px; height: 33px; transform: translate(-50%, -50%); }
 .swiss-qr figcaption { font-size: 12px; color: var(--muted); max-width: 320px; }
 .bank-order-row { grid-template-columns: minmax(0, 1fr) auto auto auto; }
+
+/* ===== Design v3: ruhige, durchgehende Animationen auf der Hauptseite ===== */
+.dashboard-view:not([hidden]) { animation: view-in .42s cubic-bezier(.2,.8,.2,1) both; }
+.dashboard-view:not([hidden]) > .card,
+.dashboard-view:not([hidden]) > section { animation: card-rise .5s cubic-bezier(.2,.8,.2,1) both; }
+.dashboard-view:not([hidden]) > *:nth-child(2) { animation-delay: .05s; }
+.dashboard-view:not([hidden]) > *:nth-child(3) { animation-delay: .1s; }
+.dashboard-view:not([hidden]) > *:nth-child(4) { animation-delay: .15s; }
+.dashboard-view:not([hidden]) > *:nth-child(n+5) { animation-delay: .2s; }
+.balance { animation: balance-in .7s cubic-bezier(.2,.8,.2,1) both; }
+.card { transition: transform .22s cubic-bezier(.2,.8,.2,1), box-shadow .3s ease, border-color .22s ease; }
+button, .primary, .secondary { transition: transform .15s ease, filter .15s ease, box-shadow .25s ease, background-color .2s ease; }
+button:not(:disabled):active { transform: scale(.97); }
+@media (hover: hover) and (pointer: fine) {
+  .card:hover { border-color: rgba(126,245,163,.18); box-shadow: 0 24px 60px rgba(0,0,0,.28); }
+  .primary:not(:disabled):hover { filter: brightness(1.06); box-shadow: 0 12px 32px rgba(126,245,163,.22); }
+}
+.bank-transfer, .credits-summary, .support-case, .bank-order-row { animation: card-rise .45s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes view-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes card-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes balance-in { from { opacity: 0; transform: translateY(8px) scale(.98); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-view, .dashboard-view > *, .balance, .bank-transfer, .credits-summary, .support-case, .bank-order-row { animation: none !important; }
+  .card, button { transition: none !important; }
+}

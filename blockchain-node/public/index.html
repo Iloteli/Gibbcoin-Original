@@ -4,6 +4,9 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>GIBB Coin · Chain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
   :root { --bg: #070b0a; --card: #10171400; --line: #25302c; --text: #f4f7f5; --muted: #91a099; --green: #75f59a; --red: #ff7878; --amber: #f6c85f; }
   * { box-sizing: border-box; }
@@ -231,6 +234,104 @@
   .perm-item input { width: auto; accent-color: var(--green); }
   #previewBar { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 60; display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-radius: 999px; background: var(--amber); color: #1a1406; font-weight: 800; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
   #previewBar button { background: #1a1406; color: #fff; border: 0; padding: 6px 12px; border-radius: 999px; }
+
+  /* ===== Design v3 – GIBB Coin Chain (Sora + IBM Plex Mono, ruhiges Dunkelgrün) ===== */
+  :root { --bg: #06090a; --panel: #0b110e; --panel-2: #08100c; --line: #1c2823; --text: #eef4f0; --muted: #8fa39a; --green: #7ef5a3; --red: #ff8a8a; --amber: #f6c85f; }
+  body { font-family: "Sora", system-ui, -apple-system, "Segoe UI", sans-serif; background: radial-gradient(1200px 500px at 50% -200px, rgba(126,245,163,.10), transparent 70%), var(--bg); }
+  code, .mono, .stats strong, input[type=number], .price-big strong, .mid, .depth { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; }
+  header { position: sticky; top: 0; z-index: 30; background: rgba(6,9,10,.82); backdrop-filter: blur(14px); }
+  header h1 { font-weight: 800; }
+  main { max-width: 1280px; gap: 22px; }
+  .card { border-radius: 22px; padding: 22px; background: var(--panel); border-color: var(--line); }
+  .card h2 { font-size: 17px; font-weight: 700; }
+  .card h2::before { display: none; }
+  .card h2 { padding-left: 0; }
+  h3.sub { margin: 18px 0 10px; font-size: 14px; display: flex; justify-content: space-between; align-items: center; }
+  h3.sub span { color: var(--muted); font-size: 11px; font-weight: 500; }
+  .eyebrow { font-size: 11px; letter-spacing: .14em; color: var(--muted); font-weight: 700; }
+  input, select { border-radius: 12px; padding: 11px 13px; background: #07100b; border-color: #1f2d27; }
+  button { border-radius: 12px; }
+  button.primary { background: var(--green); color: #06210f; }
+  button.ghost { background: transparent; border: 1px dashed #2a3a33; color: #b8c7bf; }
+  button.wide { width: 100%; }
+  .big-btn { padding: 15px; font-size: 15px; }
+  .stats { gap: 12px; }
+  .stats div { border-radius: 16px; padding: 14px 16px; background: var(--panel); }
+  .stats strong { font-size: 22px; font-weight: 600; }
+  .stats.mini { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .stats.mini div { background: var(--panel-2); border-color: transparent; padding: 10px 12px; }
+  .stats.mini strong { font-size: 15px; }
+  .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; }
+  .row-narrow { grid-template-columns: 90px minmax(0, 1fr); }
+  /* Miner */
+  .miner-hero { display: flex; gap: 14px; align-items: center; margin-bottom: 6px; }
+  .miner-ring { flex: none; width: 64px; height: 64px; border-radius: 50%; border: 5px solid #16251d; border-top-color: var(--green); display: grid; place-items: center; font-size: 22px; }
+  body.mining .miner-ring { animation: ring-spin 1s linear infinite; box-shadow: 0 0 24px rgba(126,245,163,.25); }
+  body.mining .miner-ring span { animation: ring-spin 1s linear infinite reverse; }
+  @keyframes ring-spin { to { transform: rotate(360deg); } }
+  .fold-soft { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .fold-soft summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  /* Wallets */
+  .search { margin-bottom: 10px; }
+  .accounts { max-height: 380px; gap: 6px; }
+  .wallet-row { display: grid !important; grid-template-columns: 40px minmax(0, 1fr) auto !important; gap: 12px !important; align-items: center; padding: 9px 12px !important; border-radius: 14px !important; background: var(--panel-2); border-color: transparent !important; }
+  .avatar { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-weight: 800; background: #153022; color: var(--green); }
+  .avatar.web { background: #17222e; color: #9cc8ff; }
+  .wallet-row .who { min-width: 0; display: grid; gap: 2px; }
+  .wallet-row .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wallet-row .who code { font-size: 10px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .wallet-row .amt { text-align: right; }
+  .wallet-row .amt b { font-family: "IBM Plex Mono", monospace; font-size: 15px; display: block; }
+  .wallet-row .amt small { color: var(--muted); font-size: 10px; }
+  .tag-web { font-size: 9px; color: var(--green); border: 1px solid rgba(126,245,163,.3); border-radius: 6px; padding: 1px 5px; margin-left: 4px; vertical-align: middle; }
+  .add-wallet { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 10px; }
+  /* Senden */
+  .send-arrow { text-align: center; color: var(--green); font-size: 18px; margin: 6px 0 -4px; animation: nudge 2.4s ease-in-out infinite; }
+  @keyframes nudge { 0%,100% { transform: translateY(0); } 50% { transform: translateY(3px); } }
+  /* Markt */
+  .market-wrap { display: grid; gap: 20px; }
+  .market-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .market-head .big { margin: 4px 0 0; font-size: 34px; font-weight: 800; letter-spacing: -.02em; }
+  .live-pill { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px; border: 1px solid #1f3a2b; background: #0b1611; color: var(--green); font-size: 12px; font-weight: 600; }
+  .live-pill i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); animation: v2-breathe 2.4s ease-in-out infinite; }
+  .market-grid { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; }
+  .chart-card { display: grid; gap: 16px; }
+  .price-big { display: flex; align-items: baseline; gap: 10px; margin: 2px 0; }
+  .price-big strong { font-size: 44px; font-weight: 600; letter-spacing: -.02em; }
+  .price-big span { color: var(--muted); }
+  .change { font-size: 13px; font-weight: 700; color: var(--muted); }
+  .change.up { color: var(--green); } .change.down { color: var(--red); }
+  #priceChart { width: 100%; height: 180px; border-radius: 16px; background: var(--panel-2); border: 1px solid #16211c; }
+  .market-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .order-card { display: grid; gap: 10px; align-content: start; }
+  .order-card label { margin: 2px 0 0; }
+  .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; border-radius: 14px; background: var(--panel-2); }
+  .seg-btn { border: 0; background: transparent; color: var(--muted); padding: 11px; }
+  .seg-btn.active { background: var(--green); color: #06210f; }
+  .order-card.sell .seg-btn.active { background: var(--red); color: #2a0606; }
+  .order-card.sell #placeOrder { background: var(--red); color: #2a0606; }
+  .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+  .chips button { padding: 6px 12px; font-size: 12px; border-radius: 999px; }
+  .summary { border-radius: 14px; background: var(--panel-2); padding: 12px 14px; font-size: 12px; min-height: 18px; }
+  .orderbook { border: 0; display: grid; gap: 6px; }
+  .orderbook .mid { border-radius: 12px; font-size: 22px; padding: 12px; }
+  .depth { border-radius: 10px; padding: 6px 12px; overflow: hidden; }
+  .verify-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; }
+  /* Animationen */
+  .card { animation: v3-in .5s cubic-bezier(.2,.8,.2,1) both; }
+  .grid3 > .card:nth-child(2) { animation-delay: .06s; } .grid3 > .card:nth-child(3) { animation-delay: .12s; }
+  @keyframes v3-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .stats strong.flash { animation: num-flash .9s ease-out; }
+  @keyframes num-flash { 0% { color: var(--green); text-shadow: 0 0 18px rgba(126,245,163,.6); } 100% { color: inherit; text-shadow: none; } }
+  .wallet-row { transition: transform .18s, background-color .18s; }
+  @media (hover: hover) { .wallet-row:hover { transform: translateX(3px); background: #0d1812; } }
+  #priceChart path { animation: draw 1.2s ease-out both; }
+  @keyframes draw { from { opacity: 0; } to { opacity: 1; } }
+  @media (max-width: 1100px) { .grid3 { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 800px) { .grid3, .market-grid, .verify-card { grid-template-columns: 1fr; } .market-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .price-big strong { font-size: 34px; } }
+  @media (prefers-reduced-motion: reduce) { .card, .send-arrow, .miner-ring, .miner-ring span, .live-pill i, #priceChart path, .stats strong.flash { animation: none !important; } }
+  .bank-order.removing { animation: row-out .25s ease-in forwards; }
+  @keyframes row-out { to { opacity: 0; transform: translateX(16px); } }
 </style>
 </head>
 <body>
@@ -263,27 +364,29 @@
 <main>
   <section class="stats" id="stats"></section>
 
-  <div class="grid">
-    <section class="card">
+  <div class="grid3">
+    <section class="card miner-card">
       <h2>Server-Miner <span id="localState">bereit</span></h2>
       <div data-perm="a:miner" class="perm-block">
-      <p class="muted" style="margin:0 0 6px">Mint mit allen Prozessorkernen des Servers Blöcke, bis du stoppst. Jeder Block wird geprüft.</p>
-      <label>Miner-Wallet (bekommt die Belohnung)</label>
+      <div class="miner-hero">
+        <div class="miner-ring" id="minerRing"><span>⛏</span></div>
+        <div><small class="muted">Mint mit allen Kernen des Servers, bis du stoppst. Jeder Block wird geprüft.</small></div>
+      </div>
+      <label>Belohnung an</label>
       <select id="minerAddress"></select>
-      <div class="row">
-        <div><label>Threads (Kerne)</label><input id="threads" type="number" min="1" /></div>
+      <div class="row row-narrow">
+        <div><label>Kerne</label><input id="threads" type="number" min="1" /></div>
         <div><label>&nbsp;</label><button class="primary" id="localToggle" style="width:100%">Mining starten</button></div>
       </div>
       <div class="meter" id="localMeter"><i></i></div>
-      <div class="stats" id="localStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
+      <div class="stats mini" id="localStats"></div>
       <div class="msg" id="localMsg"></div>
-
       </div>
-      <details style="margin-top:14px">
-        <summary class="muted" style="cursor:pointer">Alternativ: im Browser minen (ein Kern, auch ohne Node.js) <span id="minerState"></span></summary>
+      <details class="fold-soft">
+        <summary>Alternativ: im Browser minen <span id="minerState"></span></summary>
         <div class="meter" id="meter"><i></i></div>
-        <div class="stats" id="minerStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
-        <div class="muted" id="minerInfo" style="margin-top:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px;word-break:break-all">–</div>
+        <div class="stats mini" id="minerStats"></div>
+        <div class="muted mono" id="minerInfo" style="margin-top:8px;font-size:11px;word-break:break-all">–</div>
         <div class="actions">
           <button id="mineToggle">Browser-Mining starten</button>
           <label class="check" style="margin:0"><input type="checkbox" id="continuous" checked /> nach einem Treffer weiter minen</label>
@@ -291,83 +394,96 @@
         <div class="msg" id="mineMsg"></div>
         <div class="list" id="found"></div>
       </details>
-      <h2 style="margin-top:18px">Zuletzt gefunden <span>alle Miner</span></h2>
+      <h3 class="sub">Zuletzt gefunden <span>alle Miner</span></h3>
       <div class="list" id="recent"></div>
     </section>
 
-    <section class="card">
+    <section class="card wallets-card">
       <h2>Wallets <span id="walletCount"></span></h2>
-      <div class="owner-only"><div class="row">
-        <div><label>Name</label><input id="walletName" placeholder="z.B. Lea" /></div>
-        <div><label>&nbsp;</label><button class="primary" id="createWallet" style="width:100%">Wallet anlegen</button></div>
+      <input id="walletSearch" class="search" placeholder="Name oder Adresse suchen" autocomplete="off" />
+      <div class="list accounts" id="accounts"></div>
+      <div class="owner-only"><div class="add-wallet">
+        <input id="walletName" placeholder="Neues Wallet, z. B. Lea" />
+        <button class="ghost" id="createWallet">+ Wallet anlegen</button>
       </div></div>
       <div class="msg" id="walletMsg"></div>
-      <div class="list accounts" id="accounts"></div>
     </section>
 
-    <section class="card no-basic">
+    <section class="card no-basic send-card">
       <h2>Coins senden <span>landet im Mempool</span></h2>
-      <div class="row">
-        <div><label>Von</label><select id="txFrom"></select></div>
-        <div><label>An</label><select id="txTo"></select></div>
-      </div>
+      <label>Von</label><select id="txFrom"></select>
+      <div class="send-arrow" aria-hidden="true">↓</div>
+      <label>An</label><select id="txTo"></select>
       <div class="row">
         <div><label>Betrag (GIBB)</label><input id="txAmount" type="number" min="1" value="1" /></div>
         <div><label>Notiz</label><input id="txNote" placeholder="optional" /></div>
       </div>
-      <div class="actions"><button class="primary" id="sendTx">Transaktion einreichen</button></div>
+      <div class="actions"><button class="primary wide" id="sendTx">Transaktion senden</button></div>
       <div class="msg" id="txMsg"></div>
-      <h2 style="margin-top:18px">Mempool <span id="mempoolCount"></span></h2>
+      <h3 class="sub">Mempool <span id="mempoolCount"></span></h3>
       <div class="list" id="mempool"></div>
     </section>
-
-    <section class="card" style="grid-column:1/-1">
-      <h2>Markt <span id="marketState">Kurs entsteht aus echten Kauf-/Verkaufsaufträgen</span></h2>
-      <div class="stats" id="marketStats"></div>
-      <div class="grid" style="margin-top:14px">
-        <div>
-          <div class="meter" style="height:auto;background:none;overflow:visible"><svg id="priceChart" viewBox="0 0 600 120" preserveAspectRatio="none" style="width:100%;height:120px;border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.012)"></svg></div>
-          <div class="no-basic">
-          <h2 style="margin:16px 0 8px;font-size:14px">Auftrag aufgeben</h2>
-          <label>Wallet</label><select id="orderAddress"></select>
-          <div class="row">
-            <div><label>Aktion</label><select id="orderSide"><option value="buy">Kaufen (GIBB ← Rappen)</option><option value="sell">Verkaufen (GIBB → Rappen)</option></select></div>
-            <div><label>Menge (GIBB)</label><input id="orderAmount" type="number" min="1" value="10" /></div>
-          </div>
-          <div class="row">
-            <div><label>Preis (Rappen/GIBB)</label><input id="orderPrice" type="number" min="0" step="0.01" value="1" /></div>
-            <div><label>&nbsp;</label><button class="primary" id="placeOrder" style="width:100%">Auftrag einreichen</button></div>
-          </div>
-          <div class="muted" id="orderHint" style="font-size:11px"></div>
-          <div class="msg" id="orderMsg"></div>
-          <h2 style="margin:16px 0 8px;font-size:14px">Meine offenen Aufträge</h2>
-          <div class="list" id="myOrders"></div>
-          </div>
-        </div>
-        <div>
-          <h2 style="margin:0 0 8px;font-size:14px">Orderbuch</h2>
-          <div class="orderbook">
-            <div><div class="muted" style="font-size:10px;text-align:right;margin-bottom:4px">VERKAUF (Angebot)</div><div id="asks"></div></div>
-            <div id="midPrice" class="mid">–</div>
-            <div><div class="muted" style="font-size:10px;margin-bottom:4px">KAUF (Nachfrage)</div><div id="bids"></div></div>
-          </div>
-          <h2 style="margin:16px 0 8px;font-size:14px">Letzte Handel</h2>
-          <div class="list" id="trades" style="max-height:220px"></div>
-        </div>
-      </div>
-          </section>
-
-    <section class="card">
-      <h2>Prüfung &amp; Verwaltung</h2>
-      <p class="muted" style="margin:0 0 8px">Die Prüfung rechnet jeden Block und alle Kontostände nach.</p>
-      <div class="actions">
-        <button class="primary" id="verify" data-perm="a:verify">Kette prüfen</button>
-        <button class="danger owner-only" id="resetPrices">Kurse zurücksetzen</button>
-        <button class="danger owner-only" id="reset">Alles zurücksetzen</button>
-      </div>
-      <div class="msg" id="verifyMsg"></div>
-    </section>
   </div>
+
+  <section class="market-wrap">
+    <div class="market-head">
+      <div><span class="eyebrow">GIBB COIN · CHAIN</span><h2 class="big">Markt</h2></div>
+      <span class="live-pill"><i></i><span id="marketState">Kurs aus echten Aufträgen</span></span>
+    </div>
+    <div class="market-grid">
+      <section class="card chart-card">
+        <div class="price-hero">
+          <div><span class="eyebrow">AKTUELLER KURS</span><div class="price-big"><strong id="heroPrice">–</strong><span>Rp / GIBB</span></div><span class="change" id="heroChange">–</span></div>
+        </div>
+        <svg id="priceChart" viewBox="0 0 600 120" preserveAspectRatio="none"></svg>
+        <div class="stats mini market-stats" id="marketStats"></div>
+      </section>
+      <section class="card order-card no-basic">
+        <div class="seg" role="tablist" aria-label="Aktion">
+          <button type="button" class="seg-btn active" data-side="buy">Kaufen</button>
+          <button type="button" class="seg-btn" data-side="sell">Verkaufen</button>
+        </div>
+        <select id="orderSide" hidden><option value="buy">Kaufen</option><option value="sell">Verkaufen</option></select>
+        <label>Wallet</label><select id="orderAddress"></select>
+        <div class="row">
+          <div><label>Menge (GIBB)</label><input id="orderAmount" type="number" min="1" value="10" /></div>
+          <div><label>Preis (Rp/GIBB)</label><input id="orderPrice" type="number" min="0" step="0.01" value="1" /></div>
+        </div>
+        <div class="chips" id="orderQuick"><button type="button" data-q="10">10</button><button type="button" data-q="50">50</button><button type="button" data-q="100">100</button><button type="button" data-q="max">Max</button></div>
+        <div class="summary muted" id="orderHint"></div>
+        <button class="primary wide big-btn" id="placeOrder">Kaufauftrag einreichen</button>
+        <div class="msg" id="orderMsg"></div>
+      </section>
+    </div>
+    <div class="grid3">
+      <section class="card">
+        <h3 class="sub" style="margin-top:0">Orderbuch</h3>
+        <div class="orderbook">
+          <div id="asks"></div>
+          <div id="midPrice" class="mid">–</div>
+          <div id="bids"></div>
+        </div>
+      </section>
+      <section class="card">
+        <h3 class="sub" style="margin-top:0">Letzte Handel</h3>
+        <div class="list" id="trades" style="max-height:260px"></div>
+      </section>
+      <section class="card no-basic">
+        <h3 class="sub" style="margin-top:0">Meine offenen Aufträge</h3>
+        <div class="list" id="myOrders"></div>
+      </section>
+    </div>
+  </section>
+
+  <section class="card verify-card">
+    <div><h2 style="margin-bottom:4px">Prüfung &amp; Verwaltung</h2><p class="muted" style="margin:0">Rechnet jeden Block und alle Kontostände nach.</p></div>
+    <div class="actions" style="margin:0">
+      <button class="primary" id="verify" data-perm="a:verify">Kette prüfen</button>
+      <button class="danger owner-only" id="resetPrices">Kurse zurücksetzen</button>
+      <button class="danger owner-only" id="reset">Alles zurücksetzen</button>
+    </div>
+    <div class="msg" id="verifyMsg" style="grid-column:1/-1"></div>
+  </section>
 
   <section class="card admin-card owner-only" id="adminCard">
     <h2>Admin <span id="adState">Hauptseite verwalten</span></h2>
@@ -464,6 +580,7 @@
     <h2>Banküberweisungen <span id="bankCount">Kauf per IBAN</span></h2>
     <p class="muted" style="margin:0 0 12px">Bestellungen aus dem Kaufen-Tab. Prüfe auf deinem Konto, ob der Betrag mit dem Verwendungszweck eingegangen ist, und bestätige dann die Zahlung – erst dann werden die GIBB gutgeschrieben.</p>
     <div class="list" id="bankOrders"><div class="muted">Wird geladen …</div></div>
+    <div class="actions"><button type="button" class="danger" id="bankClearClosed" hidden>Alle abgelehnten/stornierten löschen</button></div>
     <div class="msg" id="bankMsg"></div>
   </section>
 
@@ -672,17 +789,25 @@ async function refresh() {
   } catch (e) { console.error("Anzeige-Fehler", e); }
 }
 
+const lastStatValues = {};
 function renderStats(s) {
   $("stats").innerHTML = [
     ["Kurs", price(s.price) + " Rp"], ["Blockhöhe", s.height], ["Schwierigkeit", s.difficultyBits + " Bit"], ["Umlauf", fmt(s.supply) + " GIBB"],
     ["Marktkapital", fmtChf(s.marketCapRappen)], ["24h Volumen", fmt(s.volume24h) + " GIBB"], ["Ø Blockzeit", s.averageBlockSeconds == null ? "–" : s.averageBlockSeconds.toFixed(1) + " s"], ["Belohnung", s.settings.reward + " GIBB"],
-  ].map(([k, v]) => `<div><span>${k}</span><strong>${v}</strong></div>`).join("");
+  ].map(([k, v]) => `<div><span>${k}</span><strong data-k="${k}">${v}</strong></div>`).join("");
+  document.querySelectorAll("#stats strong[data-k]").forEach((el) => { const prev = lastStatValues[el.dataset.k]; if (prev !== undefined && prev !== el.textContent) el.classList.add("flash"); lastStatValues[el.dataset.k] = el.textContent; });
   $("blockCount").textContent = `${s.blocks} Blöcke · Spitze ${short(s.tipHash)}`;
   $("mempoolCount").textContent = `${s.mempool} wartend`;
   $("walletCount").textContent = `${s.accounts} Konten`;
 }
 function renderAccounts() {
-  $("accounts").innerHTML = accounts.map((a) => `<div class="item"><div><b>${h(a.name)}</b>${a.source === "supabase" ? ` <span style="font-size:9px;color:var(--green);border:1px solid rgba(117,245,154,.3);border-radius:6px;padding:1px 5px">WEBSITE</span>` : ""}<br><code>${a.address}</code></div><div class="right"><b>${fmt(a.balance)} GIBB</b> · <b>${fmt(a.cash)} Rp</b><br><small>frei ${fmt(a.available)} GIBB · ${fmt(a.availableCash)} Rp</small></div></div>`).join("") || `<div class="muted">Noch keine Wallets. Lege oben eines an – der Miner bekommt die erste Belohnung.</div>`;
+  const q = ($("walletSearch")?.value ?? "").trim().toLowerCase();
+  const list = accounts.filter((a) => !q || String(a.name).toLowerCase().includes(q) || String(a.address).toLowerCase().includes(q));
+  $("accounts").innerHTML = list.map((a) => {
+    const web = a.source === "supabase";
+    const initial = h(String(a.name || "?").trim().charAt(0).toUpperCase() || "?");
+    return `<div class="item wallet-row"><div class="avatar${web ? " web" : ""}">${initial}</div><div class="who"><b>${h(a.name)}${web ? '<span class="tag-web">WEBSITE</span>' : ""}</b><code title="${h(a.address)}">${h(a.address)}</code></div><div class="amt"><b>${fmt(a.balance)}</b><small>GIBB · ${fmt(a.cash)} Rp</small></div></div>`;
+  }).join("") || `<div class="muted">Keine Wallets gefunden.</div>`;
   fillSelect($("orderAddress"));
 }
 function renderMempool(list) {
@@ -1033,10 +1158,18 @@ async function bankLoad() {
     const orders = (await api("/api/bank/orders", {})).orders ?? [];
     const open = orders.filter((o) => o.status === "pending").length;
     $("bankCount").textContent = open ? `${open} offen` : "keine offenen";
-    $("bankOrders").innerHTML = orders.length ? orders.map((o) => `<div class="item bank-order${o.status === "pending" ? "" : " done"}" data-id="${o.id}" data-ref="${caEsc(o.reference)}"><div><span class="ref">${caEsc(o.reference)}</span> · <b>${caEsc(o.username)}</b><br><small class="muted">${fmt(o.gibb)} GIBB · <b>${chf(o.rappen)}</b> · ${new Date(o.created_at).toLocaleString("de-CH")} · ${bankStatus[o.status] ?? o.status}</small></div><div class="acts">${o.status === "pending" ? `<button class="primary" data-paid="1">✓ Zahlung erhalten</button><button class="danger" data-paid="0">Ablehnen</button>` : ""}</div></div>`).join("") : `<div class="muted">Noch keine Bestellungen.</div>`;
+    $("bankClearClosed").hidden = !orders.some((o) => o.status === "rejected" || o.status === "cancelled");
+    $("bankOrders").innerHTML = orders.length ? orders.map((o) => `<div class="item bank-order${o.status === "pending" ? "" : " done"}" data-id="${o.id}" data-ref="${caEsc(o.reference)}"><div><span class="ref">${caEsc(o.reference)}</span> · <b>${caEsc(o.username)}</b><br><small class="muted">${fmt(o.gibb)} GIBB · <b>${chf(o.rappen)}</b> · ${new Date(o.created_at).toLocaleString("de-CH")} · ${bankStatus[o.status] ?? o.status}</small></div><div class="acts">${o.status === "pending" ? `<button class="primary" data-paid="1">✓ Zahlung erhalten</button><button class="danger" data-paid="0">Ablehnen</button>` : o.status === "rejected" || o.status === "cancelled" ? `<button class="danger" data-del="1">Löschen</button>` : ""}</div></div>`).join("") : `<div class="muted">Noch keine Bestellungen.</div>`;
   } catch (e) { $("bankOrders").innerHTML = `<div class="muted">${caEsc(caErrors[e.message] ?? e.message)}</div>`; }
 }
 $("bankOrders").addEventListener("click", async (e) => {
+  const del = e.target.closest("button[data-del]");
+  if (del) {
+    const row = del.closest(".bank-order");
+    try { await api("/api/bank/delete", { id: row.dataset.id, reference: row.dataset.ref }); row.classList.add("removing"); say("bankMsg", `${row.dataset.ref} gelöscht.`); setTimeout(() => void bankLoad(), 250); }
+    catch (err) { say("bankMsg", caErrors[err.message] || err.message, true); }
+    return;
+  }
   const btn = e.target.closest("button[data-paid]"); if (!btn) return;
   const row = btn.closest(".bank-order"); const paid = btn.dataset.paid === "1";
   if (!confirm(paid ? `Zahlung für ${row.dataset.ref} wirklich erhalten? Die GIBB werden sofort gutgeschrieben.` : `Bestellung ${row.dataset.ref} ablehnen?`)) return;
@@ -1387,6 +1520,41 @@ function stopBasicPreview() {
 }
 let myPermissionsFull = [];
 $("basicPreview").onclick = startBasicPreview;
+
+// ---------- Design v3: Bedienung ----------
+$("walletSearch").addEventListener("input", renderAccounts);
+document.querySelectorAll(".seg-btn").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".seg-btn").forEach((x) => x.classList.toggle("active", x === b));
+  $("orderSide").value = b.dataset.side;
+  document.querySelector(".order-card").classList.toggle("sell", b.dataset.side === "sell");
+  $("placeOrder").textContent = b.dataset.side === "sell" ? "Verkaufsauftrag einreichen" : "Kaufauftrag einreichen";
+  $("orderSide").dispatchEvent(new Event("change"));
+}));
+$("orderQuick").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-q]"); if (!b) return;
+  if (b.dataset.q === "max") {
+    const acc = accounts.find((a) => a.address === $("orderAddress").value);
+    const priceRp = Number($("orderPrice").value) || 1;
+    $("orderAmount").value = $("orderSide").value === "sell" ? Math.max(1, Math.floor(acc?.available ?? acc?.balance ?? 0)) : Math.max(1, Math.floor((acc?.availableCash ?? acc?.cash ?? 0) / priceRp));
+  } else $("orderAmount").value = b.dataset.q;
+  $("orderAmount").dispatchEvent(new Event("input"));
+});
+// Kurs gross anzeigen (aus den Markt-Kennzahlen)
+const heroObserver = new MutationObserver(() => {
+  const first = document.querySelector("#marketStats div strong");
+  const second = document.querySelector("#marketStats div:nth-child(2) strong");
+  if (first) $("heroPrice").textContent = first.textContent.replace(/\s*Rp$/, "");
+  if (second) { const t = second.textContent; $("heroChange").textContent = t + " in 24 h"; $("heroChange").className = "change" + (t.includes("▲") ? " up" : t.includes("▼") ? " down" : ""); }
+});
+heroObserver.observe($("marketStats"), { childList: true, subtree: true, characterData: true });
+// Miner-Animation, solange der Server-Miner läuft
+new MutationObserver(() => document.body.classList.toggle("mining", /läuft/.test($("localState").textContent))).observe($("localState"), { childList: true, characterData: true, subtree: true });
+
+$("bankClearClosed").addEventListener("click", async () => {
+  if (!confirm("Alle abgelehnten und stornierten Überweisungen löschen? Bezahlte bleiben erhalten.")) return;
+  try { const r = await api("/api/bank/delete", {}); say("bankMsg", `${r.deleted ?? 0} Überweisungen gelöscht.`); await bankLoad(); }
+  catch (err) { say("bankMsg", caErrors[err.message] || err.message, true); }
+});
 </script>
 </body>
 </html>
