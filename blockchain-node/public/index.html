@@ -1159,13 +1159,16 @@ async function bankLoad() {
     const open = orders.filter((o) => o.status === "pending").length;
     $("bankCount").textContent = open ? `${open} offen` : "keine offenen";
     $("bankClearClosed").hidden = !orders.some((o) => o.status === "rejected" || o.status === "cancelled");
-    $("bankOrders").innerHTML = orders.length ? orders.map((o) => `<div class="item bank-order${o.status === "pending" ? "" : " done"}" data-id="${o.id}" data-ref="${caEsc(o.reference)}"><div><span class="ref">${caEsc(o.reference)}</span> · <b>${caEsc(o.username)}</b><br><small class="muted">${fmt(o.gibb)} GIBB · <b>${chf(o.rappen)}</b> · ${new Date(o.created_at).toLocaleString("de-CH")} · ${bankStatus[o.status] ?? o.status}</small></div><div class="acts">${o.status === "pending" ? `<button class="primary" data-paid="1">✓ Zahlung erhalten</button><button class="danger" data-paid="0">Ablehnen</button>` : o.status === "rejected" || o.status === "cancelled" ? `<button class="danger" data-del="1">Löschen</button>` : ""}</div></div>`).join("") : `<div class="muted">Noch keine Bestellungen.</div>`;
+    $("bankOrders").innerHTML = orders.length ? orders.map((o) => `<div class="item bank-order${o.status === "pending" ? "" : " done"}" data-id="${o.id}" data-ref="${caEsc(o.reference)}"><div><span class="ref">${caEsc(o.reference)}</span> · <b>${caEsc(o.username)}</b><br><small class="muted">${fmt(o.gibb)} GIBB · <b>${chf(o.rappen)}</b> · ${new Date(o.created_at).toLocaleString("de-CH")} · ${bankStatus[o.status] ?? o.status}</small></div><div class="acts">${o.status === "pending" ? `<button class="primary" data-paid="1">✓ Zahlung erhalten</button><button class="danger" data-paid="0">Ablehnen</button>` : ""}<button class="danger" data-del="1" data-status="${caEsc(o.status)}">Löschen</button></div></div>`).join("") : `<div class="muted">Noch keine Bestellungen.</div>`;
   } catch (e) { $("bankOrders").innerHTML = `<div class="muted">${caEsc(caErrors[e.message] ?? e.message)}</div>`; }
 }
 $("bankOrders").addEventListener("click", async (e) => {
   const del = e.target.closest("button[data-del]");
   if (del) {
     const row = del.closest(".bank-order");
+    const st = del.dataset.status;
+    if (st === "paid" && !confirm(`${row.dataset.ref} ist bezahlt. Nur den Eintrag löschen? Die gutgeschriebenen GIBB bleiben beim Käufer.`)) return;
+    if (st === "pending" && !confirm(`${row.dataset.ref} ist noch offen. Wirklich löschen? Der Käufer bekommt dafür keine GIBB.`)) return;
     try { await api("/api/bank/delete", { id: row.dataset.id, reference: row.dataset.ref }); row.classList.add("removing"); say("bankMsg", `${row.dataset.ref} gelöscht.`); setTimeout(() => void bankLoad(), 250); }
     catch (err) { say("bankMsg", caErrors[err.message] || err.message, true); }
     return;
