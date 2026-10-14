@@ -1,0 +1,42 @@
+name: Erreichbarkeit
+
+# Prüft alle 10 Minuten, ob Hauptseite und Chain-Seite antworten.
+# Ist eine Seite nicht erreichbar, kommt eine Push-Nachricht über ntfy.
+# Einrichten: Repository → Settings → Secrets and variables → Actions → New repository secret
+#   Name: NTFY_TOPIC   Wert: das Thema von der Chain-Seite (Karte „Benachrichtigungen“)
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Seiten prüfen
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+        run: |
+          down=""
+          for url in https://gibbcoin-original.duckdns.org/ https://chain.gibbcoin-original.duckdns.org/api/stats; do
+            ok=0
+            for try in 1 2 3; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 "$url" || echo 000)
+              # 503 = Wartungsmodus (gibb-wartung), gilt als erreichbar
+              if [ "$code" -ge 200 ] && { [ "$code" -lt 500 ] || [ "$code" = 503 ]; }; then ok=1; break; fi
+              sleep 20
+            done
+            [ "$ok" = 1 ] || down="$down $url (HTTP $code)"
+          done
+          if [ -n "$down" ]; then
+            echo "Nicht erreichbar:$down"
+            if [ -n "$NTFY_TOPIC" ]; then
+              curl -s -H "Title: GIBB Coin nicht erreichbar" -H "Priority: 5" -H "Tags: rotating_light" \
+                -d "Nicht erreichbar:$down" "https://ntfy.sh/$NTFY_TOPIC" > /dev/null
+            fi
+            exit 1
+          fi
+          echo "Alles erreichbar."

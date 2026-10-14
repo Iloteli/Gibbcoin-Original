@@ -332,6 +332,9 @@
   @media (prefers-reduced-motion: reduce) { .card, .send-arrow, .miner-ring, .miner-ring span, .live-pill i, #priceChart path, .stats strong.flash { animation: none !important; } }
   .bank-order.removing { animation: row-out .25s ease-in forwards; }
   @keyframes row-out { to { opacity: 0; transform: translateX(16px); } }
+  .notify-card .nt-topic { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; margin-top: 14px; }
+  .notify-card #ntTopic { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+  @media (max-width: 720px) { .notify-card .nt-topic { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -567,6 +570,22 @@
       <div class="list" id="adVisitDays" style="margin-top:10px"></div>
     </div>
     <div class="msg" id="adMsg"></div>
+  </section>
+
+  <section class="card notify-card owner-only" id="notifyCard">
+    <h2>Benachrichtigungen <span id="ntState">Push aufs Handy</span></h2>
+    <p class="muted" style="margin:0 0 12px">Bekomme eine Push-Nachricht, wenn eine Banküberweisung oder ein Support-Fall eingeht oder der Server neu startet. Dafür die kostenlose App <b>ntfy</b> installieren (Android, iPhone, PC) und das Thema unten abonnieren.</p>
+    <div class="switches">
+      <label class="switch"><input type="checkbox" id="ntEnabled" /><span class="knob"></span><span class="switch-text"><b>Benachrichtigungen an</b><small>Hauptschalter</small></span></label>
+      <label class="switch"><input type="checkbox" id="ntBank" /><span class="knob"></span><span class="switch-text"><b>Neue Banküberweisung</b><small>sobald jemand per IBAN bestellt</small></span></label>
+      <label class="switch"><input type="checkbox" id="ntSupport" /><span class="knob"></span><span class="switch-text"><b>Neuer Support-Fall</b><small>aus der Community</small></span></label>
+      <label class="switch"><input type="checkbox" id="ntStart" /><span class="knob"></span><span class="switch-text"><b>Server gestartet</b><small>nach Update oder Neustart</small></span></label>
+    </div>
+    <div class="nt-topic">
+      <div class="field"><label for="ntTopic">Thema zum Abonnieren</label><input id="ntTopic" readonly placeholder="wird beim Einschalten erzeugt" /><small>Wie ein Passwort – nicht weitergeben. In der ntfy-App: „+“ → dieses Thema eintragen.</small></div>
+      <div class="actions"><button type="button" id="ntCopy">Kopieren</button><button type="button" id="ntNew">Neues Thema</button><button type="button" class="primary" id="ntTest">Test senden</button></div>
+    </div>
+    <div class="msg" id="ntMsg"></div>
   </section>
 
   <section class="card pay-card owner-basic" id="payCard">
@@ -1079,7 +1098,7 @@ const isFullView = () => document.body.classList.contains("is-owner");
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
 function onAuthed(me) {
   setTimeout(async () => { try { const info = await api("/api/auth/me", {}); myPermissionsFull = info.permissions ?? []; applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); }, 0);
-  setTimeout(() => { void adLoad("users"); }, 0);
+  setTimeout(() => { void adLoad("users"); void ntLoad(); }, 0);
   myAddress = me.address;
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
   document.body.classList.toggle("is-owner", me.role === "super_admin");
@@ -1566,6 +1585,27 @@ $("bankClearClosed").addEventListener("click", async () => {
   try { const r = await api("/api/bank/delete", {}); say("bankMsg", `${r.deleted ?? 0} Überweisungen gelöscht.`); await bankLoad(); }
   catch (err) { say("bankMsg", caErrors[err.message] || err.message, true); }
 });
+
+// ---------- Benachrichtigungen (ntfy) ----------
+const ntErrors = { invalid_notify_topic: "Ungültiges Thema.", invalid_notify_server: "Ungültiger Server." };
+function ntRender(c) {
+  $("ntEnabled").checked = !!c.enabled; $("ntBank").checked = c.bank !== false; $("ntSupport").checked = c.support !== false; $("ntStart").checked = c.start !== false;
+  $("ntTopic").value = c.topic || "";
+  $("ntState").textContent = c.enabled ? (c.lastError ? `Fehler: ${c.lastError}` : "aktiv") : "aus";
+  document.querySelectorAll("#ntBank, #ntSupport, #ntStart, #ntTest").forEach((el) => { el.disabled = !c.enabled; });
+}
+async function ntLoad() { if (!document.body.classList.contains("is-owner")) return; try { ntRender(await api("/api/notify/get", {})); } catch { /* nur Full */ } }
+async function ntSave(extra = {}) {
+  try { ntRender(await api("/api/notify/set", { enabled: $("ntEnabled").checked, bank: $("ntBank").checked, support: $("ntSupport").checked, start: $("ntStart").checked, ...extra })); say("ntMsg", "Gespeichert."); }
+  catch (err) { say("ntMsg", ntErrors[err.message] || err.message, true); }
+}
+["ntEnabled", "ntBank", "ntSupport", "ntStart"].forEach((id) => $(id).addEventListener("change", () => void ntSave()));
+$("ntNew").onclick = () => { if (confirm("Neues Thema erzeugen? Das alte funktioniert dann nicht mehr – du musst in der App neu abonnieren.")) void ntSave({ newTopic: true }); };
+$("ntCopy").onclick = async () => { try { await navigator.clipboard.writeText($("ntTopic").value); say("ntMsg", "Thema kopiert."); } catch { $("ntTopic").select(); } };
+$("ntTest").onclick = async () => {
+  try { const r = await api("/api/notify/test", {}); say("ntMsg", r.ok ? "Test gesendet – schau aufs Handy." : `Nicht gesendet: ${r.error || "Benachrichtigungen sind aus"}`, !r.ok); }
+  catch (err) { say("ntMsg", err.message, true); }
+};
 </script>
 </body>
 </html>

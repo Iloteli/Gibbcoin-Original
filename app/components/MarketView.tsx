@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase } from "../lib/supabase";
-import { LineChart } from "./BlockchainCharts";
+import { PriceChart } from "./PriceChart";
 import { SwissQrBill } from "./SwissQrBill";
 
 type MarketState = {
@@ -187,8 +187,8 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
       </section>
 
       <section className="card card-pad">
-        <div className="card-head"><h2>Kursverlauf</h2><span>letzte {prices.length} Handel</span></div>
-        <LineChart values={prices} label="Kurs" unit="Rp" />
+        <div className="card-head"><h2>Kursverlauf</h2><span>letzte {prices.length} Handel · fahre über die Linie</span></div>
+        <PriceChart history={state?.history ?? []} price={Number(state?.price ?? 0)} />
       </section>
 
       <section className="card card-pad market-trade">

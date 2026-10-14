@@ -15,6 +15,7 @@ import { createWalletCredit } from "./wallet-credit.mjs";
 import { createWebsiteOwnerCheck, createWebsiteUserCheck } from "./website-owner.mjs";
 import { startServerMining } from "./server-mining.mjs";
 import { createSettingsSync } from "./settings-sync.mjs";
+import { createNotifier } from "./notify.mjs";
 import { ALL_PERMISSIONS, PERMISSION_CATALOG, normalizePermissions } from "./permissions.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -47,6 +48,22 @@ const serverMining = startServerMining(chain, {
   },
 });
 const websiteUser = createWebsiteUserCheck();
+// Push-Benachrichtigungen an den Owner (ntfy): neue Überweisungen, Support-Fälle, Neustart
+const notifier = createNotifier({ file: join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "notify.json"), note: (kind, msg) => note(kind, msg) });
+if (settingsSync.enabled) {
+  notifier.watch(async () => (await settingsSync.listBankOrders()).filter((o) => o.status === "pending"), {
+    kind: "bank",
+    format: (o) => ({ title: "💸 Neue Banküberweisung", message: `${o.reference}: ${o.gibb} GIBB · CHF ${(Number(o.rappen) / 100).toFixed(2)}. Prüfe dein Konto und bestätige die Zahlung auf der Chain-Seite.`, priority: 4, tags: ["moneybag"] }),
+  });
+  notifier.watch(async () => {
+    const r = await settingsSync.ownerCall("admin_list_control_center_page", { p_page: 1, p_page_size: 20 });
+    const c = Array.isArray(r) ? r[0] : r;
+    return (c?.tickets ?? []).filter((t) => !["closed", "resolved", "done"].includes(String(t.status ?? "").toLowerCase()));
+  }, {
+    kind: "support",
+    format: (t) => ({ title: "🎫 Neuer Support-Fall", message: String(t.subject ?? "Ohne Betreff").slice(0, 200), priority: String(t.priority) === "high" ? 4 : 3, tags: ["ticket"] }),
+  });
+}
 const fallbackMiner = startFallbackMiner(chain, { getAddress: () => FALLBACK_ADDRESS, note: (m) => note("block", m) });
 
 const localMiner = {
@@ -479,6 +496,18 @@ const routes = {
     note("auth", `Owner ${String(body.name ?? id).slice(0, 40)} ist jetzt ${level === "full" ? "Full" : "Basic"}`);
     return { ok: true, level };
   },
+  // Benachrichtigungen (nur Full)
+  "POST /api/notify/get": async (_, body) => { await requireOwner(body); return notifier.get(); },
+  "POST /api/notify/set": async (_, body) => {
+    await requireOwner(body);
+    const r = notifier.set({ enabled: body.enabled, bank: body.bank, support: body.support, start: body.start, server: body.server, topic: body.topic, newTopic: body.newTopic === true });
+    note("settings", `Benachrichtigungen ${r.enabled ? "an" : "aus"}`);
+    return r;
+  },
+  "POST /api/notify/test": async (_, body) => {
+    await requireOwner(body);
+    return notifier.send("test", "🔔 Test von GIBB Coin", "Wenn du das liest, kommen die Benachrichtigungen an.", { tags: ["bell"] });
+  },
   "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers() }; },
   "POST /api/admin/node-users/create": async (_, body) => {
     await requireOwner(body);
@@ -636,6 +665,7 @@ function json(res, status, data) {
 }
 
 server.listen(PORT, () => {
+  void notifier.send("start", "🟢 Chain-Server gestartet", `Der GIBB-Chain-Server läuft wieder (Blöcke: ${chain.blocks.length}). Das passiert nach einem Update oder Neustart.`, { tags: ["white_check_mark"] });
   console.log(`GIBB Blockchain-Node läuft auf http://localhost:${PORT}  (Blöcke: ${chain.blocks.length}, Konten: ${Object.keys(chain.accounts).length})`);
 });
 

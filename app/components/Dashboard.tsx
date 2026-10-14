@@ -29,6 +29,7 @@ import { QrWallet } from "./QrWallet";
 import { RewardsHub } from "./RewardsHub";
 import { SecurityOverview } from "./SecurityOverview";
 import { UserProfileModal } from "./UserProfileModal";
+import { HomePriceCard } from "./PriceChart";
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
@@ -620,6 +621,8 @@ export function Dashboard({ user }: Props) {
           {statsMessage && <p className="home-stats-note" role="status">{statsMessage}</p>}
           {statsError && <p className="home-stats-note error" role="alert">{statsError}</p>}
         </section>
+
+        <HomePriceCard onOpenMarket={visibleViews.some((view) => view.key === "market") ? () => openView("market") : undefined} />
 
         <section className="home-launchpad card" aria-labelledby="home-launchpad-title">
           <div className="home-launchpad-copy"><span>ALLES AN EINEM ORT</span><h2 id="home-launchpad-title">Was möchtest du machen?</h2><p>Dein Home zeigt das echte Wallet. Jede Aktion und jedes Spiel verwendet genau dieses eine Guthaben.</p></div>
