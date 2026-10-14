@@ -7,6 +7,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { DEFAULT_BASIC_PERMISSIONS, normalizePermissions } from "./permissions.mjs";
 import { ZERO_HASH, blockHeaderString, leadingZeroBits, merkleRoot } from "../app/lib/blockchain-core.js";
 
 const sha256 = (value) => createHash("sha256").update(value, "utf8").digest("hex");
@@ -33,7 +34,7 @@ const defaultSettings = {
   browserMinerThreads: 0,  // Standard-Kernzahl des Browser-Miners (0 = alle Kerne des Geräts)
   chainLoginsEnabled: true, // false = nur der Owner kann sich auf der Chain-Seite anmelden
   // Was Basic-Konten sehen und ändern dürfen (stellt ein Full-Konto ein)
-  basicPermissions: ["mining", "rules", "market", "tabs", "payments", "server", "miner", "verify"],
+  basicPermissions: DEFAULT_BASIC_PERMISSIONS,
   // Zusätzliche Einstellungen für die Hauptseite (Website-Mining und GIBB-Markt); werden übertragen.
   website: { ...defaultWebsiteSettings() },
 };
@@ -106,6 +107,7 @@ export class Blockchain {
       this.users = raw.users ?? {};
       this.settings = { ...defaultSettings, ...(raw.settings ?? {}) };
       this.settings.website = sanitizeWebsite(this.settings.website);
+      this.settings.basicPermissions = normalizePermissions(this.settings.basicPermissions ?? DEFAULT_BASIC_PERMISSIONS);
       this.orders = raw.orders ?? [];
       this.trades = raw.trades ?? [];
       this.lastPrice = raw.lastPrice ?? null;
@@ -673,8 +675,7 @@ export class Blockchain {
     if (patch.fallbackMinerEnabled !== undefined) next.fallbackMinerEnabled = Boolean(patch.fallbackMinerEnabled);
     if (patch.chainLoginsEnabled !== undefined) next.chainLoginsEnabled = Boolean(patch.chainLoginsEnabled);
     if (patch.basicPermissions !== undefined) {
-      const allowed = ["mining", "rules", "market", "tabs", "payments", "bank", "server", "miner", "verify"];
-      next.basicPermissions = Array.isArray(patch.basicPermissions) ? [...new Set(patch.basicPermissions.map(String).filter((p) => allowed.includes(p)))] : next.basicPermissions;
+      next.basicPermissions = Array.isArray(patch.basicPermissions) ? normalizePermissions(patch.basicPermissions) : next.basicPermissions;
     }
     next.website = sanitizeWebsite(this.settings.website, patch.website);
     next.reward = clamp(next.reward, 0, 10_000);

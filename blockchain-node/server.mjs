@@ -15,6 +15,7 @@ import { createWalletCredit } from "./wallet-credit.mjs";
 import { createWebsiteOwnerCheck, createWebsiteUserCheck } from "./website-owner.mjs";
 import { startServerMining } from "./server-mining.mjs";
 import { createSettingsSync } from "./settings-sync.mjs";
+import { ALL_PERMISSIONS, PERMISSION_CATALOG, normalizePermissions } from "./permissions.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -217,18 +218,8 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
 }
 // Einstellungen: Full darf alles, Basic nur Mining, Mining-Regeln, Markt & Coinwert, Tabs und Zahlarten
 // Rechte für Basic-Konten (Full stellt ein, was Basic sehen darf)
-const PERMISSION_KEYS = {
-  mining: { settings: ["reward", "targetSeconds", "difficultyBits", "minBits", "maxBits", "autoAdjust", "maxTxPerBlock"], website: [] },
-  rules: { settings: [], website: ["miningEnabled", "cooldownSeconds", "halvingBlocks", "maxBlocksPerDay", "requireRealTx"] },
-  market: { settings: ["startPrice", "startingCash", "tradingFeePercent", "minOrderAmount", "marketEnabled", "websitePrice"], website: ["marketStepPercent", "minPrice", "maxPrice", "maxTrade", "buyEnabled", "sellEnabled", "dailySellLimit"] },
-  tabs: { settings: [], website: ["disabledTabs"] },
-  payments: { settings: [], website: ["cardEnabled", "creditsEnabled"] },
-  bank: { settings: [], website: [] },
-  server: { settings: ["fallbackMinerEnabled", "fallbackDelaySeconds", "browserMinerThreads"], website: [] },
-  miner: { settings: [], website: [] },
-  verify: { settings: [], website: [] },
-};
-const permissionsOf = (sess) => (sess?.role === "super_admin" ? [...Object.keys(PERMISSION_KEYS), "coins"] : sess?.role === "owner_basic" ? (chain.settings.basicPermissions ?? []).filter((p) => p in PERMISSION_KEYS) : []);
+// Rechte: s:<Einstellung>, w:<Einstellung der Hauptseite>, a:<Aktion> (siehe permissions.mjs)
+const permissionsOf = (sess) => (sess?.role === "super_admin" ? [...ALL_PERMISSIONS, "a:coins"] : sess?.role === "owner_basic" ? normalizePermissions(chain.settings.basicPermissions) : []);
 // Basic-Konten dürfen keine Coins bewegen (senden, Aufträge, Coins verwalten)
 const forbidBasicTransfers = (sess) => { if (sess?.role === "owner_basic") throw new Error("basic_no_transfers"); };
 const requirePermission = (body, perm) => {
@@ -243,13 +234,11 @@ const requireSettingsAccess = (body) => {
 };
 const limitSettingsPatch = (sess, body) => {
   if (sess.role === "super_admin") return body;
-  const perms = permissionsOf(sess);
+  const perms = new Set(permissionsOf(sess));
   const patch = {};
   const website = {};
-  for (const p of perms) {
-    for (const k of PERMISSION_KEYS[p]?.settings ?? []) if (body[k] !== undefined) patch[k] = body[k];
-    for (const k of PERMISSION_KEYS[p]?.website ?? []) if (body.website?.[k] !== undefined) website[k] = body.website[k];
-  }
+  for (const [k, v] of Object.entries(body)) if (perms.has(`s:${k}`)) patch[k] = v;
+  for (const [k, v] of Object.entries(body.website ?? {})) if (perms.has(`w:${k}`)) website[k] = v;
   if (Object.keys(website).length) patch.website = website;
   return patch;
 };
@@ -260,6 +249,7 @@ const dropSessionsOfAddress = (address) => {
 };
 
 const routes = {
+  "GET /api/permissions": () => ({ catalog: PERMISSION_CATALOG }),
   "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, settingsSync: settingsSync.status(), fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
@@ -304,7 +294,7 @@ const routes = {
     return { ok: true, ...sess, permissions: permissionsOf(sess), balance: acc.balance ?? 0, cash: acc.cash ?? 0 };
   },
   // Miner-Prozess auf diesem Rechner starten/stoppen (alle Kerne, so viele Blöcke wie möglich).
-  "POST /api/local-miner": async (_, body) => { requirePermission(body, "miner"); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
+  "POST /api/local-miner": async (_, body) => { requirePermission(body, "a:miner"); return body.enabled ? startLocalMiner(body.address, body.threads) : stopLocalMiner(); },
   // Von der echten Website: aktuelles Konto anmelden, damit es hier erscheint.
   // Nur mit gültigem Website-Login und nur für das eigene Konto. Ein vom Browser geschicktes
   // Guthaben wird NICHT übernommen (sonst könnte sich jeder Coins geben).
@@ -521,17 +511,17 @@ const routes = {
   },
   "POST /api/admin/password-reset": async (_, body) => { await requireOwner(body); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
-  "POST /api/bank/orders": async (_, body) => { requirePermission(body, "bank"); return { orders: await settingsSync.listBankOrders() }; },
+  "POST /api/bank/orders": async (_, body) => { requirePermission(body, "a:bank"); return { orders: await settingsSync.listBankOrders() }; },
   "POST /api/bank/decide": async (_, body) => {
-    requirePermission(body, "bank");
+    requirePermission(body, "a:bank");
     const result = await settingsSync.decideBankOrder(String(body.id ?? ""), body.paid === true);
     note("wallet", `Überweisung ${String(body.reference ?? body.id).slice(0, 20)}: ${body.paid === true ? "Zahlung bestätigt, GIBB gutgeschrieben" : "abgelehnt"}`);
     void settingsSync.syncAccounts();
     return result;
   },
-  "POST /api/website/users": async (_, body) => { requirePermission(body, "coins"); return { users: await settingsSync.listWebsiteUsers() }; },
+  "POST /api/website/users": async (_, body) => { requirePermission(body, "a:coins"); return { users: await settingsSync.listWebsiteUsers() }; },
   "POST /api/website/adjust": async (_, body) => {
-    requirePermission(body, "coins");
+    requirePermission(body, "a:coins");
     const amount = Math.trunc(Number(body.amount));
     if (!Number.isFinite(amount) || amount === 0) throw new Error("invalid_amount");
     const reason = String(body.reason ?? "").trim().slice(0, 120);

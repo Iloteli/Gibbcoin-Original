@@ -215,6 +215,22 @@
   .pay-method .state { font-size: 12px; font-weight: 800; }
   .pay-method .state.on { color: var(--green); } .pay-method .state.off { color: var(--muted); }
   .pay-method small { color: var(--muted); font-size: 11px; }
+
+  /* ===== Konten & Basic-Rechte ===== */
+  .acc-list { display: grid; gap: 7px; }
+  .acc-list .list { max-height: none; }
+  .bank-order .acts select { width: auto; padding: 6px 10px; font-size: 12px; }
+  .acc-type { font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--muted); margin-left: 4px; }
+  .basic-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 10px; }
+  .perm-group { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; }
+  .perm-group-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .perm-group-head b { font-size: 13px; }
+  .perm-group-head button { padding: 5px 10px; font-size: 11px; }
+  .perm-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 6px; }
+  .perm-item { display: flex; align-items: center; gap: 8px; margin: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; font-size: 12px; color: var(--text); }
+  .perm-item input { width: auto; accent-color: var(--green); }
+  #previewBar { position: fixed; left: 50%; top: 12px; transform: translateX(-50%); z-index: 60; display: flex; gap: 12px; align-items: center; padding: 10px 16px; border-radius: 999px; background: var(--amber); color: #1a1406; font-weight: 800; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  #previewBar button { background: #1a1406; color: #fff; border: 0; padding: 6px 12px; border-radius: 999px; }
 </style>
 </head>
 <body>
@@ -250,6 +266,7 @@
   <div class="grid">
     <section class="card">
       <h2>Server-Miner <span id="localState">bereit</span></h2>
+      <div data-perm="a:miner" class="perm-block">
       <p class="muted" style="margin:0 0 6px">Mint mit allen Prozessorkernen des Servers Blöcke, bis du stoppst. Jeder Block wird geprüft.</p>
       <label>Miner-Wallet (bekommt die Belohnung)</label>
       <select id="minerAddress"></select>
@@ -261,6 +278,7 @@
       <div class="stats" id="localStats" style="grid-template-columns:repeat(3,1fr);gap:6px"></div>
       <div class="msg" id="localMsg"></div>
 
+      </div>
       <details style="margin-top:14px">
         <summary class="muted" style="cursor:pointer">Alternativ: im Browser minen (ein Kern, auch ohne Node.js) <span id="minerState"></span></summary>
         <div class="meter" id="meter"><i></i></div>
@@ -279,10 +297,10 @@
 
     <section class="card">
       <h2>Wallets <span id="walletCount"></span></h2>
-      <div class="row">
+      <div class="owner-only"><div class="row">
         <div><label>Name</label><input id="walletName" placeholder="z.B. Lea" /></div>
         <div><label>&nbsp;</label><button class="primary" id="createWallet" style="width:100%">Wallet anlegen</button></div>
-      </div>
+      </div></div>
       <div class="msg" id="walletMsg"></div>
       <div class="list accounts" id="accounts"></div>
     </section>
@@ -343,7 +361,7 @@
       <h2>Prüfung &amp; Verwaltung</h2>
       <p class="muted" style="margin:0 0 8px">Die Prüfung rechnet jeden Block und alle Kontostände nach.</p>
       <div class="actions">
-        <button class="primary" id="verify">Kette prüfen</button>
+        <button class="primary" id="verify" data-perm="a:verify">Kette prüfen</button>
         <button class="danger owner-only" id="resetPrices">Kurse zurücksetzen</button>
         <button class="danger owner-only" id="reset">Alles zurücksetzen</button>
       </div>
@@ -416,12 +434,16 @@
         </div>
         <div class="actions"><button class="primary" type="submit">Chain-Konto erstellen</button></div>
       </form>
-      <div class="list" id="nuList"></div>
-      <h3 class="ad-h">Was Basic sehen und ändern darf</h3>
-      <div class="switches" id="basicPerms"></div>
-      <h3 class="ad-h">Owner der Hauptseite</h3>
-      <p class="muted" style="margin:0 0 8px">Jeder Owner der Hauptseite meldet sich hier mit seiner Website-E-Mail und seinem Passwort an. <b>Basic</b>: Einstellungen für Mining, Markt und Tabs sowie die Zahlarten. <b>Full</b>: alles wie du, Anmeldung zusätzlich mit Server-Code (<code>sudo gibb-code</code>).</p>
-      <div class="list" id="olList"></div>
+      <h3 class="ad-h">Alle Konten <span class="muted" style="font-weight:500">Chain-Konten und Owner der Hauptseite (melden sich mit Website-E-Mail an)</span></h3>
+      <div class="acc-list">
+        <div class="list" id="nuList"></div>
+        <div class="list" id="olList"></div>
+      </div>
+      <div class="basic-head">
+        <h3 class="ad-h" style="margin:0">Einstellungen für Basic <span class="muted" style="font-weight:500">jede Funktion einzeln</span></h3>
+        <button type="button" class="primary" id="basicPreview">👁 Basic-Ansicht ansehen</button>
+      </div>
+      <div id="basicPerms"></div>
     </div>
     <div class="adpanel" data-adp="visitors" hidden>
       <div class="ca-quick" id="adRange"><button type="button" data-days="7" class="active">7 Tage</button><button type="button" data-days="30">30 Tage</button><button type="button" data-days="3650">Alles</button></div>
@@ -431,14 +453,14 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
-  <section class="card pay-card owner-basic" id="payCard" data-perm="payments">
+  <section class="card pay-card owner-basic" id="payCard">
     <h2>Zahlarten <span>Kaufen-Tab der Hauptseite</span></h2>
     <p class="muted" style="margin:0 0 12px">Ein Klick schaltet die Kaufart sofort für alle ein oder aus.</p>
     <div class="pay-methods" id="payMethods"></div>
     <div class="msg" id="payMsg"></div>
   </section>
 
-  <section class="card bank-card owner-basic" id="bankCard" data-perm="bank">
+  <section class="card bank-card owner-basic" id="bankCard" data-perm="a:bank">
     <h2>Banküberweisungen <span id="bankCount">Kauf per IBAN</span></h2>
     <p class="muted" style="margin:0 0 12px">Bestellungen aus dem Kaufen-Tab. Prüfe auf deinem Konto, ob der Betrag mit dem Verwendungszweck eingegangen ist, und bestätige dann die Zahlung – erst dann werden die GIBB gutgeschrieben.</p>
     <div class="list" id="bankOrders"><div class="muted">Wird geladen …</div></div>
@@ -472,7 +494,7 @@
   <section class="card settings-card owner-basic" id="settingsCard">
     <h2>Einstellungen <span id="pushStatus"></span></h2>
     <p class="muted" id="syncHint" style="margin:0 0 12px">Gilt für die Chain-Seite und die Hauptseite – beim Speichern wird alles übertragen.</p>
-    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain" data-perm="mining">⛏ Mining</button><button type="button" class="stab" data-tab="site" data-perm="rules">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market" data-perm="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs" data-perm="tabs">🗂 Tabs</button><button type="button" class="stab" data-tab="server" data-perm="server">🖥 Server</button></div>
+    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
       <div class="spanel" data-panel="chain">
         <p class="muted spanel-desc">Gilt für die Chain-Seite und das Mining auf der Hauptseite.</p>
         <div class="sgrid">
@@ -874,8 +896,8 @@ $("myOrders").addEventListener("click", async (e) => { const b = e.target.closes
 $("resetPrices").onclick = async () => { if (!confirm("Kurse auf 1 Rp zurücksetzen und den Kursverlauf leeren (Chain-Seite und Hauptseite)?")) return; try { const r = await api("/api/market/reset-prices", {}); say("verifyMsg", r.websitePush?.ok ? "Kurse zurückgesetzt – auch auf der Hauptseite." : "Kurse auf der Chain-Seite zurückgesetzt."); await refresh(); } catch (e) { fail("verifyMsg", e); } };
 $("reset").onclick = async () => { if (!confirm("Wirklich alle Blöcke, Wallets und den Mempool löschen?")) return; stopMining(); await api("/api/reset", {}); openBlock = null; settingsDirty = false; say("verifyMsg", "Zurückgesetzt."); $("chainStatus").className = "status"; $("chainStatus").querySelector("span").textContent = "Neue Kette"; await refresh(); };
 ["sReward", "sTarget", "sBits", "sMaxTx", "sMin", "sMax", "sAuto", "sStartPrice", "sStartCash", "sFee", "sMinOrder", "sMarket", "sFallback", "sFallbackDelay", "sBrowserThreads", "wCooldown", "wHalving", "wMaxPerDay", "wMining", "wRealTx", "wPrice", "wStep", "wMinPrice", "wMaxPrice", "wMaxTrade", "wSellLimit", "wBuy", "wSell"].forEach((id) => $(id).addEventListener("input", () => { settingsDirty = true; }));
-document.querySelectorAll(".stab").forEach((b) => b.addEventListener("click", () => {
-  document.querySelectorAll(".stab").forEach((x) => x.classList.toggle("active", x === b));
+document.querySelectorAll(".stab[data-tab]").forEach((b) => b.addEventListener("click", () => {
+  document.querySelectorAll(".stab[data-tab]").forEach((x) => x.classList.toggle("active", x === b));
   document.querySelectorAll(".spanel").forEach((p) => { p.hidden = p.dataset.panel !== b.dataset.tab; });
 }));
 const markDirty = (dirty) => { settingsDirty = dirty; $("dirtyHint").hidden = !dirty; $("discardSettings").hidden = !dirty; $("settingsCard").classList.toggle("is-dirty", dirty); };
@@ -892,18 +914,39 @@ $("tabLogin").onclick = () => setMode("login");
 $("tabReg").onclick = () => setMode("reg");
 const authErrors = { not_owner_account: "Mit E-Mail können sich nur Owner der Hauptseite anmelden.", website_login_unavailable: "Anmeldung mit der Hauptseite ist gerade nicht möglich.", account_disabled: "Dieses Chain-Konto ist deaktiviert.", chain_logins_disabled: "Die Anmeldung ist gerade nur für den Owner möglich.", registration_disabled: "Konten werden vom Owner erstellt.", second_factor_required: "Owner-Anmeldung: Bitte den Server-Code eingeben. Erzeuge ihn per SSH mit „sudo gibb-code“.", invalid_second_factor: "Server-Code falsch oder abgelaufen. Erzeuge mit „sudo gibb-code“ einen neuen.", invalid_login: "Benutzername oder Passwort falsch.", username_taken: "Benutzername ist schon vergeben.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Passwort muss mindestens 8 Zeichen haben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert (Owner-Code nötig).", too_many_attempts: "Zu viele Fehlversuche – bitte 15 Minuten warten.", login_required: "Bitte zuerst anmelden.", not_your_account: "Du kannst nur dein eigenes Konto verwenden." };
 let myPermissions = [];
+// Welches Recht gehört zu welchem Feld / Schalter?
+const FIELD_PERMS = {
+  sReward: "s:reward", sTarget: "s:targetSeconds", sMaxTx: "s:maxTxPerBlock", sBits: "s:difficultyBits", sMin: "s:minBits", sMax: "s:maxBits", sAuto: "s:autoAdjust",
+  wCooldown: "w:cooldownSeconds", wHalving: "w:halvingBlocks", wMaxPerDay: "w:maxBlocksPerDay", wMining: "w:miningEnabled", wRealTx: "w:requireRealTx",
+  wPrice: "s:websitePrice", wMinPrice: "w:minPrice", wMaxPrice: "w:maxPrice", wStep: "w:marketStepPercent", sFee: "s:tradingFeePercent", wMaxTrade: "w:maxTrade", wSellLimit: "w:dailySellLimit",
+  sStartPrice: "s:startPrice", sStartCash: "s:startingCash", sMinOrder: "s:minOrderAmount", sMarket: "s:marketEnabled", wBuy: "w:buyEnabled", wSell: "w:sellEnabled",
+  sFallbackDelay: "s:fallbackDelaySeconds", sBrowserThreads: "s:browserMinerThreads", sFallback: "s:fallbackMinerEnabled",
+};
 function applyPermissions(perms) {
   myPermissions = perms ?? [];
-  document.querySelectorAll("[data-perm]").forEach((el) => el.classList.toggle("perm-off", document.body.classList.contains("is-basic") && !myPermissions.includes(el.dataset.perm)));
-  // Einstellungen nur zeigen, wenn mindestens ein Reiter erlaubt ist; ersten erlaubten Reiter öffnen
   const isBasic = document.body.classList.contains("is-basic");
-  const tabs = [...document.querySelectorAll(".stab[data-tab]")].filter((b) => !isBasic || (!b.classList.contains("perm-off") && !b.classList.contains("full-only")));
-  $("settingsCard").classList.toggle("perm-off", document.body.classList.contains("is-basic") && tabs.length === 0);
-  if (document.body.classList.contains("is-basic") && tabs[0] && document.querySelector(".stab.active")?.classList.contains("perm-off")) tabs[0].click();
+  const allowed = (perm) => !isBasic || myPermissions.includes(perm);
+  document.querySelectorAll("[data-perm]").forEach((el) => el.classList.toggle("perm-off", !allowed(el.dataset.perm)));
+  for (const [id, perm] of Object.entries(FIELD_PERMS)) {
+    const el = $(id); if (!el) continue;
+    (el.closest(".field, .switch") ?? el).classList.toggle("perm-off", !allowed(perm));
+  }
+  document.querySelectorAll(".tab-switch").forEach((el) => el.closest(".switch").classList.toggle("perm-off", !allowed("w:disabledTabs")));
+  // Reiter ohne erlaubtes Feld ausblenden; Einstellungen ganz ausblenden, wenn nichts erlaubt ist
+  let first = null;
+  document.querySelectorAll(".stab[data-tab]").forEach((b) => {
+    const panel = document.querySelector(`.spanel[data-panel="${b.dataset.tab}"]`);
+    const any = panel && [...panel.querySelectorAll(".field, .switch")].some((f) => !f.classList.contains("perm-off") && !(isBasic && f.classList.contains("full-only")));
+    b.classList.toggle("perm-off", isBasic && !any);
+    if (!b.classList.contains("perm-off") && !first) first = b;
+  });
+  $("settingsCard").classList.toggle("perm-off", isBasic && !first);
+  if (isBasic && first && document.querySelector(".stab[data-tab].active")?.classList.contains("perm-off")) first.click();
+  if (stats?.settings) renderPayMethods(stats.settings);
 }
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
 function onAuthed(me) {
-  setTimeout(async () => { try { const info = await api("/api/auth/me", {}); applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); }, 0);
+  setTimeout(async () => { try { const info = await api("/api/auth/me", {}); myPermissionsFull = info.permissions ?? []; applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); }, 0);
   setTimeout(() => { void adLoad("users"); }, 0);
   myAddress = me.address;
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
@@ -985,7 +1028,7 @@ setInterval(() => { if (document.visibilityState === "visible") void caLoad(); }
 const bankStatus = { pending: "offen", paid: "bezahlt", cancelled: "storniert", rejected: "abgelehnt" };
 const chf = (rp) => "CHF " + (Number(rp) / 100).toFixed(2);
 async function bankLoad() {
-  if (!canUse("bank")) return;
+  if (!canUse("a:bank")) return;
   try {
     const orders = (await api("/api/bank/orders", {})).orders ?? [];
     const open = orders.filter((o) => o.status === "pending").length;
@@ -1203,7 +1246,7 @@ const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] ||
 async function nuLoad() {
   try {
     const users = (await api("/api/admin/node-users", {})).users ?? [];
-    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select><button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
+    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b><span class="acc-type">Chain-Konto</span>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select><button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
   } catch (e) { nuFail(e); }
 }
 $("nuGen").addEventListener("click", (e) => { e.preventDefault(); $("nuPass").value = genPass(); });
@@ -1256,7 +1299,10 @@ const payMethods = [
 ];
 function renderPayMethods(settings) {
   const w = settings?.website ?? {};
-  $("payMethods").innerHTML = payMethods.filter((m) => m.key !== "bankEnabled" || !document.body.classList.contains("is-basic")).map((m) => {
+  const basic = document.body.classList.contains("is-basic");
+  const shown = payMethods.filter((m) => !basic || (m.key !== "bankEnabled" && myPermissions.includes(`w:${m.key}`)));
+  $("payCard").classList.toggle("perm-off", basic && shown.length === 0);
+  $("payMethods").innerHTML = shown.map((m) => {
     const on = w[m.key] === undefined ? m.def : w[m.key] === true;
     return `<div class="pay-method"><b>${m.label}</b><span class="state ${on ? "on" : "off"}">${on ? "● Aktiv" : "○ Deaktiviert"}</span><small>${m.hint}</small><button type="button" class="${on ? "danger" : "primary"}" data-pay="${m.key}" data-on="${on ? "1" : "0"}">${on ? "Deaktivieren" : "Aktivieren"}</button></div>`;
   }).join("");
@@ -1277,7 +1323,7 @@ $("payMethods").addEventListener("click", async (e) => {
 async function olLoad() {
   try {
     const owners = (await api("/api/admin/owner-levels", {})).owners ?? [];
-    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
+    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b><span class="acc-type">Website-Owner</span> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
   } catch (e) { $("olList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
 }
 $("olList").addEventListener("click", async (e) => {
@@ -1301,15 +1347,46 @@ const permList = [
   ["verify", "✔ Kette prüfen", "Prüfung der ganzen Kette starten"],
   ["bank", "🏦 Banküberweisungen", "Zahlungen bestätigen oder ablehnen"],
 ];
-function renderBasicPerms(settings) {
-  const perms = settings?.basicPermissions ?? [];
-  $("basicPerms").innerHTML = permList.map(([key, label, hint]) => `<label class="switch"><input type="checkbox" data-bperm="${key}"${perms.includes(key) ? " checked" : ""} /><span class="knob"></span><span class="switch-text"><b>${label}</b><small>${hint}</small></span></label>`).join("");
+let permCatalog = null;
+async function renderBasicPerms(settings) {
+  if (!permCatalog) { try { permCatalog = (await api("/api/permissions")).catalog; } catch { permCatalog = []; } }
+  const perms = new Set(settings?.basicPermissions ?? []);
+  $("basicPerms").innerHTML = permCatalog.map((g, gi) => `<div class="perm-group" data-group="${gi}"><div class="perm-group-head"><b>${h(g.group)}</b><span><button type="button" data-all="on">alle an</button> <button type="button" data-all="off">alle aus</button></span></div><div class="perm-items">${g.items.map(([id, label]) => `<label class="perm-item"><input type="checkbox" data-bperm="${h(id)}"${perms.has(id) ? " checked" : ""} /> ${h(label)}</label>`).join("")}</div></div>`).join("");
 }
-$("basicPerms").addEventListener("change", async () => {
+async function saveBasicPerms() {
   const perms = [...document.querySelectorAll("[data-bperm]")].filter((el) => el.checked).map((el) => el.dataset.bperm);
-  try { await api("/api/settings", { basicPermissions: perms }); say("adMsg", "Rechte für Basic gespeichert – der Server prüft sie sofort, die Anzeige ändert sich beim nächsten Neuladen der Basic-Konten."); }
+  try { const r = await api("/api/settings", { basicPermissions: perms }); if (stats) stats.settings = r; say("adMsg", "Einstellungen für Basic gespeichert."); }
   catch (err) { say("adMsg", err.message, true); }
+}
+$("basicPerms").addEventListener("change", () => void saveBasicPerms());
+$("basicPerms").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-all]"); if (!btn) return;
+  btn.closest(".perm-group").querySelectorAll("[data-bperm]").forEach((el) => { el.checked = btn.dataset.all === "on"; });
+  void saveBasicPerms();
 });
+
+// ---------- Vorschau: so sieht ein Basic-Konto die Seite ----------
+function startBasicPreview() {
+  const perms = [...document.querySelectorAll("[data-bperm]")].filter((el) => el.checked).map((el) => el.dataset.bperm);
+  document.body.classList.remove("is-owner");
+  document.body.classList.add("is-basic", "preview-mode");
+  applyPermissions(perms);
+  const bar = document.createElement("div");
+  bar.id = "previewBar";
+  bar.innerHTML = `👁 Vorschau: So sieht ein Basic-Konto die Chain-Seite <button type="button">Vorschau beenden</button>`;
+  bar.querySelector("button").onclick = stopBasicPreview;
+  document.body.appendChild(bar);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+function stopBasicPreview() {
+  $("previewBar")?.remove();
+  document.body.classList.remove("is-basic", "preview-mode");
+  document.body.classList.add("is-owner");
+  applyPermissions(myPermissionsFull);
+  document.getElementById("adminCard")?.scrollIntoView({ behavior: "smooth" });
+}
+let myPermissionsFull = [];
+$("basicPreview").onclick = startBasicPreview;
 </script>
 </body>
 </html>

@@ -115,3 +115,17 @@ test("full accounts decide what basic may change; local chain accounts can be ba
   assert.equal((await post("/api/admin/node-users/level", { token: ilja.token, username: "ilja", level: "user" })).data.error, "account_is_protected");
   await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });
 });
+
+test("each basic permission can be switched on its own", async () => {
+  serverCode("777888");
+  const ilja = (await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "777888" })).data;
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["s:reward", "w:buyEnabled"] });
+  const basic = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
+  const s = (await post("/api/settings", { token: basic.token, reward: 13, targetSeconds: 999, website: { buyEnabled: true, sellEnabled: true } })).data;
+  assert.equal(s.reward, 13);
+  assert.notEqual(s.targetSeconds, 999);
+  assert.equal(s.website.buyEnabled, true);
+  assert.notEqual(s.website.sellEnabled, true);
+  assert.deepEqual((await post("/api/auth/me", { token: basic.token })).data.permissions.sort(), ["s:reward", "w:buyEnabled"]);
+  assert.ok((await (await fetch(base + "/api/permissions")).json()).catalog.length >= 5);
+});
