@@ -774,7 +774,10 @@ test("moves the admin area to the chain page (owner, server code, admin PIN)", a
     readFile(new URL("../supabase/migrations/20261013220000_chain_page_admin.sql", import.meta.url), "utf8"),
   ]);
   assert.match(chainPage, /id="adminCard"/);
-  assert.match(server, /"POST \/api\/admin\/call": async \(_, body\) => \{\s*await requireOwner\(body\);/);
+  // Admin-Aufrufe: Full oder Basic mit passendem Recht (nicht freigegebene Funktionen nur Full)
+  assert.match(server, /"POST \/api\/admin\/call": async \(_, body\) => \{[\s\S]{0,400}?await requireAdminPermission\(body, ADMIN_FN_PERMS\[fn\]\);/);
+  assert.match(server, /const requireAdminPermission = async \(body, perm\) => \{[\s\S]{0,200}?return requireOwner\(body\);/);
+  assert.doesNotMatch(server, /ADMIN_FN_PERMS = \{[^}]*admin_set_role/);
   assert.match(migration, /function public\.node_owner_call/);
   assert.match(migration, /private\.node_key_ok\(p_key\)/);
   assert.match(migration, /function_not_allowed/);
