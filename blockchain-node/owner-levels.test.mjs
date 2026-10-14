@@ -129,3 +129,31 @@ test("each basic permission can be switched on its own", async () => {
   assert.deepEqual((await post("/api/auth/me", { token: basic.token })).data.permissions.sort(), ["s:reward", "w:buyEnabled"]);
   assert.ok((await (await fetch(base + "/api/permissions")).json()).catalog.length >= 5);
 });
+
+test("basic can get admin rights one by one (accounts, games, coins); roles stay full-only", async () => {
+  serverCode("121212");
+  const ilja = (await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "121212" })).data;
+  await post("/api/settings", { token: ilja.token, basicPermissions: [] });
+  let basic = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
+  assert.equal((await post("/api/admin/call", { token: basic.token, fn: "get_game_center_state" })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/status", { token: basic.token, userId: ROBYN, status: "locked" })).data.error, "not_owner");
+  assert.equal((await post("/api/website/adjust", { token: basic.token, userId: ROBYN, amount: 5, reason: "Test" })).data.error, "not_owner");
+
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["a:games", "a:accounts", "a:coins"] });
+  const perms = (await post("/api/auth/me", { token: basic.token })).data.permissions;
+  assert.ok(perms.includes("a:games") && perms.includes("a:accounts") && perms.includes("a:coins"));
+  assert.notEqual((await post("/api/admin/call", { token: basic.token, fn: "get_game_center_state" })).data.error, "not_owner");
+  assert.notEqual((await post("/api/admin/call", { token: basic.token, fn: "admin_verify_pin", args: { p_pin: "1234" } })).data.error, "not_owner");
+  assert.notEqual((await post("/api/website/users", { token: basic.token })).data.error, "not_owner");
+  // Rollen ändern, PIN setzen, Konten löschen/erstellen und Tools bleiben gesperrt
+  assert.equal((await post("/api/admin/call", { token: basic.token, fn: "admin_set_role", args: {} })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/call", { token: basic.token, fn: "owner_reset_admin_pin", args: {} })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/call", { token: basic.token, fn: "admin_run_health_check" })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/delete", { token: basic.token, userId: ROBYN, pin: "1234" })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/create-account", { token: basic.token, email: "a@b.ch", username: "abc", password: "passwort123" })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/node-users", { token: basic.token })).data.error, "not_owner");
+  // Chain-Coins senden bleibt für Basic gesperrt
+  assert.equal((await post("/api/transactions", { token: basic.token, to: "ilja", amount: 1 })).data.error, "basic_no_transfers");
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });
+  void basic;
+});

@@ -485,19 +485,19 @@
     <div class="msg" id="verifyMsg" style="grid-column:1/-1"></div>
   </section>
 
-  <section class="card admin-card owner-only" id="adminCard">
+  <section class="card admin-card owner-basic" id="adminCard">
     <h2>Admin <span id="adState">Hauptseite verwalten</span></h2>
     <div class="ad-pin">
       <div class="field"><label for="adPin">Admin-PIN</label><input id="adPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 Ziffern" /><small>Für geschützte Aktionen (Spiele, Löschen, Tools …)</small></div>
       <button type="button" id="adPinCheck">PIN prüfen</button>
-      <div class="field"><label for="adNewPin">Neuen PIN festlegen</label><input id="adNewPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 Ziffern" /><small>Ersetzt deinen bisherigen Admin-PIN</small></div>
-      <button type="button" id="adPinSet">PIN speichern</button>
+      <div class="field full-only"><label for="adNewPin">Neuen PIN festlegen</label><input id="adNewPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="4 Ziffern" /><small>Ersetzt deinen bisherigen Admin-PIN</small></div>
+      <button type="button" id="adPinSet" class="full-only">PIN speichern</button>
     </div>
     <div class="stabs" role="tablist">
-      <button type="button" class="stab adtab active" data-ad="users">👥 Konten</button><button type="button" class="stab adtab" data-ad="games">🎮 Spiele</button><button type="button" class="stab adtab" data-ad="tools">🛠 Tools</button><button type="button" class="stab adtab" data-ad="audit">📜 Protokoll</button><button type="button" class="stab adtab" data-ad="visitors">📈 Besucher</button><button type="button" class="stab adtab" data-ad="nodeusers">🔐 Chain-Konten</button>
+      <button type="button" class="stab adtab active" data-ad="users" data-perm="a:accounts">👥 Konten</button><button type="button" class="stab adtab" data-ad="games" data-perm="a:games">🎮 Spiele</button><button type="button" class="stab adtab" data-ad="tools" data-perm="a:tools">🛠 Tools</button><button type="button" class="stab adtab" data-ad="audit" data-perm="a:audit">📜 Protokoll</button><button type="button" class="stab adtab" data-ad="visitors" data-perm="a:visitors">📈 Besucher</button><button type="button" class="stab adtab full-only" data-ad="nodeusers">🔐 Chain-Konten</button>
     </div>
     <div class="adpanel" data-adp="users">
-      <form class="ad-create" id="adCreate" autocomplete="off">
+      <form class="ad-create" id="adCreate" autocomplete="off" data-perm="a:accountsCreate">
         <strong>Neues Konto erstellen</strong>
         <div class="sgrid">
           <div class="field"><label for="adNewEmail">E-Mail</label><input id="adNewEmail" type="email" required placeholder="name@beispiel.ch" /><small>Bekommt eine Bestätigungs-E-Mail</small></div>
@@ -584,7 +584,7 @@
     <div class="msg" id="bankMsg"></div>
   </section>
 
-  <section class="card coin-admin-card owner-only" id="coinAdminCard">
+  <section class="card coin-admin-card owner-basic" id="coinAdminCard" data-perm="a:coins">
     <h2>Coins verwalten <span id="caSync">Hauptseite · alle Benutzer</span></h2>
     <p class="muted" style="margin:0 0 12px">Coins geben oder abziehen für Konten der Hauptseite. Jede Änderung wird als Transaktion gebucht und der Person mitgeteilt.</p>
     <div class="coin-admin">
@@ -1066,9 +1066,16 @@ function applyPermissions(perms) {
     if (!b.classList.contains("perm-off") && !first) first = b;
   });
   $("settingsCard").classList.toggle("perm-off", isBasic && !first);
+  // Admin-Bereich: nur Reiter mit Recht; ganz ausblenden, wenn Basic keinen hat
+  const adFirst = [...document.querySelectorAll(".adtab")].find((b) => !b.classList.contains("perm-off") && !(isBasic && b.classList.contains("full-only")));
+  $("adminCard").classList.toggle("perm-off", isBasic && !adFirst);
+  const adActive = document.querySelector(".adtab.active");
+  if (adFirst && adActive && (adActive.classList.contains("perm-off") || (isBasic && adActive.classList.contains("full-only")))) adFirst.click();
+  else { try { if (adUsers.length) adRenderUsers(); } catch { /* noch nicht geladen */ } }
   if (isBasic && first && document.querySelector(".stab[data-tab].active")?.classList.contains("perm-off")) first.click();
   if (stats?.settings) renderPayMethods(stats.settings);
 }
+const isFullView = () => document.body.classList.contains("is-owner");
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
 function onAuthed(me) {
   setTimeout(async () => { try { const info = await api("/api/auth/me", {}); myPermissionsFull = info.permissions ?? []; applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); }, 0);
@@ -1120,7 +1127,7 @@ function caRender() {
   $("caGive").disabled = $("caTake").disabled = !sel;
 }
 async function caLoad() {
-  if (!canUse("coins")) return;
+  if (!canUse("a:coins")) return;
   try { caUsers = (await api("/api/website/users", {})).users ?? []; caRender(); }
   catch (e) { $("caUsers").innerHTML = `<div class="muted">${caEsc(caErrors[e.message] ?? e.message)}</div>`; }
 }
@@ -1221,12 +1228,12 @@ function adRenderUsers() {
       <div class="top"><div><b>${h(u.display_name || u.username)}</b> <small class="muted">@${h(u.username)} · ${fmt(u.balance)} GIBB</small></div>
       <div class="badges"><span class="ad-badge ${u.role === "super_admin" ? "owner" : u.role === "admin" ? "admin" : ""}">${roleLabel(u.role)}</span>${locked ? `<span class="ad-badge locked" title="${h(u.lock_reason || "")}">gebannt${u.locked_until ? " bis " + new Date(u.locked_until).toLocaleString("de-CH") : ""}</span>` : ""}${u.visual_role ? `<span class="ad-badge">Fun-Rang</span>` : ""}${adVerified.has(String(u.user_id).toLowerCase()) ? `<span class="ad-badge admin">✓ QR verifiziert</span>` : ""}</div></div>
       <div class="acts">
-        <select data-act="role"><option value="user"${u.role === "user" ? " selected" : ""}>Benutzer</option><option value="admin"${u.role === "admin" ? " selected" : ""}>Admin</option><option value="super_admin"${u.role === "super_admin" ? " selected" : ""}>Owner</option></select>
+        ${isFullView() ? `<select data-act="role"><option value="user"${u.role === "user" ? " selected" : ""}>Benutzer</option><option value="admin"${u.role === "admin" ? " selected" : ""}>Admin</option><option value="super_admin"${u.role === "super_admin" ? " selected" : ""}>Owner</option></select>` : ""}
         ${locked ? `<button data-act="unban">Entbannen</button>` : `<select data-act="ban"><option value="">Bannen …</option><option value="60">1 Stunde</option><option value="1440">1 Tag</option><option value="10080">7 Tage</option><option value="forever">dauerhaft</option></select>`}
         <select data-act="fun"><option value=""${!u.visual_role ? " selected" : ""}>Kein Fun-Rang</option><option value="demo_admin"${u.visual_role === "demo_admin" ? " selected" : ""}>Fun: Admin</option><option value="demo_owner"${u.visual_role === "demo_owner" ? " selected" : ""}>Fun: Owner</option></select>
-        <button data-act="verify">${adVerified.has(String(u.user_id).toLowerCase()) ? "QR-Verifizierung entfernen" : "Für QR-Rechnung verifizieren"}</button>
+        ${isFullView() ? `<button data-act="verify">${adVerified.has(String(u.user_id).toLowerCase()) ? "QR-Verifizierung entfernen" : "Für QR-Rechnung verifizieren"}</button>` : ""}
         <button data-act="reset">Passwort-Reset</button>
-        <button class="danger" data-act="delete">Löschen</button>
+        ${canUse("a:accountsDelete") ? `<button class="danger" data-act="delete">Löschen</button>` : ""}
       </div></div>`;
   }).join("") || `<div class="muted">Keine Benutzer gefunden.</div>`;
 }
@@ -1276,7 +1283,8 @@ $("adUsers").addEventListener("click", async (e) => {
 });
 
 async function adLoad(part) {
-  if (!document.body.classList.contains("is-owner")) return;
+  const need = { users: "a:accounts", games: "a:games", tools: "a:tools", audit: "a:audit", visitors: "a:visitors" }[part];
+  if (!document.body.classList.contains("is-owner") && !(need && canUse(need))) return;
   try {
     if (part === "users") {
       adUsers = (await adCall("admin_list_users", { p_query: "" })) ?? [];

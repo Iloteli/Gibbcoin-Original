@@ -219,7 +219,7 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
 // Einstellungen: Full darf alles, Basic nur Mining, Mining-Regeln, Markt & Coinwert, Tabs und Zahlarten
 // Rechte für Basic-Konten (Full stellt ein, was Basic sehen darf)
 // Rechte: s:<Einstellung>, w:<Einstellung der Hauptseite>, a:<Aktion> (siehe permissions.mjs)
-const permissionsOf = (sess) => (sess?.role === "super_admin" ? [...ALL_PERMISSIONS, "a:coins"] : sess?.role === "owner_basic" ? normalizePermissions(chain.settings.basicPermissions) : []);
+const permissionsOf = (sess) => (sess?.role === "super_admin" ? [...ALL_PERMISSIONS] : sess?.role === "owner_basic" ? normalizePermissions(chain.settings.basicPermissions) : []);
 // Basic-Konten dürfen keine Coins bewegen (senden, Aufträge, Coins verwalten)
 const forbidBasicTransfers = (sess) => { if (sess?.role === "owner_basic") throw new Error("basic_no_transfers"); };
 const requirePermission = (body, perm) => {
@@ -227,6 +227,23 @@ const requirePermission = (body, perm) => {
   if (sess && (sess.role === "super_admin" || (sess.role === "owner_basic" && permissionsOf(sess).includes(perm)))) return sess;
   throw new Error("not_owner");
 };
+// Admin der Hauptseite: Full darf alles, Basic nur, was freigegeben ist
+const requireAdminPermission = async (body, perm) => {
+  const sess = sessionOf(body);
+  if (perm && sess?.role === "owner_basic" && permissionsOf(sess).includes(perm)) return sess;
+  return requireOwner(body);
+};
+const ADMIN_FN_PERMS = {
+  admin_list_users: "a:accounts", admin_list_visual_roles: "a:accounts", admin_list_account_locks: "a:accounts", admin_set_visual_role: "a:accounts",
+  get_game_center_state: "a:games", get_dino_admin_state: "a:games", get_global_game_limits: "a:games",
+  admin_set_game_enabled: "a:games", admin_set_dino_game_settings: "a:games", admin_set_global_game_limits: "a:games",
+  admin_run_health_check: "a:tools", admin_list_operations: "a:tools", admin_update_operation: "a:tools", admin_list_control_center_page: "a:tools",
+  admin_update_case: "a:tools", admin_set_transfer_threshold: "a:tools", admin_list_transfer_approvals: "a:tools",
+  admin_list_audit_logs: "a:audit", admin_visitor_stats: "a:visitors",
+};
+// PIN prüfen darf, wer Konten, Spiele oder Tools verwalten darf (Rollen ändern und PIN setzen bleibt Full)
+const ADMIN_PIN_FNS = new Set(["admin_verify_pin", "admin_pin_status"]);
+const PIN_PERMS = ["a:accounts", "a:accountsDelete", "a:games", "a:tools"];
 const requireSettingsAccess = (body) => {
   const sess = sessionOf(body);
   if (sess && (sess.role === "super_admin" || sess.role === "owner_basic")) return sess;
@@ -420,13 +437,15 @@ const routes = {
   // Coins der Website-Benutzer geben/abziehen (nur Owner der Chain-Seite)
   // Admin-Bereich der Hauptseite (nur Owner der Chain-Seite)
   "POST /api/admin/call": async (_, body) => {
-    await requireOwner(body);
     const fn = String(body.fn ?? "");
+    const sess = sessionOf(body);
+    const pinOk = ADMIN_PIN_FNS.has(fn) && sess?.role === "owner_basic" && PIN_PERMS.some((p) => permissionsOf(sess).includes(p));
+    if (!pinOk) await requireAdminPermission(body, ADMIN_FN_PERMS[fn]);
     const args = body.args && typeof body.args === "object" && !Array.isArray(body.args) ? body.args : {};
     return { data: await settingsSync.ownerCall(fn, args) };
   },
   "POST /api/admin/status": async (_, body) => {
-    await requireOwner(body);
+    await requireAdminPermission(body, "a:accounts");
     const minutes = body.minutes == null || body.minutes === "" ? null : Number(body.minutes);
     const r = await settingsSync.setAccountStatus(String(body.userId ?? ""), body.status === "locked" ? "locked" : "active", minutes, String(body.reason ?? ""));
     note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} ${body.status === "locked" ? "gebannt" : "entbannt"}`);
@@ -434,7 +453,7 @@ const routes = {
     return r;
   },
   "POST /api/admin/delete": async (_, body) => {
-    await requireOwner(body);
+    await requireAdminPermission(body, "a:accountsDelete");
     const r = await settingsSync.deleteAccount(String(body.userId ?? ""), String(body.pin ?? ""));
     note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} gelöscht`);
     void settingsSync.syncAccounts();
@@ -496,7 +515,7 @@ const routes = {
     return r;
   },
   "POST /api/admin/create-account": async (_, body) => {
-    await requireOwner(body);
+    await requireAdminPermission(body, "a:accountsCreate");
     const password = String(body.password ?? "");
     if (password.length < 8) throw new Error("weak_password");
     const r = await settingsSync.createWebsiteAccount(String(body.email ?? ""), String(body.username ?? ""), password);
@@ -504,14 +523,14 @@ const routes = {
     return r;
   },
   // QR-Rechnung: Käufer verifizieren (nur Full)
-  "POST /api/admin/verified-buyers": async (_, body) => { await requireOwner(body); return { ids: await settingsSync.listVerifiedBuyers() }; },
+  "POST /api/admin/verified-buyers": async (_, body) => { await requireAdminPermission(body, "a:accounts"); return { ids: await settingsSync.listVerifiedBuyers() }; },
   "POST /api/admin/verify-buyer": async (_, body) => {
     await requireOwner(body);
     const r = await settingsSync.setBuyerVerified(String(body.userId ?? ""), body.verified === true);
     note("auth", `${String(body.name ?? body.userId).slice(0, 40)}: QR-Rechnung ${body.verified === true ? "freigeschaltet" : "gesperrt"}`);
     return r;
   },
-  "POST /api/admin/password-reset": async (_, body) => { await requireOwner(body); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
+  "POST /api/admin/password-reset": async (_, body) => { await requireAdminPermission(body, "a:accounts"); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
   "POST /api/bank/orders": async (_, body) => { requirePermission(body, "a:bank"); return { orders: await settingsSync.listBankOrders() }; },
   "POST /api/bank/delete": async (_, body) => {

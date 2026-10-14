@@ -24,6 +24,11 @@ export const PERMISSION_CATALOG = [
   { group: "⚙ Aktionen", items: [
     ["a:miner", "Server-Miner starten/stoppen"], ["a:verify", "Kette prüfen"], ["a:bank", "Banküberweisungen bestätigen"],
   ] },
+  { group: "🛡 Verwaltung der Hauptseite", items: [
+    ["a:accounts", "Konten ansehen, bannen, Passwort-Reset, Fun-Rang"], ["a:accountsCreate", "Neue Konten erstellen"], ["a:accountsDelete", "Konten löschen"],
+    ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele verwalten"], ["a:tools", "Tools & Support-Fälle"],
+    ["a:audit", "Protokoll ansehen"], ["a:visitors", "Besucher-Statistik"],
+  ] },
 ];
 
 export const ALL_PERMISSIONS = PERMISSION_CATALOG.flatMap((g) => g.items.map(([id]) => id));
