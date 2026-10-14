@@ -12,7 +12,7 @@ type MarketState = {
   my_gibb: number; my_credits: number;
   buy_enabled?: boolean; sell_enabled?: boolean; daily_sell_limit?: number; my_sold_24h?: number;
 };
-type BankDetails = { enabled: boolean; iban: string; holder: string; street?: string; zip?: string; city?: string; card_enabled?: boolean; credits_enabled?: boolean };
+type BankDetails = { enabled: boolean; iban: string; holder: string; street?: string | null; zip?: string | null; city?: string | null; verified?: boolean; qr_allowed?: boolean; card_enabled?: boolean; credits_enabled?: boolean };
 type BankOrder = { id: string; gibb: number; rappen: number; reference: string; status: "pending" | "paid" | "cancelled" | "rejected"; created_at: string };
 type Quote = {
   ok: boolean; error?: string; gibb?: number; price?: number; buy_rappen?: number; buy_possible?: boolean;
@@ -215,8 +215,10 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
         {newOrder && bank && (
           <div className="bank-transfer" role="status">
             <strong>Bitte überweise jetzt {chf(newOrder.rappen)}</strong>
-            {bank.zip && bank.city && bank.holder && <SwissQrBill iban={bank.iban} name={bank.holder} street={bank.street} zip={bank.zip} city={bank.city} amountRappen={newOrder.rappen} message={newOrder.reference} />}
-            {bank.zip && bank.city && bank.holder && <small className="field-hint">Oder von Hand überweisen:</small>}
+            {bank.qr_allowed && bank.zip && bank.city ? <>
+              <SwissQrBill iban={bank.iban} name={bank.holder} street={bank.street ?? ""} zip={bank.zip} city={bank.city} amountRappen={newOrder.rappen} message={newOrder.reference} />
+              <small className="field-hint">Oder von Hand überweisen:</small>
+            </> : <small className="field-hint qr-locked">🔒 QR-Rechnung zum Scannen gibt es für verifizierte Konten. Bitte den Owner, dein Konto zu verifizieren – bis dahin überweise von Hand:</small>}
             <dl>
               <dt>Empfänger</dt><dd>{bank.holder || "–"}</dd>
               <dt>IBAN</dt><dd><code>{bank.iban}</code> <button type="button" className="secondary compact" onClick={() => copy(bank.iban)}>Kopieren</button></dd>

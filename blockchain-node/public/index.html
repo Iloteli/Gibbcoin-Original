@@ -1005,7 +1005,7 @@ $("bankOrders").addEventListener("click", async (e) => {
 setInterval(() => { if (document.visibilityState === "visible") void bankLoad(); }, 30000);
 
 // ---------- Admin (Hauptseite) ----------
-let adminPin = "", adUsers = [], adAuditRows = [], adDays = 7;
+let adminPin = "", adUsers = [], adAuditRows = [], adDays = 7, adVerified = new Set();
 const adErrors = { admin_pin_invalid: "Admin-PIN falsch.", admin_pin_locked: "Admin-PIN nach zu vielen Fehlversuchen gesperrt – lege einen neuen fest.", admin_pin_not_set: "Noch kein Admin-PIN – lege oben einen fest.", admin_pin_required: "Bitte zuerst den Admin-PIN eingeben.", account_is_protected: "Dieses Konto ist geschützt.", cannot_lock_own_account: "Das eigene Konto kann nicht gebannt werden.", email_delivery_failed: "Die E-Mail konnte nicht verschickt werden.", function_not_allowed: "Diese Aktion ist nicht erlaubt.", ...caErrors };
 const adFail = (e) => say("adMsg", adErrors[e.message] || errors[e.message] || e.message, true);
 const adCall = async (fn, args = {}) => {
@@ -1040,11 +1040,12 @@ function adRenderUsers() {
     const locked = u.wallet_status === "locked";
     return `<div class="item ad-user" data-id="${h(u.user_id)}" data-name="${h(u.display_name || u.username)}">
       <div class="top"><div><b>${h(u.display_name || u.username)}</b> <small class="muted">@${h(u.username)} · ${fmt(u.balance)} GIBB</small></div>
-      <div class="badges"><span class="ad-badge ${u.role === "super_admin" ? "owner" : u.role === "admin" ? "admin" : ""}">${roleLabel(u.role)}</span>${locked ? `<span class="ad-badge locked" title="${h(u.lock_reason || "")}">gebannt${u.locked_until ? " bis " + new Date(u.locked_until).toLocaleString("de-CH") : ""}</span>` : ""}${u.visual_role ? `<span class="ad-badge">Fun-Rang</span>` : ""}</div></div>
+      <div class="badges"><span class="ad-badge ${u.role === "super_admin" ? "owner" : u.role === "admin" ? "admin" : ""}">${roleLabel(u.role)}</span>${locked ? `<span class="ad-badge locked" title="${h(u.lock_reason || "")}">gebannt${u.locked_until ? " bis " + new Date(u.locked_until).toLocaleString("de-CH") : ""}</span>` : ""}${u.visual_role ? `<span class="ad-badge">Fun-Rang</span>` : ""}${adVerified.has(String(u.user_id).toLowerCase()) ? `<span class="ad-badge admin">✓ QR verifiziert</span>` : ""}</div></div>
       <div class="acts">
         <select data-act="role"><option value="user"${u.role === "user" ? " selected" : ""}>Benutzer</option><option value="admin"${u.role === "admin" ? " selected" : ""}>Admin</option><option value="super_admin"${u.role === "super_admin" ? " selected" : ""}>Owner</option></select>
         ${locked ? `<button data-act="unban">Entbannen</button>` : `<select data-act="ban"><option value="">Bannen …</option><option value="60">1 Stunde</option><option value="1440">1 Tag</option><option value="10080">7 Tage</option><option value="forever">dauerhaft</option></select>`}
         <select data-act="fun"><option value=""${!u.visual_role ? " selected" : ""}>Kein Fun-Rang</option><option value="demo_admin"${u.visual_role === "demo_admin" ? " selected" : ""}>Fun: Admin</option><option value="demo_owner"${u.visual_role === "demo_owner" ? " selected" : ""}>Fun: Owner</option></select>
+        <button data-act="verify">${adVerified.has(String(u.user_id).toLowerCase()) ? "QR-Verifizierung entfernen" : "Für QR-Rechnung verifizieren"}</button>
         <button data-act="reset">Passwort-Reset</button>
         <button class="danger" data-act="delete">Löschen</button>
       </div></div>`;
@@ -1078,6 +1079,12 @@ $("adUsers").addEventListener("click", async (e) => {
   const row = btn.closest(".ad-user"); const id = row.dataset.id; const name = row.dataset.name;
   try {
     if (btn.dataset.act === "unban") { await api("/api/admin/status", { userId: id, name, status: "active" }); say("adMsg", `${name} wurde entbannt.`); }
+    if (btn.dataset.act === "verify") {
+      const on = !adVerified.has(String(id).toLowerCase());
+      if (on && !confirm(`${name} für die QR-Rechnung verifizieren? Das Konto sieht dann deine Adresse (PLZ und Ort) im QR-Code.`)) return;
+      await api("/api/admin/verify-buyer", { userId: id, name, verified: on });
+      say("adMsg", on ? `${name} ist für die QR-Rechnung verifiziert.` : `QR-Verifizierung von ${name} entfernt.`);
+    }
     if (btn.dataset.act === "reset") { if (!confirm(`Passwort-Reset-E-Mail an ${name} schicken?`)) return; await api("/api/admin/password-reset", { userId: id }); say("adMsg", `Reset-E-Mail an ${name} verschickt.`); }
     if (btn.dataset.act === "delete") {
       if (!needPin()) return;
@@ -1092,7 +1099,11 @@ $("adUsers").addEventListener("click", async (e) => {
 async function adLoad(part) {
   if (!document.body.classList.contains("is-owner")) return;
   try {
-    if (part === "users") { adUsers = (await adCall("admin_list_users", { p_query: "" })) ?? []; adRenderUsers(); }
+    if (part === "users") {
+      adUsers = (await adCall("admin_list_users", { p_query: "" })) ?? [];
+      try { adVerified = new Set(((await api("/api/admin/verified-buyers", {})).ids ?? []).map((x) => String(x).toLowerCase())); } catch { adVerified = new Set(); }
+      adRenderUsers();
+    }
     if (part === "games") {
       const [center, dino, limits] = await Promise.all([adCall("get_game_center_state"), adCall("get_dino_admin_state"), adCall("get_global_game_limits")]);
       const settings = (Array.isArray(center) ? center[0] : center)?.settings ?? [];

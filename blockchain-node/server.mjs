@@ -511,6 +511,14 @@ const routes = {
     note("auth", `Neues Website-Konto angelegt: ${r.username}`);
     return r;
   },
+  // QR-Rechnung: Käufer verifizieren (nur Full)
+  "POST /api/admin/verified-buyers": async (_, body) => { await requireOwner(body); return { ids: await settingsSync.listVerifiedBuyers() }; },
+  "POST /api/admin/verify-buyer": async (_, body) => {
+    await requireOwner(body);
+    const r = await settingsSync.setBuyerVerified(String(body.userId ?? ""), body.verified === true);
+    note("auth", `${String(body.name ?? body.userId).slice(0, 40)}: QR-Rechnung ${body.verified === true ? "freigeschaltet" : "gesperrt"}`);
+    return r;
+  },
   "POST /api/admin/password-reset": async (_, body) => { await requireOwner(body); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
   "POST /api/bank/orders": async (_, body) => { requirePermission(body, "bank"); return { orders: await settingsSync.listBankOrders() }; },
