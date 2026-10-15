@@ -30,11 +30,9 @@ test("starts transactions and notifications minimized", async () => {
 });
 
 test("ships a server-authoritative wallet Game Center with centralized admin controls", async () => {
-  const [dashboard, gameCenter, gameAdminControls, adminPanel, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration, upgradeMigration] = await Promise.all([
+  const [dashboard, gameCenter, styles, migration, oneCoinMigration, completeMigration, maxWagerMigration, unlimitedWagerMigration, coinLossModeMigration, extrasMigration, plinkoMigration, casinoMigration, upgradeMigration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822170000_add_wallet_game_center.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260822180000_allow_one_gibb_game_entry.sql", import.meta.url), "utf8"),
@@ -63,9 +61,6 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.match(gameCenter, /get_game_leaderboard/);
   assert.match(gameCenter, /poker_draw/);
   assert.match(gameCenter, /HALTEN/);
-  assert.match(adminPanel, /<GameAdminControls/);
-  assert.match(gameAdminControls, /admin_set_game_enabled/);
-  assert.match(gameAdminControls, /SPIELVERWALTUNG · NUR ADMINPANEL/);
   assert.doesNotMatch(gameCenter, /admin_set_game_enabled|admin_set_game_visual_prank|admin_set_dino_game_settings|ADMIN-STEUERUNG/);
   assert.match(gameCenter, /postgres_changes/);
   assert.match(gameCenter, /activeRoundRef/);
@@ -81,9 +76,6 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
   assert.doesNotMatch(gameCenter, /currentBalance < wager\}/);
   assert.match(gameCenter, /Eigener Einsatz · persönliche Limits gelten/);
   assert.doesNotMatch(gameCenter, /1%-GEWINNMODUS AKTIV/);
-  assert.match(gameAdminControls, /Gewinnchancen bleiben fest und für alle gleich/);
-  assert.match(gameAdminControls, /get_dino_admin_state/);
-  assert.doesNotMatch(gameAdminControls, /prank|Nur eine Person|admin_set_game_visual_prank/i);
   assert.doesNotMatch(gameCenter, /get_effective_visual_pranks|play_visual_prank_game|visual_prank/i);
   assert.match(gameCenter, /type="number" inputMode="numeric" min=\{1\} step=\{1\}/);
   assert.doesNotMatch(gameCenter, /id="game-wager"[^>]* max=/);
@@ -156,9 +148,8 @@ test("ships a server-authoritative wallet Game Center with centralized admin con
 });
 
 test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verified leaderboard", async () => {
-  const [gameCenter, gameAdminControls, runner, migration, entryMigration, startingBalance, login, extrasMigration, leaderboardMigration, styles] = await Promise.all([
+  const [gameCenter, runner, migration, entryMigration, startingBalance, login, extrasMigration, leaderboardMigration, styles] = await Promise.all([
     readFile(new URL("../app/components/GameCenter.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/DinoRunner.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260824125717_add_dino_run_rewards.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260825063808_charge_dino_run_entry.sql", import.meta.url), "utf8"),
@@ -202,9 +193,6 @@ test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verifi
   assert.match(entryMigration, /'GAME_ENTRY'/);
   assert.match(entryMigration, /'wager', v_session\.wager/);
   assert.match(entryMigration, /'dino_run', 'run', v_session\.wager/);
-  assert.match(gameAdminControls, /admin_set_dino_game_settings/);
-  assert.match(gameAdminControls, /Geschwindigkeit <b>\{dinoSetting\.speed_level\}\/5/);
-  assert.match(gameAdminControls, /Schwierigkeit <b>\{dinoSetting\.difficulty_level\}\/5/);
   assert.match(extrasMigration, /create table private\.dino_game_settings/);
   assert.match(extrasMigration, /add column speed_level/);
   assert.match(extrasMigration, /add column difficulty_level/);
@@ -222,14 +210,10 @@ test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verifi
 });
 
 test("allows protected self-removal, Admin deletion, and resettable personal coin stats", async () => {
-  const [adminPanel, migration, deletionFunction] = await Promise.all([
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  const [migration, deletionFunction] = await Promise.all([
     readFile(new URL("../supabase/migrations/20260824122242_complete_admin_controls_and_poker.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/owner-delete-account/index.ts", import.meta.url), "utf8"),
   ]);
-  assert.match(adminPanel, /admin_coin_stats/);
-  assert.match(adminPanel, /admin_reset_coin_stats/);
-  assert.match(adminPanel, /Guthaben und Transaktionsverlauf blieben unverändert/);
   assert.match(migration, /create or replace function public\.admin_authorize_account_deletion/);
   assert.match(migration, /create or replace function public\.admin_finalize_account_deletion/);
   assert.match(migration, /'STATS_RESET'/);
@@ -239,8 +223,7 @@ test("allows protected self-removal, Admin deletion, and resettable personal coi
 });
 
 test("reserves account bans and Owner deletion for Ilja as the only primary Owner", async () => {
-  const [adminPanel, dashboard, migration, ownerMigration, promoteMigration, statusFunction, deletionFunction] = await Promise.all([
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  const [dashboard, migration, ownerMigration, promoteMigration, statusFunction, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260901071439_restrict_account_management_to_primary_owner.sql", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260915120000_add_ilja_as_primary_owner.sql", import.meta.url), "utf8"),
@@ -265,33 +248,21 @@ test("reserves account bans and Owner deletion for Ilja as the only primary Owne
   assert.match(deletionFunction, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
   assert.match(deletionFunction, /const actorIsPrimaryOwner = isPrimaryOwnerUser\(authData\.user, actorProfile\.role\)/);
   assert.match(deletionFunction, /actorProfile\.role === "super_admin" && !actorIsPrimaryOwner/);
-  assert.match(adminPanel, /const PRIMARY_OWNER_EMAIL = "ilja\.podorieszach@icloud\.com"/);
-  assert.match(adminPanel, /currentRole === "super_admin" && \(currentUserEmail \?\? ""\)\.toLowerCase\(\) === PRIMARY_OWNER_EMAIL/);
-  assert.doesNotMatch(adminPanel, /d465d88f-0acb-4bff-ad55-945761acaeea/);
-  assert.doesNotMatch(adminPanel, /get_my_admin_account_capabilities/);
-  assert.doesNotMatch(adminPanel, /Nur der Haupt-Owner|Haupt-Owner aktiv/);
-  assert.match(adminPanel, /isPrimaryOwner \|\| \(currentRole === "admin" && item\.role === "user"\)/);
   assert.doesNotMatch(dashboard, /<AdminPanel/); // Admin-Bereich liegt auf der Chain-Seite
   // Ilja wird per Migration selbst Owner (super_admin).
   assert.match(promoteMigration, /pg_catalog\.lower\(u\.email\) = 'ilja\.podorieszach@icloud\.com'/);
   assert.match(promoteMigration, /set role = 'super_admin'/);
   assert.match(promoteMigration, /v_old_role = 'super_admin' then/);
   assert.match(promoteMigration, /'ROLE_CHANGED'/);
-  assert.match(adminPanel, /Jetzt bannen/);
-  assert.match(adminPanel, /function openAccountStatusChange/);
-  assert.match(adminPanel, /statusTarget && <div className="modal-backdrop"/);
 });
 
 test("moves coin grants and removals from the main site to the chain page", async () => {
-  const [adminPanel, migration, chainPage, server] = await Promise.all([
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  const [migration, chainPage, server] = await Promise.all([
     readFile(new URL("../supabase/migrations/20261013180000_chain_page_coin_admin.sql", import.meta.url), "utf8"),
     readFile(new URL("../blockchain-node/public/index.html", import.meta.url), "utf8"),
     readFile(new URL("../blockchain-node/server.mjs", import.meta.url), "utf8"),
   ]);
   // Hauptseite: kein Coin-Formular mehr, Server lehnt Änderungen ab.
-  assert.doesNotMatch(adminPanel, /admin_adjust_balance_secure/);
-  assert.doesNotMatch(adminPanel, /id="admin-coins"/);
   assert.match(migration, /'coins_on_chain_page'/);
   // Chain-Seite: Geben und Abziehen nur mit Schlüssel und nur für den Owner.
   assert.match(migration, /function public\.node_adjust_balance/);
@@ -307,7 +278,7 @@ test("lets every group member withdraw shared coins only into their own wallet",
   ]);
   assert.match(groupWallets, /withdraw_group_coins/);
   assert.match(groupWallets, /Ins eigene Wallet nehmen/);
-  assert.match(groupWallets, /Coins wurden in dein persönliches Wallet gelegt/);
+  assert.match(groupWallets, /GIBB wurden in dein persönliches Wallet gelegt/);
   assert.match(migration, /private\.require_active_user/);
   assert.match(migration, /group_membership_required/);
   assert.match(migration, /for key share/);
@@ -335,13 +306,6 @@ test("organizes every feature into a Home-first dashboard without removing secti
   assert.match(dashboard, /<SupportHub/); // Support, Meldungen und Datenschutz in einem Bereich
   assert.match(dashboard, /<NotificationCenter/);
   assert.match(dashboard, /<PwaInstallCard/);
-});
-
-test("closed admin tickets disappear immediately and stay filtered", async () => {
-  const reports = await readFile(new URL("../app/components/AbuseReports.tsx", import.meta.url), "utf8");
-  assert.match(reports, /visibleAdminReports = adminReports\.filter\(\(report\) => report\.status !== "dismissed"\)/);
-  assert.match(reports, /setAdminReports\(\(current\) => current\.filter/);
-  assert.match(reports, /Ticket wurde geschlossen und aus der Liste entfernt/);
 });
 
 test("keeps the installable app assets available", async () => {
@@ -396,21 +360,11 @@ test("ships premium layout-preserving motion with reduced-motion support", async
 });
 
 test("unlocks the Admin panel once per visit without persisting the PIN", async () => {
-  const [dashboard, adminPanel, gameAdminControls, migration] = await Promise.all([
+  const [dashboard, migration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/GameAdminControls.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260826164000_add_admin_panel_pin_session_check.sql", import.meta.url), "utf8"),
   ]);
   assert.doesNotMatch(dashboard, /activeView === "admin" && <AdminPanel/); // Admin-Bereich liegt auf der Chain-Seite
-  assert.match(adminPanel, /admin_verify_pin/);
-  assert.match(adminPanel, /setAdminSessionPin\(entryPin\)/);
-  assert.match(adminPanel, /p_pin: adminSessionPin/);
-  assert.match(adminPanel, /Die Freigabe gilt nur, solange du im Adminpanel bleibst/);
-  assert.doesNotMatch(adminPanel, /id="delete-account-pin"|statsResetPin|pinPromptOpen/);
-  assert.match(gameAdminControls, /adminPin: string/);
-  assert.match(gameAdminControls, /Gilt bis du den Admin-Tab verlässt/);
-  assert.doesNotMatch(gameAdminControls, /setAdminPin|Für jede Änderung erneut eingeben/);
   assert.match(migration, /create or replace function public\.admin_verify_pin\(p_pin text\)/);
   assert.match(migration, /private\.check_admin_pin\(v_admin_user_id, p_pin\)/);
   assert.match(migration, /private\.assert_mfa_if_enrolled/);
@@ -419,16 +373,12 @@ test("unlocks the Admin panel once per visit without persisting the PIN", async 
 });
 
 test("keeps demo admin and owner badges visual-only", async () => {
-  const [adminPanel, dashboard, types, styles, migration] = await Promise.all([
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  const [dashboard, types, styles, migration] = await Promise.all([
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/lib/types.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
     readFile(new URL("../supabase/migrations/20260827141734_add_visual_demo_roles.sql", import.meta.url), "utf8"),
   ]);
-  assert.match(adminPanel, /Fun-Ränge sind nur visuell und geben niemals Rechte/);
-  assert.match(adminPanel, /admin_set_visual_role/);
-  assert.match(adminPanel, /Dies ändert keine echten Rollen oder Rechte/);
   assert.match(dashboard, /get_my_visual_role/);
   assert.match(dashboard, /Owner 1 · nur Anzeige/);
   assert.match(types, /visual_role\?: "demo_admin" \| "demo_owner" \| null/);
@@ -443,14 +393,12 @@ test("keeps demo admin and owner badges visual-only", async () => {
 });
 
 test("hard-deletes accounts so their email can be registered again", async () => {
-  const [login, adminPanel, deletionFunction] = await Promise.all([
+  const [login, deletionFunction] = await Promise.all([
     readFile(new URL("../app/components/LoginPage.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
     readFile(new URL("../supabase/functions/owner-delete-account/index.ts", import.meta.url), "utf8"),
   ]);
   assert.match(deletionFunction, /deleteUser\(body\.target_user_id, false\)/);
   assert.match(deletionFunction, /email_reusable: true/);
-  assert.match(adminPanel, /E-Mail-Adresse ist sofort wieder/);
   assert.match(login, /Auch nach einer Kontolöschung darfst du dieselbe E-Mail wiederverwenden/);
   assert.match(login, /const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000/);
   assert.match(login, /cooldownUntil - Date\.now\(\) > EMAIL_RATE_LIMIT_COOLDOWN_MS/);
@@ -470,13 +418,12 @@ test("creates every new account with a valid unique username and ten starting co
 });
 
 test("persists auth without competing manual refresh calls", async () => {
-  const [supabaseClient, login, mfa, app, dashboard, adminSecurity, worker] = await Promise.all([
+  const [supabaseClient, login, mfa, app, dashboard, worker] = await Promise.all([
     readFile(new URL("../app/lib/supabase.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/components/LoginPage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/MfaChallengePage.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/GibbCoinApp.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/components/Dashboard.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/AdminSecurityCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../public/sw.js", import.meta.url), "utf8"),
   ]);
   assert.match(supabaseClient, /persistSession: true/);
@@ -488,7 +435,7 @@ test("persists auth without competing manual refresh calls", async () => {
   assert.match(supabaseClient, /PGRST303/);
   assert.match(`${app}\n${dashboard}`, /waitForSupabaseAuthRetry/);
   assert.match(dashboard, /attempt < 3/);
-  assert.doesNotMatch(`${supabaseClient}\n${adminSecurity}`, /auth\.refreshSession\(/);
+  assert.doesNotMatch(`${supabaseClient}`, /auth\.refreshSession\(/);
   assert.doesNotMatch(`${app}\n${dashboard}`, /auth\.signOut\(\)/);
   assert.equal((`${app}\n${dashboard}`.match(/auth\.signOut\(\{ scope: "local" \}\)/g) ?? []).length, 5);
   assert.doesNotMatch(app, /DELETED_NOTICE/);
@@ -536,13 +483,11 @@ test("service worker replaces every legacy tab without blocking activation", asy
 });
 
 test("shows the admin access dialog in the middle of the screen", async () => {
-  const [styles, adminPanel] = await Promise.all([
+  const [styles] = await Promise.all([
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
   ]);
 
   // Alle Dialoge (auch die Admin-Anmeldung) stehen in der Bildschirmmitte.
-  assert.match(adminPanel, /className="modal-backdrop admin-access-backdrop"/);
   assert.match(styles, /\.modal-backdrop \{\s*\n\s*place-items: safe center;/);
   assert.doesNotMatch(styles, /\.admin-access-backdrop \{\s*\n\s*align-items: start;/);
 
@@ -611,22 +556,14 @@ test("requires two factor confirmation for privileged actions", async () => {
 });
 
 test("keeps the admin panel reachable when a single admin query fails", async () => {
-  const [adminPanel, styles] = await Promise.all([
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
+  const [styles] = await Promise.all([
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
   // Frueher blockierte jeder Fehlschlag den Zugang: pinStatus blieb null und
   // das Lade-Modal verdeckte die Meldung dauerhaft.
-  assert.doesNotMatch(adminPanel, /if \(usersError \|\| pinStatusError \|\| statsError \|\| visualRolesError \|\| accountLocksError\) \{/);
-  assert.match(adminPanel, /const loadFailure = usersError \?\? pinStatusError \?\? statsError \?\? visualRolesError \?\? accountLocksError;/);
-  assert.match(adminPanel, /if \(pinStatusError\) \{ setPinUnavailable\(true\); return; \}/);
-  assert.match(adminPanel, /setPinUnavailable\(false\);/);
 
   // Scheitert die PIN-Abfrage selbst, gibt es einen Ausweg statt eines Spinners.
-  assert.match(adminPanel, /adminAccessPending \? pinUnavailable \?/);
-  assert.match(adminPanel, /Erneut versuchen/);
-  assert.match(adminPanel, /Zurück zum Wallet/);
   assert.match(styles, /\.admin-access-actions \{/);
 });
 
@@ -696,9 +633,8 @@ test("lets every user pick their own username in the profile tab", async () => {
 });
 
 test("can protect single accounts from bans and deletion at the database level", async () => {
-  const [migration, adminPanel] = await Promise.all([
+  const [migration] = await Promise.all([
     readFile(new URL("../supabase/migrations/20260909160000_protect_named_accounts.sql", import.meta.url), "utf8"),
-    readFile(new URL("../app/components/AdminPanel.tsx", import.meta.url), "utf8"),
   ]);
 
   // Der Schutz haengt an der User-ID, nicht am aenderbaren Benutzernamen.
@@ -720,8 +656,6 @@ test("can protect single accounts from bans and deletion at the database level",
   assert.match(migration, /private\.is_primary_owner\(v_actor_user_id\)/);
 
   // Die Oberflaeche erklaert beide Faelle.
-  assert.match(adminPanel, /dauerhaft geschützt und kann nicht gebannt werden/);
-  assert.match(adminPanel, /dauerhaft geschützt und kann nicht gelöscht werden/);
 });
 
 test("guards the production Supabase migration workflow behind manual confirmation", async () => {

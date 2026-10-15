@@ -59,7 +59,7 @@ const errorMessages: Record<string, string> = {
   mining_disabled: "Mining ist zurzeit vom Admin deaktiviert.",
   mining_cooldown: "Du hast gerade einen Block gefunden – kurze Pause, bevor du weiter minen darfst.",
   mining_daily_limit: "Du hast dein Tageslimit an gefundenen Blöcken erreicht – morgen geht es weiter.",
-  no_pending_transactions: "Es gibt keine unbestätigten Transaktionen. Sobald jemand Coins bewegt, kann der nächste Block gebaut werden.",
+  no_pending_transactions: "Es gibt keine unbestätigten Transaktionen. Sobald jemand GIBB bewegt, kann der nächste Block gebaut werden.",
   stale_block: "Jemand war schneller: Die Kette hat sich verändert. Neue Vorlage wird geladen …",
   invalid_timestamp: "Die Blockvorlage war zu alt. Neue Vorlage wird geladen …",
   difficulty_too_low: "Die Schwierigkeit ist inzwischen gestiegen. Neue Vorlage wird geladen …",
@@ -398,7 +398,7 @@ export function BlockchainExplorer({ userId, onChanged }: { userId: string; isAd
           {error && <div className="message error">{error}</div>}
           {notice && !error && <div className="message">{notice}</div>}
           {foundBlocks.length > 0 && <ul className="blockchain-found">{foundBlocks.map((block) => <li key={block.height}><strong>#{block.height}</strong><span>{shortHash(block.hash, 14)}</span><b>+{block.reward} GIBB</b></li>)}</ul>}
-          <small className="field-hint">Die Belohnung landet nach der Serverprüfung <strong>direkt in deinem Wallet</strong>. Ein Block bündelt unbestätigte Coin-Bewegungen – gibt es gerade keine, wartet der Miner, bis jemand Coins sendet oder spielt. Läuft nur, solange dieser Tab offen ist.</small>
+          <small className="field-hint">Die Belohnung landet nach der Serverprüfung <strong>direkt in deinem Wallet</strong>. Ein Block bündelt unbestätigte Coin-Bewegungen – gibt es gerade keine, wartet der Miner, bis jemand GIBB sendet oder spielt. Läuft nur, solange dieser Tab offen ist.</small>
         </section>
 
         <section className="card card-pad" aria-label="Top-Miner">

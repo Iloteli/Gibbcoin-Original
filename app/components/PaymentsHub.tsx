@@ -122,7 +122,7 @@ export function PaymentsHub({ userId, onRecipient, onChanged }: Props) {
   async function createRequest(event: React.FormEvent) {
     event.preventDefault();
     const parsed = Number(amount);
-    if (!selected) { setError("Wähle zuerst aus, von wem du Coins anfordern möchtest."); return; }
+    if (!selected) { setError("Wähle zuerst aus, von wem du GIBB anfordern möchtest."); return; }
     if (!Number.isInteger(parsed) || parsed < 1 || parsed > 1000) { setError("Der Betrag muss zwischen 1 und 1’000 GIBB liegen."); return; }
     const supabase = getSupabase();
     if (!supabase) return;
@@ -200,7 +200,7 @@ export function PaymentsHub({ userId, onRecipient, onChanged }: Props) {
 
       {tab === "requests" ? <div className="payments-hub-grid">
         <form className="request-form" onSubmit={createRequest}>
-          <div><strong>Coins anfordern</strong><p>Die andere Person entscheidet selbst, ob sie bezahlt.</p></div>
+          <div><strong>GIBB anfordern</strong><p>Die andere Person entscheidet selbst, ob sie bezahlt.</p></div>
           <RecipientSearch query={query} selected={selected} results={results} searching={searching} onQuery={(value) => { setQuery(value); setSelected(null); setResults([]); }} onSelect={chooseRecipient} onClear={resetRecipient} />
           <div className="request-fields"><div className="field"><label htmlFor="request-amount">Betrag</label><div className="amount-control"><input className="input" id="request-amount" type="number" inputMode="numeric" min="1" max="1000" step="1" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="50" /><span>GIBB</span></div></div><div className="field"><label htmlFor="request-note">Grund <span>optional</span></label><input className="input" id="request-note" maxLength={160} value={note} onChange={(event) => setNote(event.target.value)} placeholder="z. B. Mittagessen" /></div></div>
           <button className="primary" type="submit" disabled={busy !== ""}>{busy === "create-request" ? "Wird gesendet …" : "Zahlungsanfrage senden"}</button>

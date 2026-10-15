@@ -3,34 +3,39 @@
 import type { User } from "@supabase/supabase-js";
 import { defaultNodeUrl, preferredNodeUrl } from "../lib/node-url";
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
 import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
-import { SupportHub } from "./SupportHub";
 import { CreditsSummary } from "./CreditsSummary";
 import { AccountEssentials } from "./AccountEssentials";
 import { AccountReadiness } from "./AccountReadiness";
 import { ActivitySummary } from "./ActivitySummary";
-import { BlockchainExplorer } from "./BlockchainExplorer";
-import { CommunityLeaderboard } from "./CommunityLeaderboard";
-import { MarketView } from "./MarketView";
-import { GroupWallets } from "./GroupWallets";
-import { GameCenter } from "./GameCenter";
 import { KeyboardHelp } from "./KeyboardHelp";
 import { NotificationCenter } from "./NotificationCenter";
 import { OnboardingGuide } from "./OnboardingGuide";
-import { PaymentsHub } from "./PaymentsHub";
 import { PwaInstallCard } from "./PwaInstallCard";
-import { PlayerSafetyPanel } from "./PlayerSafetyPanel";
-import { ProfileEditor } from "./ProfileEditor";
 import { TransactionDetails } from "./TransactionDetails";
 import { TransferApprovalCenter } from "./TransferApprovalCenter";
-import { QrWallet } from "./QrWallet";
-import { RewardsHub } from "./RewardsHub";
 import { SecurityOverview } from "./SecurityOverview";
-import { UserProfileModal } from "./UserProfileModal";
+import { openUserProfile, UserProfileModal } from "./UserProfileModal";
 import { HomePriceCard } from "./PriceChart";
 import { ThemeToggle } from "./ThemeToggle";
+import { WelcomeTour } from "./WelcomeTour";
+import { ProfileBadges } from "./ProfileBadges";
+
+// Bereiche werden erst beim ersten Öffnen geladen (kleinerer Start, schnellere Hauptseite)
+const SupportHub = lazy(() => import("./SupportHub").then((m) => ({ default: m.SupportHub })));
+const CommunityLeaderboard = lazy(() => import("./CommunityLeaderboard").then((m) => ({ default: m.CommunityLeaderboard })));
+const MarketView = lazy(() => import("./MarketView").then((m) => ({ default: m.MarketView })));
+const GroupWallets = lazy(() => import("./GroupWallets").then((m) => ({ default: m.GroupWallets })));
+const GameCenter = lazy(() => import("./GameCenter").then((m) => ({ default: m.GameCenter })));
+const PaymentsHub = lazy(() => import("./PaymentsHub").then((m) => ({ default: m.PaymentsHub })));
+const PlayerSafetyPanel = lazy(() => import("./PlayerSafetyPanel").then((m) => ({ default: m.PlayerSafetyPanel })));
+const QrWallet = lazy(() => import("./QrWallet").then((m) => ({ default: m.QrWallet })));
+const RewardsHub = lazy(() => import("./RewardsHub").then((m) => ({ default: m.RewardsHub })));
+const BlockchainExplorer = lazy(() => import("./BlockchainExplorer").then((m) => ({ default: m.BlockchainExplorer })));
+const ProfileEditor = lazy(() => import("./ProfileEditor").then((m) => ({ default: m.ProfileEditor })));
+const ViewLoading = () => <div className="card card-pad view-loading" role="status"><span className="view-loading-dot" aria-hidden="true" />Wird geladen …</div>;
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
@@ -84,7 +89,7 @@ function safeMessage(message?: string) {
   if (message?.includes("insufficient_funds") || message?.includes("insufficient_balance")) return "Dein Guthaben reicht für diese Zahlung nicht aus.";
   if (message?.includes("recipient_not_found")) return "Der Empfänger wurde nicht gefunden.";
   if (message?.includes("invalid_amount")) return "Bitte gib einen positiven, ganzen Betrag ein.";
-  if (message?.includes("same_user") || message?.includes("self_transfer_not_allowed")) return "Du kannst keine Coins an dich selbst senden.";
+  if (message?.includes("same_user") || message?.includes("self_transfer_not_allowed")) return "Du kannst keine GIBB an dich selbst senden.";
   if (message?.includes("transaction_limit_exceeded")) return "Pro Transaktion sind maximal 100’000 GIBB möglich.";
   if (message?.includes("wallet_locked")) return "Dein Konto ist gesperrt. Die Zahlung wurde nicht ausgeführt.";
   if (message?.includes("recipient_wallet_locked")) return "Das Empfängerkonto ist aktuell gesperrt.";
@@ -213,6 +218,9 @@ export function Dashboard({ user }: Props) {
   const [communityTab, setCommunityTab] = useState<"rewards" | "ranking" | "groups" | "reports">("rewards");
   if (communityTab === "reports" && hiddenTabs.includes("support")) setCommunityTab("rewards");
   if (activeView === "chain" && !chainVisited) setChainVisited(true);
+  const [visitedViews, setVisitedViews] = useState<DashboardView[]>(["home"]);
+  if (!visitedViews.includes(activeView)) setVisitedViews([...visitedViews, activeView]);
+  const seen = (view: DashboardView) => visitedViews.includes(view);
 
   const loadData = useCallback(async () => {
     const supabase = getSupabase();
@@ -347,7 +355,7 @@ export function Dashboard({ user }: Props) {
     if (!COIN_PURCHASES_ENABLED) return;
     const timer = window.setTimeout(() => {
       const result = new URLSearchParams(window.location.search).get("purchase");
-      if (result === "success") setPurchaseMessage("Zahlung bestätigt. Deine GIBB Coins werden automatisch gutgeschrieben.");
+      if (result === "success") setPurchaseMessage("Zahlung bestätigt. Deine GIBB werden automatisch gutgeschrieben.");
       if (result === "cancelled") setPurchaseError("Der Kauf wurde abgebrochen. Es wurde nichts belastet.");
       if (result) window.history.replaceState({}, "", window.location.pathname);
     }, 0);
@@ -391,7 +399,14 @@ export function Dashboard({ user }: Props) {
     setMenuOpen(false);
     const nextHash = target ? `#${target}` : view === "home" ? "#home" : `#${view}`;
     window.history.replaceState({}, "", nextHash);
-    window.setTimeout(() => document.getElementById(target ?? "dashboard-view-top")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+    // Bereiche laden beim ersten Öffnen nach: kurz auf das Sprungziel warten
+    let tries = 0;
+    const jump = () => {
+      const el = document.getElementById(target ?? "dashboard-view-top");
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      else if ((tries += 1) < 30) window.setTimeout(jump, 50);
+    };
+    window.setTimeout(jump, 0);
   }, []);
 
   useEffect(() => {
@@ -546,7 +561,7 @@ export function Dashboard({ user }: Props) {
 
   function downloadReceipt(tx: Transaction) {
     const sent = tx.sender_user_id === user.id;
-    const receipt = ["GIBB COIN · TRANSAKTIONSBELEG", "", `ID: ${tx.id}`, `Datum: ${new Date(tx.created_at).toLocaleString("de-CH")}`, `Typ: ${transactionTypeLabel(tx.type)}`, `Von: ${tx.sender_label}`, `An: ${tx.receiver_label}`, `Betrag: ${tx.amount} GIBB`, `Richtung: ${sent ? "Ausgang" : "Eingang"}`, `Notiz: ${tx.note || "–"}`, `Hash: ${tx.hash}`, `Vorheriger Hash: ${tx.previous_hash}`, "", "Dieser Beleg dokumentiert virtuelle GIBB Coins und ist kein Echtgeld-Zahlungsbeleg."].join("\n");
+    const receipt = ["GIBB COIN · TRANSAKTIONSBELEG", "", `ID: ${tx.id}`, `Datum: ${new Date(tx.created_at).toLocaleString("de-CH")}`, `Typ: ${transactionTypeLabel(tx.type)}`, `Von: ${tx.sender_label}`, `An: ${tx.receiver_label}`, `Betrag: ${tx.amount} GIBB`, `Richtung: ${sent ? "Ausgang" : "Eingang"}`, `Notiz: ${tx.note || "–"}`, `Hash: ${tx.hash}`, `Vorheriger Hash: ${tx.previous_hash}`, "", "Dieser Beleg dokumentiert virtuelle GIBB und ist kein Echtgeld-Zahlungsbeleg."].join("\n");
     downloadText(`gibb-beleg-${tx.id.slice(0, 8)}.txt`, receipt);
   }
 
@@ -590,7 +605,7 @@ export function Dashboard({ user }: Props) {
                 {avatar ? <Image className="avatar" src={avatar} alt="" width={40} height={40} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}
                 <span className="profile-meta"><strong>{displayName}</strong><span>{formattedBalance} GIBB</span></span><span aria-hidden="true">⌄</span>
               </button>
-              {menuOpen && <nav className="menu" aria-label="Benutzermenü"><button type="button" onClick={() => openView("home", "wallet")}>Mein Wallet</button><button type="button" onClick={() => openView("games", "game-center")}>Game Center</button><button type="button" onClick={() => openView("send", "requests")}>Anfragen & Kontakte</button><button type="button" onClick={() => openView("send", "qr-code")}>Mein QR-Code</button><button type="button" onClick={() => openView("community", "group-wallets")}>Gruppen-Wallets</button><button type="button" onClick={() => openView("community", "reports")}>Sicherheit & Meldungen</button><button type="button" onClick={() => openView("activity", "transactions")}>Transaktionen</button><button type="button" onClick={() => openView("activity", "notifications")}>Benachrichtigungen</button>{profile?.role !== "user" && <><button type="button" onClick={() => openView("admin", "security")}>2FA-Sicherheit</button><button type="button" onClick={() => openView("admin", "admin-panel")}>Adminpanel</button></>}<button type="button" onClick={() => openView("account", "profile")}>Profil</button><button className="danger" type="button" onClick={logout}>Abmelden</button></nav>}
+              {menuOpen && <nav className="menu" aria-label="Benutzermenü"><button type="button" onClick={() => openView("home", "wallet")}>Mein Wallet</button><button type="button" onClick={() => openView("games", "game-center")}>Game Center</button><button type="button" onClick={() => openView("send", "requests")}>Anfragen & Kontakte</button><button type="button" onClick={() => openView("send", "qr-code")}>Mein QR-Code</button><button type="button" onClick={() => openView("community", "group-wallets")}>Gruppen-Wallets</button><button type="button" onClick={() => openView("community", "reports")}>Sicherheit & Meldungen</button><button type="button" onClick={() => openView("activity", "transactions")}>Transaktionen</button><button type="button" onClick={() => openView("activity", "notifications")}>Benachrichtigungen</button>{profile?.role !== "user" && <><button type="button" onClick={() => openView("admin", "security")}>2FA-Sicherheit</button><button type="button" onClick={() => openView("admin", "admin-panel")}>Adminpanel</button></>}<button type="button" onClick={() => openView("account", "profile")}>Profil</button><button type="button" onClick={() => { setMenuOpen(false); openView("home"); window.setTimeout(() => window.dispatchEvent(new Event("gibb:start-tour")), 400); }}>Rundgang starten</button><button className="danger" type="button" onClick={logout}>Abmelden</button></nav>}
             </div>
           </div>
         </div>
@@ -609,7 +624,7 @@ export function Dashboard({ user }: Props) {
         <div className="dashboard-view" hidden={activeView !== "home"} aria-label="Home">
         <OnboardingGuide onNavigate={openView} />
         <section className="hero">
-          <div className="hero-copy"><div className="hero-kicker"><span>Persönliches Campus-Wallet</span><b>{roleLabel}</b>{visualRoleLabel && <em className="visual-role-badge">{visualRoleLabel}</em>}</div><h1>Bereit, {firstName}?</h1><p>Sende GIBB Coins in Sekunden, behalte jede Bewegung im Blick und entscheide selbst über deine Benachrichtigungen.</p><div className="hero-actions"><a className="primary-link" href="#send-coins">Coins senden</a><a className="secondary-link" href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Guthaben kaufen" : "Coins anfordern"}</a></div></div>
+          <div className="hero-copy"><div className="hero-kicker"><span>Persönliches Campus-Wallet</span><b>{roleLabel}</b>{visualRoleLabel && <em className="visual-role-badge">{visualRoleLabel}</em>}</div><h1>Bereit, {firstName}?</h1><p>Sende GIBB in Sekunden, behalte jede Bewegung im Blick und entscheide selbst über deine Benachrichtigungen.</p><div className="hero-actions"><a className="primary-link" href="#send-coins">GIBB senden</a><a className="secondary-link" href={COIN_PURCHASES_ENABLED ? "#buy-coins" : "#requests"}>{COIN_PURCHASES_ENABLED ? "Guthaben kaufen" : "GIBB anfordern"}</a></div></div>
           <div className="status-stack"><div className={`chain-status ${chainValid === false ? "invalid" : ""}`}><i aria-hidden="true" />{chainValid === null ? "Prüfung läuft" : chainValid ? "Hash-Kette verifiziert" : "Hash-Kette prüfen"}</div><div className="sync-status"><i className={refreshing ? "syncing" : ""} aria-hidden="true" />{refreshing ? "Wird aktualisiert …" : lastUpdated ? `Aktuell · ${lastUpdated.toLocaleTimeString("de-CH", { hour: "2-digit", minute: "2-digit" })}` : "Live verbunden"}</div></div>
         </section>
 
@@ -631,7 +646,7 @@ export function Dashboard({ user }: Props) {
         <section className="home-launchpad card" aria-labelledby="home-launchpad-title">
           <div className="home-launchpad-copy"><span>ALLES AN EINEM ORT</span><h2 id="home-launchpad-title">Was möchtest du machen?</h2><p>Dein Home zeigt das echte Wallet. Jede Aktion und jedes Spiel verwendet genau dieses eine Guthaben.</p></div>
           <div className="home-shortcuts">
-            <button type="button" onClick={() => openView("send", "send-coins")}><span>↗</span><strong>Coins senden</strong><small>Sicher übertragen</small></button>
+            <button type="button" onClick={() => openView("send", "send-coins")}><span>↗</span><strong>GIBB senden</strong><small>Sicher übertragen</small></button>
             <button type="button" onClick={() => openView("games", "game-center")}><span>◆</span><strong>Spielen</strong><small>Mit Wallet-Guthaben</small></button>
             <button type="button" onClick={() => openView("activity", "transactions")}><span>≡</span><strong>Aktivität</strong><small>Verlauf & Meldungen</small></button>
             <button type="button" onClick={() => openView("community", "group-wallets")}><span>◎</span><strong>Community</strong><small>Gruppen & Sicherheit</small></button>
@@ -640,10 +655,10 @@ export function Dashboard({ user }: Props) {
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "send"} aria-label="Senden und Anfragen">
-          <div className="view-heading"><span>ZAHLEN & EMPFANGEN</span><h1>Senden</h1><p>Coins übertragen, anfordern und per QR-Code teilen.</p></div>
+          <div className="view-heading"><span>ZAHLEN & EMPFANGEN</span><h1>Senden</h1><p>GIBB übertragen, anfordern und per QR-Code teilen.</p></div>
         <div className={`workspace-grid ${COIN_PURCHASES_ENABLED ? "" : "purchases-disabled"}`}>
           <section className="card card-pad send-card" id="send-coins">
-            <div className="section-heading"><div><span className="section-number">01</span><h2>Coins senden</h2></div><small>Maximal 100’000 GIBB pro Transfer</small></div>
+            <div className="section-heading"><div><span className="section-number">01</span><h2>GIBB senden</h2></div><small>Maximal 100’000 GIBB pro Transfer</small></div>
             <form onSubmit={sendCoins}>
               <div className="field"><label htmlFor="recipient">Empfänger</label><div className={`search-control ${selected ? "has-selection" : ""}`}><input className="input" id="recipient" value={query} onChange={(event) => { setQuery(event.target.value); setSelected(null); setRecipients([]); setRecipientSearching(false); }} placeholder="Name oder Benutzername suchen …" autoComplete="off" />{selected && <button type="button" aria-label="Empfänger entfernen" onClick={() => { setSelected(null); setQuery(""); setRecipientSearching(false); }}>×</button>}</div>{recipientSearching && <div className="search-hint">Suche läuft …</div>}{!recipientSearching && query.trim().length >= 2 && !selected && recipients.length === 0 && <div className="search-hint">Kein passendes Konto gefunden.</div>}{recipients.length > 0 && <div className="recipient-list">{recipients.map((item) => <button type="button" key={item.id} className="recipient" onClick={() => { setSelected(item); setQuery(item.display_name); setRecipients([]); setRecipientSearching(false); }}><span className="recipient-avatar" aria-hidden="true">{item.display_name[0]}</span><span><strong>{item.display_name}</strong><small>{item.email_hint}</small></span><b aria-hidden="true">→</b></button>)}</div>}</div>
               <div className="field"><label htmlFor="amount">Betrag</label><div className="amount-control"><input className="input" id="amount" value={amount} onChange={(event) => setAmount(event.target.value)} inputMode="numeric" min="1" max={MAX_TRANSFER_AMOUNT} step="1" type="number" placeholder="0" /><span>GIBB</span></div><div className="quick-amounts" aria-label="Schnellbeträge">{quickAmounts.map((value) => <button type="button" key={value} className={parsedAmount === value ? "active" : ""} onClick={() => setAmount(String(value))}>+{value}</button>)}</div></div>
@@ -656,20 +671,20 @@ export function Dashboard({ user }: Props) {
           </section>
 
           {COIN_PURCHASES_ENABLED && <section className="card card-pad purchase-card" id="buy-coins">
-            <div className="section-heading"><div><span className="section-number">02</span><h2>Coins kaufen</h2></div><small>TWINT + Karte</small></div>
+            <div className="section-heading"><div><span className="section-number">02</span><h2>GIBB kaufen</h2></div><small>TWINT + Karte</small></div>
             <div className="rate-banner"><span>Fixer Kurs</span><strong>CHF 1 = 100 GIBB</strong><small>Gutschrift erst nach bestätigter Zahlung</small></div>
             <div className="pack-list premium-packs">{coinPacks.map((pack) => <button className={`pack ${pack.id === "medium" ? "featured" : ""}`} type="button" key={pack.id} onClick={() => void buyCoins(pack.id)} disabled={checkoutPack !== null}><span className="pack-label">{pack.label}</span><span><strong>{pack.coins} GIBB</strong><small>Einmaliger Kauf</small></span><b>{checkoutPack === pack.id ? "Öffnet …" : pack.price}</b></button>)}</div>
-            <div className="payment-methods"><span className="twint-badge">TWINT</span><span>Sicherer Checkout · CHF</span></div>{purchaseMessage && <p className="message success-message" role="status">✓ {purchaseMessage}</p>}{purchaseError && <p className="message error" role="alert">{purchaseError}</p>}<p className="purchase-terms">GIBB Coins können nicht in Geld zurückgetauscht oder ausgezahlt werden.</p>
+            <div className="payment-methods"><span className="twint-badge">TWINT</span><span>Sicherer Checkout · CHF</span></div>{purchaseMessage && <p className="message success-message" role="status">✓ {purchaseMessage}</p>}{purchaseError && <p className="message error" role="alert">{purchaseError}</p>}<p className="purchase-terms">GIBB können nicht in Geld zurückgetauscht oder ausgezahlt werden.</p>
           </section>}
 
         </div>
 
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></>}
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <>{seen("send") && <Suspense fallback={<ViewLoading />}><><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></></Suspense>}</>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "games"} aria-label="Spiele">
         <div className="view-heading"><span>GAME CENTER</span><h1>Spiele</h1><p>Ein Wallet, echte Synchronisierung und serverseitig verbuchte Runden.</p></div>
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Spiele sind offline pausiert</strong><p>Damit jeder Einsatz korrekt verbucht wird, startet das Game Center nur mit Serververbindung.</p></section> : <><PlayerSafetyPanel /><GameCenter walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></>}
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Spiele sind offline pausiert</strong><p>Damit jeder Einsatz korrekt verbucht wird, startet das Game Center nur mit Serververbindung.</p></section> : <>{seen("games") && <Suspense fallback={<ViewLoading />}><><PlayerSafetyPanel /><GameCenter walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></></Suspense>}</>}
         </div>
 
         <div id="community" className="dashboard-view" hidden={activeView !== "community"} aria-label="Community">
@@ -685,21 +700,23 @@ export function Dashboard({ user }: Props) {
               <button key={key} type="button" role="tab" aria-selected={communityTab === key} className={communityTab === key ? "active" : ""} onClick={() => setCommunityTab(key)}><span aria-hidden="true">{icon}</span>{label}</button>
             ))}
           </div>
+          {seen("community") && <Suspense fallback={<ViewLoading />}>
           <div hidden={communityTab !== "rewards"}><RewardsHub userId={user.id} walletBalance={wallet?.balance ?? 0} onChanged={loadData} /></div>
           {communityTab === "ranking" && <CommunityLeaderboard userId={user.id} />}
           <div hidden={communityTab !== "groups"}><GroupWallets onChanged={loadData} /></div>
           <div hidden={communityTab !== "reports"}><SupportHub transactions={transactions} isOwner={profile?.role === "super_admin"} /></div>
+          </Suspense>}
         </>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "market"} aria-label="Kaufen">
         <div className="view-heading"><span>GIBB-MARKT</span><h1>Kaufen</h1><p>GIBB zum aktuellen Kurs kaufen oder an die Bank verkaufen – jeder Handel bewegt den Preis.</p></div>
-        {activeView === "market" && (offlineMode ? <section className="card card-pad offline-placeholder"><strong>Der Markt ist offline pausiert</strong><p>Kaufen und Verkaufen braucht eine Serververbindung.</p></section> : <MarketView onChanged={() => void loadData()} />)}
+        {activeView === "market" && (offlineMode ? <section className="card card-pad offline-placeholder"><strong>Der Markt ist offline pausiert</strong><p>Kaufen und Verkaufen braucht eine Serververbindung.</p></section> : <Suspense fallback={<ViewLoading />}><MarketView onChanged={() => void loadData()} /></Suspense>)}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "chain"} aria-label="Blockchain">
         <div className="view-heading"><span>BLOCKCHAIN</span><h1>Blockchain</h1><p>Mine GIBB direkt im Browser – die Belohnung landet sofort in deinem Wallet.</p></div>
-        {chainVisited && <BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} />}
+        {chainVisited && <Suspense fallback={<ViewLoading />}><BlockchainExplorer userId={user.id} isAdmin={profile?.role === "admin" || profile?.role === "super_admin"} onChanged={() => void loadData()} /></Suspense>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "activity"} aria-label="Aktivität">
@@ -723,15 +740,17 @@ export function Dashboard({ user }: Props) {
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
         <div className="view-heading"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
         <section className="card card-pad profile-card" id="profile" style={{ borderColor: profile?.profile_color }}><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="profile-avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.bio || "Dein persönliches GIBB Coin Profil"}</p></div></div><div className="profile-facts"><div><span>Rolle / Titel</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Fun-Rang</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? wallet?.locked_until ? `Gesperrt bis ${new Date(wallet.locked_until).toLocaleString("de-CH")}` : "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
+        {profile && !offlineMode && <section className="card card-pad my-badges-card"><div className="card-head"><h2>Deine Abzeichen</h2><button type="button" className="secondary compact" onClick={() => openUserProfile(user.id)}>Öffentliches Profil ansehen</button></div><ProfileBadges userId={user.id} balance={wallet?.balance ?? 0} role={profile.role} showLocked /></section>}
         {profile && <AccountReadiness profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && <AccountEssentials user={user} profile={profile} wallet={wallet} transactions={transactions} onRefresh={loadData} onNavigate={openView} />}
         {profile && <SecurityOverview user={user} profile={profile} wallet={wallet} onNavigate={openView} />}
-        {profile && !offlineMode && <ProfileEditor userId={user.id} profile={profile} onChanged={loadData} />}
+        {profile && !offlineMode && seen("account") && <Suspense fallback={<ViewLoading />}><ProfileEditor userId={user.id} profile={profile} onChanged={loadData} /></Suspense>}
         <PwaInstallCard />
         </div>
 
       </main>
       <UserProfileModal />
+      {activeView === "home" && <WelcomeTour />}
       {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}
     </div>
   );

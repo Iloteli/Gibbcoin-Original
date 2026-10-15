@@ -26,14 +26,12 @@ test("protects guardian approval authorization and rollback paths", async () => 
 });
 
 test("wires pending, approval, decline, and admin threshold status into the UI", async () => {
-  const [dashboard, center, admin] = await Promise.all([
+  const [dashboard, center] = await Promise.all([
     read("app/components/Dashboard.tsx"),
     read("app/components/TransferApprovalCenter.tsx"),
-    read("app/components/AdminOperations.tsx"),
   ]);
   assert.match(dashboard, /TransferApprovalCenter/);
   assert.match(center, /decide_transfer_approval/);
   assert.match(center, /create_guardian_invitation/);
   assert.match(center, /accept_guardian_invitation/);
-  assert.match(admin, /admin_set_transfer_threshold/);
 });

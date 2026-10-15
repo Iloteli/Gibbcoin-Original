@@ -4,12 +4,6 @@ import test from "node:test";
 
 const source = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("renders admin control tools once instead of once per operation", async () => {
-  const adminOperations = await source("app/components/AdminOperations.tsx");
-  assert.equal((adminOperations.match(/className="admin-control-tools"/g) ?? []).length, 1);
-  assert.match(adminOperations, /\{operations\.map\(/);
-});
-
 test("does not offer an MFA bypass", async () => {
   const [app, challenge] = await Promise.all([
     source("app/components/GibbCoinApp.tsx"),

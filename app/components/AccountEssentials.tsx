@@ -60,7 +60,7 @@ export function AccountEssentials({ user, profile, wallet, transactions, onRefre
         <small>Alles Nötige an einem Ort</small>
       </div>
       <div className="account-essentials-grid">
-        <button type="button" onClick={() => onNavigate("send", "send-coins")}><strong>Coins senden</strong><span>Transfer starten</span></button>
+        <button type="button" onClick={() => onNavigate("send", "send-coins")}><strong>GIBB senden</strong><span>Transfer starten</span></button>
         <button type="button" onClick={() => onNavigate("activity", "transactions")}><strong>Verlauf öffnen</strong><span>Transaktionen prüfen</span></button>
         <button type="button" onClick={() => onNavigate("games", "game-center")}><strong>Spielpause prüfen</strong><span>Spielgrenzen öffnen</span></button>
         <button type="button" onClick={() => void refresh()} disabled={refreshing}><strong>{refreshing ? "Aktualisiert …" : "Jetzt aktualisieren"}</strong><span>Serverstand laden</span></button>

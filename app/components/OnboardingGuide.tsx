@@ -24,7 +24,7 @@ export function OnboardingGuide({ onNavigate }: Props) {
     <section className="card card-pad onboarding-guide" aria-labelledby="onboarding-guide-title">
       <div className="section-heading compact-heading">
         <div><span className="section-number">START</span><h2 id="onboarding-guide-title">Dein erster Rundgang</h2></div>
-        <button className="secondary compact" type="button" onClick={dismiss}>Später ausblenden</button>
+        <span className="onboarding-guide-actions"><button className="secondary compact" type="button" onClick={() => window.dispatchEvent(new Event("gibb:start-tour"))}>Rundgang zeigen</button><button className="secondary compact" type="button" onClick={dismiss}>Später ausblenden</button></span>
       </div>
       <p className="onboarding-guide-intro">Drei kurze Schritte zeigen dir, wie du sicher loslegst. Dein Guthaben bleibt dabei unverändert.</p>
       <div className="onboarding-guide-grid">

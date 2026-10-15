@@ -193,7 +193,7 @@ export function NotificationCenter({ userId, onNotification, onUnreadChange }: P
             <input aria-labelledby="notifications-enabled-label" id="notifications-enabled" type="checkbox" role="switch" checked={preferences.notifications_enabled} disabled={saving} onChange={(event) => void updatePreference("notifications_enabled", event.target.checked)} />
           </div>
           <div className="notification-setting">
-            <span id="coins-received-enabled-label"><strong>Coins erhalten</strong><small>Nachricht, wenn dir jemand GIBB Coins sendet</small></span>
+            <span id="coins-received-enabled-label"><strong>GIBB erhalten</strong><small>Nachricht, wenn dir jemand GIBB sendet</small></span>
             <input aria-labelledby="coins-received-enabled-label" id="coins-received-enabled" type="checkbox" role="switch" checked={preferences.coins_received_enabled} disabled={saving || !preferences.notifications_enabled} onChange={(event) => void updatePreference("coins_received_enabled", event.target.checked)} />
           </div>
           <div className="notification-setting">

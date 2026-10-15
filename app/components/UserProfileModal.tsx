@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { getSupabase } from "../lib/supabase";
+import { ProfileBadges } from "./ProfileBadges";
 
 const PROFILE_EVENT = "gibb:open-profile";
 
@@ -97,6 +98,7 @@ export function UserProfileModal() {
           <div><span>Dino-Rekord</span><strong>{profile.dino_best_score.toLocaleString("de-CH")}</strong></div>
           <div><span>Dabei seit</span><strong>{new Date(profile.joined_at).toLocaleDateString("de-CH", { month: "short", year: "numeric" })}</strong></div>
         </div>
+        <ProfileBadges userId={profile.user_id} balance={profile.balance} dinoBest={profile.dino_best_score} role={profile.role} showLocked={profile.is_me} />
         <small className="public-profile-privacy">Es werden nur öffentliche Profildaten angezeigt.</small>
       </>}
     </section>

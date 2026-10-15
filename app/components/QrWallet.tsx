@@ -226,7 +226,7 @@ export function QrWallet({ userId, walletId, onRecipient }: Props) {
       </div>
       {notice && <p className="message success-message qr-message" role="status">✓ {notice}</p>}
       {error && <p className="message error qr-message" role="alert">{error}</p>}
-      <p className="qr-security-note"><span aria-hidden="true">✓</span> Ein Scan sendet niemals automatisch Coins.</p>
+      <p className="qr-security-note"><span aria-hidden="true">✓</span> Ein Scan sendet niemals automatisch GIBB.</p>
     </section>
   );
 }
