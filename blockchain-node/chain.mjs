@@ -94,6 +94,7 @@ export class Blockchain {
     this.trades = [];  // ausgeführte Handel (Kurshistorie), neueste zuletzt
     this.lastPrice = null;
     this.ownerLevels = {}; // Supabase-ID eines Website-Owners -> "basic" | "full"
+    this.userPermissions = {}; // Adresse eines Basic-Kontos -> eigene Rechte (sonst gelten die Basic-Standardrechte)
     this.load();
   }
 
@@ -112,6 +113,7 @@ export class Blockchain {
       this.trades = raw.trades ?? [];
       this.lastPrice = raw.lastPrice ?? null;
       this.ownerLevels = raw.ownerLevels ?? {};
+      this.userPermissions = raw.userPermissions ?? {};
     }
     // Bestehende Konten fair mit Startguthaben und Sperr-Feldern nachrüsten.
     for (const a of Object.values(this.accounts)) {
@@ -163,7 +165,7 @@ export class Blockchain {
     if (!this.file) return;
     mkdirSync(dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice, ownerLevels: this.ownerLevels }, null, 2));
+    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice, ownerLevels: this.ownerLevels, userPermissions: this.userPermissions }, null, 2));
     renameSync(tmp, this.file);
   }
 

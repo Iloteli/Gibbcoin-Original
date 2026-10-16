@@ -164,3 +164,24 @@ test("basic can get admin rights one by one (accounts, games, coins); roles stay
   await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });
   void basic;
 });
+
+test("each basic account can get its own permissions", async () => {
+  serverCode("343434");
+  const ilja = (await post("/api/auth/login", { username: "ilja", password: "passwort123", code: "343434" })).data;
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["s:reward"] });
+  await post("/api/admin/node-users/create", { token: ilja.token, username: "eigen", password: "passwort123" });
+  await post("/api/admin/node-users/level", { token: ilja.token, username: "eigen", level: "basic" });
+  const users = (await post("/api/admin/node-users", { token: ilja.token })).data.users;
+  const addr = users.find((u) => u.username === "eigen").address;
+  const robyn = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
+  // Basic darf das nicht
+  assert.equal((await post("/api/admin/user-permissions/set", { token: robyn.token, address: addr, permissions: ["a:bank"] })).data.error, "not_owner");
+  const set = (await post("/api/admin/user-permissions/set", { token: ilja.token, address: addr, permissions: ["a:games", "nicht-echt"] })).data;
+  assert.deepEqual([set.custom, set.permissions], [true, ["a:games"]]);
+  const eigen = (await post("/api/auth/login", { username: "eigen", password: "passwort123" })).data;
+  assert.deepEqual((await post("/api/auth/me", { token: eigen.token })).data.permissions, ["a:games"]);
+  assert.deepEqual((await post("/api/auth/me", { token: robyn.token })).data.permissions, ["s:reward"], "andere behalten Standard");
+  // Zurück auf Standard
+  assert.equal((await post("/api/admin/user-permissions/set", { token: ilja.token, address: addr, permissions: null })).data.custom, false);
+  assert.deepEqual((await post("/api/auth/me", { token: eigen.token })).data.permissions, ["s:reward"]);
+});

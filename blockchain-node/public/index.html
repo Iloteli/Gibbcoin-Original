@@ -357,6 +357,9 @@
   .an-preview[data-tone="warning"] { border-color: rgba(246,200,95,.4); background: rgba(246,200,95,.08); }
   @media (max-width: 760px) { .st-charts, .an-grid { grid-template-columns: 1fr; } }
   @media (prefers-reduced-motion: reduce) { .st-chart rect { animation: none; } }
+  .up-panel { margin: 14px 0 18px; padding: 16px; border-radius: 16px; border: 1px solid rgba(126,245,163,.35); background: rgba(126,245,163,.05); display: grid; gap: 12px; animation: v3-in .35s ease both; }
+  #upPerms.up-off { opacity: .45; }
+  html, body { overflow-x: clip; }
 </style>
 </head>
 <body>
@@ -583,8 +586,16 @@
         <div class="list" id="nuList"></div>
         <div class="list" id="olList"></div>
       </div>
+      <div class="up-panel" id="upPanel" hidden>
+        <div class="basic-head">
+          <h3 class="ad-h" style="margin:0">Rechte für <span id="upName"></span></h3>
+          <span><button type="button" id="upPreview">👁 Ansicht ansehen</button> <button type="button" id="upClose">Schliessen</button></span>
+        </div>
+        <label class="switch"><input type="checkbox" id="upCustom" /><span class="knob"></span><span class="switch-text"><b>Eigene Rechte für dieses Konto</b><small>aus = es gelten die Standardrechte für Basic (unten)</small></span></label>
+        <div id="upPerms"></div>
+      </div>
       <div class="basic-head">
-        <h3 class="ad-h" style="margin:0">Einstellungen für Basic <span class="muted" style="font-weight:500">jede Funktion einzeln</span></h3>
+        <h3 class="ad-h" style="margin:0">Standardrechte für Basic <span class="muted" style="font-weight:500">gelten für alle Basic-Konten ohne eigene Rechte</span></h3>
         <button type="button" class="primary" id="basicPreview">👁 Basic-Ansicht ansehen</button>
       </div>
       <div id="basicPerms"></div>
@@ -1481,7 +1492,7 @@ const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] ||
 async function nuLoad() {
   try {
     const users = (await api("/api/admin/node-users", {})).users ?? [];
-    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b><span class="acc-type">Chain-Konto</span>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select><button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
+    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b><span class="acc-type">Chain-Konto</span>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select>${u.level === "basic" ? `<button data-nu="perms" data-addr="${h(u.address)}">Rechte</button>` : ""}<button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
   } catch (e) { nuFail(e); }
 }
 $("nuGen").addEventListener("click", (e) => { e.preventDefault(); $("nuPass").value = genPass(); });
@@ -1558,7 +1569,7 @@ $("payMethods").addEventListener("click", async (e) => {
 async function olLoad() {
   try {
     const owners = (await api("/api/admin/owner-levels", {})).owners ?? [];
-    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b><span class="acc-type">Website-Owner</span> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
+    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b><span class="acc-type">Website-Owner</span> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `${o.level !== "full" ? `<button data-operm="sb_${h(o.id)}">Rechte</button>` : ""}<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
   } catch (e) { $("olList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
 }
 $("olList").addEventListener("click", async (e) => {
@@ -1601,14 +1612,14 @@ $("basicPerms").addEventListener("click", (e) => {
 });
 
 // ---------- Vorschau: so sieht ein Basic-Konto die Seite ----------
-function startBasicPreview() {
-  const perms = [...document.querySelectorAll("[data-bperm]")].filter((el) => el.checked).map((el) => el.dataset.bperm);
+function startBasicPreview(customPerms, who) {
+  const perms = Array.isArray(customPerms) ? customPerms : [...document.querySelectorAll("[data-bperm]")].filter((el) => el.checked).map((el) => el.dataset.bperm);
   document.body.classList.remove("is-owner");
   document.body.classList.add("is-basic", "preview-mode");
   applyPermissions(perms);
   const bar = document.createElement("div");
   bar.id = "previewBar";
-  bar.innerHTML = `👁 Vorschau: So sieht ein Basic-Konto die Chain-Seite <button type="button">Vorschau beenden</button>`;
+  bar.innerHTML = `👁 Vorschau: So sieht ${who ? h(who) : "ein Basic-Konto"} die Chain-Seite <button type="button">Vorschau beenden</button>`;
   bar.querySelector("button").onclick = stopBasicPreview;
   document.body.appendChild(bar);
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -1621,7 +1632,43 @@ function stopBasicPreview() {
   document.getElementById("adminCard")?.scrollIntoView({ behavior: "smooth" });
 }
 let myPermissionsFull = [];
-$("basicPreview").onclick = startBasicPreview;
+$("basicPreview").onclick = () => startBasicPreview();
+
+// ---------- Rechte pro Konto ----------
+let upAddress = "", upWho = "";
+function upRender(r) {
+  $("upCustom").checked = r.custom;
+  const perms = new Set(r.permissions ?? []);
+  $("upPerms").innerHTML = (permCatalog ?? []).map((g) => `<div class="perm-group"><div class="perm-group-head"><b>${h(g.group)}</b><span><button type="button" data-uall="on">alle an</button> <button type="button" data-uall="off">alle aus</button></span></div><div class="perm-items">${g.items.map(([id, label]) => `<label class="perm-item"><input type="checkbox" data-uperm="${h(id)}"${perms.has(id) ? " checked" : ""}${r.custom ? "" : " disabled"} /> ${h(label)}</label>`).join("")}</div></div>`).join("");
+  $("upPerms").classList.toggle("up-off", !r.custom);
+}
+async function upOpen(address, who) {
+  if (!permCatalog) { try { permCatalog = (await api("/api/permissions")).catalog; } catch { permCatalog = []; } }
+  try {
+    const r = await api("/api/admin/user-permissions", { address });
+    upAddress = address; upWho = who;
+    $("upName").textContent = who;
+    upRender(r);
+    $("upPanel").hidden = false;
+    $("upPanel").scrollIntoView({ behavior: "smooth", block: "start" });
+  } catch (err) { say("adMsg", adErrors[err.message] || err.message, true); }
+}
+async function upSave(custom) {
+  const perms = custom ? [...document.querySelectorAll("[data-uperm]")].filter((el) => el.checked).map((el) => el.dataset.uperm) : null;
+  try { const r = await api("/api/admin/user-permissions/set", { address: upAddress, name: upWho, permissions: perms }); upRender(r); say("adMsg", custom ? `Eigene Rechte für ${upWho} gespeichert.` : `${upWho} nutzt wieder die Standardrechte für Basic.`); }
+  catch (err) { say("adMsg", adErrors[err.message] || err.message, true); }
+}
+$("upCustom").addEventListener("change", () => void upSave($("upCustom").checked));
+$("upPerms").addEventListener("change", () => void upSave(true));
+$("upPerms").addEventListener("click", (e) => {
+  const btn = e.target.closest("button[data-uall]"); if (!btn || !$("upCustom").checked) return;
+  btn.closest(".perm-group").querySelectorAll("[data-uperm]").forEach((el) => { el.checked = btn.dataset.uall === "on"; });
+  void upSave(true);
+});
+$("upClose").onclick = () => { $("upPanel").hidden = true; };
+$("upPreview").onclick = () => startBasicPreview([...document.querySelectorAll("[data-uperm]")].filter((el) => el.checked).map((el) => el.dataset.uperm), upWho);
+$("nuList").addEventListener("click", (e) => { const b = e.target.closest('button[data-nu="perms"]'); if (b) void upOpen(b.dataset.addr, b.closest("[data-user]").dataset.user); });
+$("olList").addEventListener("click", (e) => { const b = e.target.closest("button[data-operm]"); if (b) void upOpen(b.dataset.operm, b.closest("[data-owner]").dataset.name); });
 
 // ---------- Design v3: Bedienung ----------
 $("walletSearch").addEventListener("input", renderAccounts);

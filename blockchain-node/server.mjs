@@ -236,7 +236,13 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
 // Einstellungen: Full darf alles, Basic nur Mining, Mining-Regeln, Markt & Coinwert, Tabs und Zahlarten
 // Rechte für Basic-Konten (Full stellt ein, was Basic sehen darf)
 // Rechte: s:<Einstellung>, w:<Einstellung der Hauptseite>, a:<Aktion> (siehe permissions.mjs)
-const permissionsOf = (sess) => (sess?.role === "super_admin" ? [...ALL_PERMISSIONS] : sess?.role === "owner_basic" ? normalizePermissions(chain.settings.basicPermissions) : []);
+// Basic: eigene Rechte des Kontos (falls gesetzt), sonst die Standardrechte für Basic
+const permissionsOf = (sess) => {
+  if (sess?.role === "super_admin") return [...ALL_PERMISSIONS];
+  if (sess?.role !== "owner_basic") return [];
+  const own = chain.userPermissions[sess.address];
+  return normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions);
+};
 // Basic-Konten dürfen keine Coins bewegen (senden, Aufträge, Coins verwalten)
 const forbidBasicTransfers = (sess) => { if (sess?.role === "owner_basic") throw new Error("basic_no_transfers"); };
 const requirePermission = (body, perm) => {
@@ -507,6 +513,24 @@ const routes = {
   "POST /api/notify/test": async (_, body) => {
     await requireOwner(body);
     return notifier.send("test", "🔔 Test von GIBB Coin", "Wenn du das liest, kommen die Benachrichtigungen an.", { tags: ["bell"] });
+  },
+  // Rechte pro Basic-Konto (nur Full)
+  "POST /api/admin/user-permissions": async (_, body) => {
+    await requireOwner(body);
+    const address = String(body.address ?? "").slice(0, 80);
+    const own = chain.userPermissions[address];
+    return { address, custom: Array.isArray(own), permissions: normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions), defaults: normalizePermissions(chain.settings.basicPermissions) };
+  },
+  "POST /api/admin/user-permissions/set": async (_, body) => {
+    await requireOwner(body);
+    const address = String(body.address ?? "").slice(0, 80);
+    if (!/^[A-Za-z0-9_-]{2,80}$/.test(address)) throw new Error("invalid_request");
+    if (Array.isArray(body.permissions)) chain.userPermissions[address] = normalizePermissions(body.permissions);
+    else delete chain.userPermissions[address];
+    chain.save();
+    note("auth", `Rechte für ${String(body.name ?? address).slice(0, 40)}: ${Array.isArray(body.permissions) ? "eigene" : "Standard für Basic"}`);
+    const own = chain.userPermissions[address];
+    return { address, custom: Array.isArray(own), permissions: normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions) };
   },
   "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers() }; },
   "POST /api/admin/node-users/create": async (_, body) => {
