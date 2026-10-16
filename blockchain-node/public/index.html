@@ -369,8 +369,11 @@
     <input id="authUser" autocomplete="username" placeholder="z. B. ilja">
     <label for="authPass" style="margin-top:8px">Passwort</label>
     <input id="authPass" type="password" autocomplete="current-password" placeholder="mindestens 8 Zeichen">
-    <label for="authCode" style="margin-top:8px">Owner-Code <span class="muted">(nur für den Owner, sonst leer lassen)</span></label>
-    <input id="authCode" type="password" autocomplete="off" placeholder="leer lassen">
+    <!-- Einrichtungs-Code nur beim allerersten Einrichten nötig: Seite mit ?setup öffnen -->
+    <div id="authSetupWrap" hidden>
+      <label for="authCode" style="margin-top:8px">Einrichtungs-Code <span class="muted">(nur beim ersten Einrichten)</span></label>
+      <input id="authCode" type="password" autocomplete="off" placeholder="leer lassen">
+    </div>
     <div id="authTwoFa" hidden>
       <label for="auth2fa" style="margin-top:8px">Server-Code <span class="muted">(auf dem Server: <code>sudo gibb-code</code>)</span></label>
       <input id="auth2fa" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="6-stelliger Code">
@@ -1750,6 +1753,7 @@ $("buSend").onclick = async () => {
   catch (err) { say("anMsg", anErrors[err.message] || err.message, true); }
   finally { $("buSend").disabled = false; }
 };
+$("authSetupWrap").hidden = !new URLSearchParams(location.search).has("setup");
 </script>
 </body>
 </html>
