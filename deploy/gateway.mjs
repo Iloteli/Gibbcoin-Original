@@ -89,7 +89,17 @@ function route(url) {
   return { target: WEBSITE, path: url, label: "/" };
 }
 
+// Sicherheits-Header für alle Antworten (Kamera bleibt für den QR-Scanner erlaubt)
+const SECURITY_HEADERS = {
+  "strict-transport-security": "max-age=31536000; includeSubDomains",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+  "referrer-policy": "strict-origin-when-cross-origin",
+  "permissions-policy": "camera=(self), microphone=(), geolocation=(), payment=(self)",
+};
+
 const server = createServer((req, res) => {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
   // Status für offene Browser-Tabs: im Wartungsmodus melden sie sich selbst ab.
   if (req.url === "/__status" || req.url.startsWith("/__status?")) {
     res.writeHead(200, { "content-type": "application/json", "cache-control": "no-store" });
