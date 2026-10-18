@@ -71,7 +71,8 @@ function sanitizeWebsite(current, patch) {
   if (patch.bankHolder !== undefined) next.bankHolder = String(patch.bankHolder).trim().slice(0, 80);
   if (patch.bankStreet !== undefined) next.bankStreet = String(patch.bankStreet).trim().slice(0, 70);
   if (patch.bankZip !== undefined) next.bankZip = String(patch.bankZip).trim().slice(0, 4);
-  if (patch.madeBy !== undefined) next.madeBy = String(patch.madeBy).replace(/[\u0000-\u001f]/g, "").trim().slice(0, 120);
+  // Steuerzeichen (Zeilenumbrüche usw.) entfernen
+  if (patch.madeBy !== undefined) next.madeBy = [...String(patch.madeBy)].filter((ch) => ch.charCodeAt(0) >= 32).join("").trim().slice(0, 120);
   if (patch.bankCity !== undefined) next.bankCity = String(patch.bankCity).trim().slice(0, 35);
   for (const key of ["miningEnabled", "requireRealTx", "buyEnabled", "sellEnabled", "adminCoinGrants", "bankEnabled", "cardEnabled", "creditsEnabled", "registrationEnabled"]) if (patch[key] !== undefined) next[key] = Boolean(patch[key]);
   if (next.minPrice > next.maxPrice) throw new Error("invalid_price_range");
