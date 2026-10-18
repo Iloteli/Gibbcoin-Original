@@ -664,6 +664,21 @@ const routes = {
     note("settings", body.enabled === true ? `Ankündigung veröffentlicht: ${String(body.title || body.message || "").slice(0, 40)}` : "Ankündigung entfernt");
     return r;
   },
+  // Gewinnchancen der Sofort-Spiele (Recht "Spiele verwalten")
+  "POST /api/games/odds": async (_, body) => { await requireAdminPermission(body, "a:games"); return { odds: await settingsSync.getGameOdds() }; },
+  "POST /api/games/odds/set": async (_, body) => {
+    await requireAdminPermission(body, "a:games");
+    const odds = {};
+    for (const key of ["roulette", "coin_flip", "dice_duel", "high_card", "plinko"]) {
+      if (body.odds?.[key] === undefined) continue;
+      const f = Number(body.odds[key]);
+      if (!Number.isFinite(f) || f < 0 || f > 3) throw new Error("invalid_odds");
+      odds[key] = Math.round(f * 100) / 100;
+    }
+    const r = await settingsSync.setGameOdds(odds);
+    note("settings", `Gewinnchancen geändert: ${Object.entries(odds).map(([k, v]) => `${k} ${Math.round(v * 100)} %`).join(", ")}`);
+    return { odds: r };
+  },
   "POST /api/market/reset-prices": async (_, body) => { await requireOwner(body); const r = chain.resetPrices(1); const website = await settingsSync.push({ price: 1 }); note("settings", "Kurse zurückgesetzt (1 Rp)"); return { ...r, websitePush: website }; },
   "POST /api/reset": async (_, body) => { await requireOwner(body); stopLocalMiner(); chain.reset(); chain.templates.clear(); recentBlocks.length = 0; log.length = 0; note("reset", "Blockchain zurückgesetzt – neuer Genesis-Block"); return chain.stats(); },
 };

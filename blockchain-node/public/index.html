@@ -402,6 +402,24 @@
   /* Auswahllisten im dunklen Stil */
   :root { color-scheme: dark; }
   select option { background: #0b110e; color: #eef4f0; }
+  .odds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-bottom: 10px; }
+  .odds-item { display: grid; gap: 8px; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: #08100c; }
+  .odds-item .top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .odds-item .top b { font-size: 14px; }
+  .odds-item .top span { font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 600; }
+  .odds-item small { color: var(--muted); font-size: 12px; }
+  .odds-item input[type="range"] { width: 100%; accent-color: #7ef5a3; padding: 0; border: 0; background: transparent; }
+  .odds-item.low .top span { color: #ff9b9b; }
+  .odds-item.high .top span { color: #7ef5a3; }
+  .basic-info { display: none; margin-bottom: 16px; border-color: rgba(126,245,163,.3) !important; background: linear-gradient(140deg, rgba(126,245,163,.08), transparent 60%), var(--panel, #0b110e); }
+  body.is-basic .basic-info { display: block; }
+  .bi-kicker { color: #7ef5a3; font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+  .basic-info h2 { margin: 4px 0 6px; }
+  .basic-info p { margin: 0 0 12px; }
+  .bi-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .bi-chip { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(126,245,163,.35); color: #eef4f0; text-decoration: none; font-size: 13px; font-weight: 600; transition: background .2s; }
+  .bi-chip:hover { background: rgba(126,245,163,.12); }
+  html { scroll-padding-top: 80px; }
 </style>
 </head>
 <body>
@@ -435,10 +453,14 @@
   </div>
 </header>
 <main>
+  <section class="card basic-info" id="basicInfo">
+    <div class="bi-head"><div><span class="bi-kicker">DEIN ZUGANG</span><h2>Basic-Konto</h2><p class="muted">Du kannst minen und die Bereiche unten verwalten. GIBB senden und am Markt handeln geht mit Basic nicht.</p></div></div>
+    <div class="bi-chips" id="basicInfoChips"></div>
+  </section>
   <section class="stats" id="stats"></section>
 
   <div class="grid3">
-    <section class="card miner-card">
+    <section class="card miner-card" id="minerAnchor">
       <h2>Server-Miner <span id="localState">bereit</span></h2>
       <div data-perm="a:miner" class="perm-block">
       <div class="miner-hero">
@@ -585,6 +607,9 @@
     </div>
     <div class="adpanel" data-adp="games" hidden>
       <div class="switches" id="adGames"></div>
+      <h3 class="ad-h">Gewinnchancen <span class="muted" style="font-weight:500">100 % = fair · gilt für alle gleich und wird den Spielern in den Regeln angezeigt</span></h3>
+      <div class="odds-grid" id="adOdds"></div>
+      <div class="actions"><button type="button" id="adOddsReset">Alle auf fair (100 %)</button><button type="button" class="primary" id="adOddsSave">Gewinnchancen speichern</button></div>
       <h3 class="ad-h">Globale Spielgrenzen</h3>
       <div class="sgrid">
         <div class="field"><label for="adMaxWager">Max. Einsatz pro Spiel</label><input id="adMaxWager" type="number" min="1" placeholder="kein Limit" /><small>GIBB · leer = kein Limit</small></div>
@@ -1225,6 +1250,20 @@ const FIELD_PERMS = {
 function applyPermissions(perms) {
   myPermissions = perms ?? [];
   const isBasic = document.body.classList.contains("is-basic");
+  // Übersicht für Basic: welche Bereiche erlaubt sind, mit Sprung-Link
+  if (isBasic) {
+    const has = (prefix) => myPermissions.some((p) => p.startsWith(prefix));
+    const areas = [
+      [has("s:") || has("w:"), "⚙ Einstellungen", "settingsCard"],
+      [["a:accounts", "a:accountsCreate", "a:accountsDelete", "a:games", "a:tools", "a:audit", "a:visitors"].some((p) => myPermissions.includes(p)), "🛡 Verwaltung der Hauptseite", "adminCard"],
+      [myPermissions.includes("a:coins"), "🪙 Coins verwalten", "coinAdminCard"],
+      [myPermissions.includes("a:bank"), "🏦 Banküberweisungen", "bankCard"],
+      [myPermissions.includes("a:stats"), "📊 Statistik", "statsCard"],
+      [myPermissions.includes("a:announce") || myPermissions.includes("a:bulk"), "📣 Ankündigung & Bonus", "announceCard"],
+      [myPermissions.includes("a:miner"), "⛏ Server-Miner", "minerAnchor"],
+    ].filter(([ok]) => ok);
+    $("basicInfoChips").innerHTML = areas.length ? areas.map(([, label, id]) => `<a href="#${id}" class="bi-chip">${label}</a>`).join("") : `<span class="muted">Dir wurden noch keine Bereiche freigegeben – frag den Owner.</span>`;
+  }
   const allowed = (perm) => !isBasic || myPermissions.includes(perm);
   document.querySelectorAll("[data-perm]").forEach((el) => el.classList.toggle("perm-off", !allowed(el.dataset.perm)));
   for (const [id, perm] of Object.entries(FIELD_PERMS)) {
@@ -1469,6 +1508,7 @@ async function adLoad(part) {
       adRenderUsers();
     }
     if (part === "games") {
+      void oddsLoad();
       const [center, dino, limits] = await Promise.all([adCall("get_game_center_state"), adCall("get_dino_admin_state"), adCall("get_global_game_limits")]);
       const settings = (Array.isArray(center) ? center[0] : center)?.settings ?? [];
       $("adGames").innerHTML = settings.map((g) => `<label class="switch"><input type="checkbox" data-game="${h(g.game_key)}"${g.enabled ? " checked" : ""} /><span class="knob"></span><span class="switch-text"><b>${h(g.label)}</b><small>${g.enabled ? "aktiv" : "ausgeschaltet"}</small></span></label>`).join("");
@@ -1989,6 +2029,38 @@ Achtung: Darauf liegen noch ${fmt(bal)} GIBB – diese gehen verloren. Sende sie
     setTimeout(() => void refresh(), 250);
   } catch (err) { say("walletMsg", walletErrors[err.message] || err.message, true); }
 });
+
+// ---------- Gewinnchancen der Spiele ----------
+const ODDS_GAMES = [
+  { key: "coin_flip", label: "🪙 Münzwurf", base: 1 / 2, unit: "Treffer" },
+  { key: "dice_duel", label: "🎲 Würfelduell", base: 15 / 36, unit: "Sieg" },
+  { key: "high_card", label: "🃏 High Card", base: 6 / 13, unit: "Sieg" },
+  { key: "plinko", label: "🔻 Plinko", base: 2 / 9, unit: "3-fach-Fach" },
+  { key: "roulette", label: "🎡 Roulette", base: 18 / 37, unit: "Rot/Schwarz", base2: 1 / 37, unit2: "Einzelzahl" },
+];
+const pct = (x) => `${(Math.min(x, 0.95) * 100).toLocaleString("de-CH", { maximumFractionDigits: 1 })} %`;
+function oddsRender(odds) {
+  $("adOdds").innerHTML = ODDS_GAMES.map((g) => {
+    const f = Number(odds?.[g.key] ?? 1);
+    return `<label class="odds-item${f < 1 ? " low" : f > 1 ? " high" : ""}" data-game="${g.key}"><div class="top"><b>${g.label}</b><span>${Math.round(f * 100)} %</span></div><input type="range" min="0" max="300" step="5" value="${Math.round(f * 100)}" aria-label="Faktor ${g.label}" /><small>${g.unit}: ${pct(g.base * f)} <span class="muted">(fair ${pct(g.base)})</span>${g.base2 ? ` · ${g.unit2}: ${pct(g.base2 * f)}` : ""}</small></label>`;
+  }).join("");
+}
+async function oddsLoad() {
+  try { oddsRender((await api("/api/games/odds", {})).odds); }
+  catch (err) { $("adOdds").innerHTML = `<div class="muted">${h(adErrors[err.message] || caErrors[err.message] || err.message)}</div>`; }
+}
+$("adOdds").addEventListener("input", (e) => {
+  const item = e.target.closest(".odds-item"); if (!item) return;
+  const current = Object.fromEntries([...document.querySelectorAll(".odds-item")].map((el) => [el.dataset.game, Number(el.querySelector("input").value) / 100]));
+  oddsRender(current);
+  document.querySelector(`.odds-item[data-game="${item.dataset.game}"] input`)?.focus();
+});
+$("adOddsReset").onclick = () => oddsRender({});
+$("adOddsSave").onclick = async () => {
+  const odds = Object.fromEntries([...document.querySelectorAll(".odds-item")].map((el) => [el.dataset.game, Number(el.querySelector("input").value) / 100]));
+  try { oddsRender((await api("/api/games/odds/set", { odds })).odds); say("adMsg", "Gewinnchancen gespeichert – gelten ab der nächsten Runde."); }
+  catch (err) { say("adMsg", adErrors[err.message] || caErrors[err.message] || err.message, true); }
+};
 </script>
 </body>
 </html>
