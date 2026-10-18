@@ -3378,3 +3378,112 @@ html[data-theme="light"] .acct-eye { background: #fff; }
 :root:not([data-theme="light"]) .auth-submit { background: linear-gradient(110deg, #3ee0ff 35%, #e6fbff 50%, #8b5cff 65%) !important; background-size: 200% 100% !important; color: #061024 !important; }
 :root:not([data-theme="light"]) .auth-tabs { background: rgba(10,16,30,.7) !important; border-color: var(--line) !important; }
 :root:not([data-theme="light"]) .auth-tabs button.active { background: var(--grad) !important; color: #061024 !important; }
+
+/* ==========================================================================
+   Helles Design v7 – "Neon Glass Light": helles Blau-Weiss, Glas, gleiche Akzente wie dunkel
+   ========================================================================== */
+html[data-theme="light"] {
+  --bg: #f3f6ff;
+  --panel: rgba(255,255,255,.72);
+  --panel-2: rgba(240,245,255,.85);
+  --line: rgba(60,90,180,.14);
+  --line-strong: rgba(60,100,220,.28);
+  --text: #0f1733;
+  --muted: #56627f;
+  --green: #2f6bff;
+  --green-2: #1f4fd8;
+  --cyan: #0aa6d6;
+  --violet: #6d3fff;
+  --gold: #c98a12;
+  --success: #12996a;
+  --red: #d63a5a;
+  --amber: #b07400;
+  --grad: linear-gradient(120deg, #2f6bff, #12b8f0 45%, #7a4dff);
+  --aqua: #12b8f0;
+}
+html[data-theme="light"] body { background: var(--bg) !important; color: var(--text); }
+html[data-theme="light"] .app-shell { background: transparent !important; }
+
+/* Hintergrund: weiche Farbflächen */
+html[data-theme="light"] .ambient { opacity: 1; }
+html[data-theme="light"] .ambient-flow { background:
+  radial-gradient(40% 50% at 12% 15%, rgba(47,107,255,.18), transparent 70%),
+  radial-gradient(35% 45% at 88% 12%, rgba(122,77,255,.16), transparent 70%),
+  radial-gradient(45% 55% at 70% 88%, rgba(18,184,240,.14), transparent 70%),
+  radial-gradient(30% 35% at 25% 90%, rgba(255,196,90,.10), transparent 70%); }
+html[data-theme="light"] .ambient-waves .w1 { stroke: rgba(18,150,220,.25); }
+html[data-theme="light"] .ambient-waves .w2 { stroke: rgba(122,77,255,.18); }
+html[data-theme="light"] .ambient-waves .w3 { stroke: rgba(47,107,255,.16); }
+html[data-theme="light"] .ambient-hex { background: linear-gradient(140deg, rgba(47,107,255,.07), rgba(122,77,255,.05)); border-color: rgba(47,107,255,.18); }
+html[data-theme="light"] .ambient-hex::after { background: var(--bg); opacity: .7; }
+html[data-theme="light"] .ambient-ring { border-color: rgba(122,77,255,.16); box-shadow: inset 0 0 60px rgba(122,77,255,.06); }
+html[data-theme="light"] .ambient-dot { background: #2f6bff; box-shadow: 0 0 8px rgba(47,107,255,.5); }
+html[data-theme="light"] .ambient-dot.gold { background: #e0a32b; box-shadow: 0 0 8px rgba(224,163,43,.5); }
+html.fx-glow[data-theme="light"] body::before { background: radial-gradient(560px circle at var(--mx, 50%) var(--my, 30%), rgba(47,107,255,.10), rgba(122,77,255,.06) 40%, transparent 70%) !important; }
+
+/* Glas-Karten hell */
+html[data-theme="light"] .card, html[data-theme="light"] .stat-card, html[data-theme="light"] .home-launchpad {
+  background: linear-gradient(160deg, rgba(255,255,255,.86), rgba(246,249,255,.74)) !important;
+  border: 1px solid var(--line) !important;
+  backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 14px 40px rgba(30,50,120,.10) !important;
+}
+html[data-theme="light"] .header { background: rgba(255,255,255,.72) !important; border-bottom-color: var(--line) !important; backdrop-filter: blur(16px); }
+html[data-theme="light"] .dashboard-tabs { background: rgba(255,255,255,.8) !important; border-color: var(--line) !important; box-shadow: 0 10px 30px rgba(30,50,120,.10) !important; }
+html[data-theme="light"] .dashboard-tabs button { color: var(--muted) !important; }
+html[data-theme="light"] .dashboard-tabs button.active, html[data-theme="light"] .dashboard-tabs button.active span { background: var(--grad) !important; background-size: 200% 100% !important; color: #fff !important; box-shadow: 0 8px 24px rgba(47,107,255,.28) !important; animation: v7-grad 6s ease infinite; }
+html[data-theme="light"] .dashboard-tabs button.active span { background: none !important; box-shadow: none !important; }
+html[data-theme="light"] .premium-balance {
+  background: radial-gradient(500px 260px at 85% 0%, rgba(122,77,255,.20), transparent 60%), radial-gradient(420px 240px at 0% 100%, rgba(18,184,240,.18), transparent 60%), linear-gradient(150deg, #ffffff, #eef3ff) !important;
+  border-color: rgba(47,107,255,.25) !important;
+}
+html[data-theme="light"] .premium-balance::after, html[data-theme="light"] .balance-card::after { color: rgba(47,107,255,.06) !important; }
+html[data-theme="light"] .stat-card strong { color: var(--green) !important; }
+html[data-theme="light"] .stat-card strong.negative { color: var(--red) !important; }
+html[data-theme="light"] .eyebrow, html[data-theme="light"] .hero-kicker, html[data-theme="light"] .view-heading > span, html[data-theme="light"] .home-launchpad-copy > span, html[data-theme="light"] .acct-kicker { color: #1f4fd8 !important; }
+html[data-theme="light"] .hero-kicker b, html[data-theme="light"] .chain-status { color: #1f4fd8 !important; background: rgba(47,107,255,.08) !important; border-color: rgba(47,107,255,.25) !important; }
+html[data-theme="light"] .view-heading h1, html[data-theme="light"] .hero h1 { background: linear-gradient(120deg, #0f1733, #2f4fb0 70%, #6d3fff) !important; -webkit-background-clip: text !important; background-clip: text !important; color: transparent !important; }
+
+/* Knöpfe und Felder hell */
+html[data-theme="light"] .primary, html[data-theme="light"] .primary-link { background: var(--grad) !important; background-size: 200% 100% !important; color: #fff !important; border: 0 !important; box-shadow: 0 10px 26px rgba(47,107,255,.28) !important; animation: v7-grad 6s ease infinite; }
+html[data-theme="light"] .primary:hover:not(:disabled) { box-shadow: 0 14px 34px rgba(47,107,255,.36), 0 0 0 1px rgba(47,107,255,.35) !important; }
+html[data-theme="light"] .secondary { background: rgba(255,255,255,.85) !important; border-color: var(--line-strong) !important; color: var(--text) !important; }
+html[data-theme="light"] .secondary:hover:not(:disabled) { border-color: #2f6bff !important; box-shadow: 0 0 0 3px rgba(47,107,255,.12); }
+html[data-theme="light"] .input, html[data-theme="light"] select, html[data-theme="light"] textarea { background: rgba(255,255,255,.9) !important; border: 1px solid var(--line-strong) !important; color: var(--text) !important; }
+html[data-theme="light"] .input:focus, html[data-theme="light"] select:focus, html[data-theme="light"] textarea:focus { border-color: #2f6bff !important; box-shadow: 0 0 0 4px rgba(47,107,255,.14), 0 0 20px rgba(47,107,255,.15) !important; }
+html[data-theme="light"] :focus-visible { outline-color: #2f6bff; box-shadow: 0 0 0 6px rgba(47,107,255,.16); }
+html[data-theme="light"] .home-shortcuts button { background: rgba(255,255,255,.8) !important; }
+html[data-theme="light"] .home-shortcuts button:hover { background: #eef3ff !important; border-color: rgba(47,107,255,.35) !important; }
+
+/* Spotlight/Neigung hell */
+html[data-theme="light"] .card:not(.balance-card)::after, html[data-theme="light"] .stat-card::after { background: radial-gradient(360px circle at var(--cx) var(--cy), rgba(47,107,255,.10), rgba(122,77,255,.05) 40%, transparent 70%) !important; }
+html[data-theme="light"] .fx-tilt { border-color: rgba(47,107,255,.35) !important; box-shadow: 0 22px 50px rgba(30,50,120,.16), 0 0 0 1px rgba(47,107,255,.12) !important; }
+html[data-theme="light"] .fx-ripple { background: radial-gradient(circle, rgba(255,255,255,.7), rgba(47,107,255,.2) 40%, transparent 70%) !important; }
+
+/* Kurschart und Konto-Dashboard hell */
+html[data-theme="light"] .price-chart-line { stroke: #2f6bff; }
+html[data-theme="light"] .price-chart-stop-top, html[data-theme="light"] .price-chart-stop-bottom { stop-color: #2f6bff; }
+html[data-theme="light"] .price-chart-dot { fill: #2f6bff; }
+html[data-theme="light"] .price-chart-ranges button.active { background: var(--grad) !important; color: #fff !important; }
+html[data-theme="light"] .acct-balance { background: radial-gradient(520px 280px at 90% -10%, rgba(122,77,255,.18), transparent 60%), radial-gradient(420px 260px at -10% 110%, rgba(18,184,240,.16), transparent 60%), linear-gradient(150deg, #ffffff, #eef3ff) !important; border-color: rgba(47,107,255,.25) !important; box-shadow: 0 20px 50px rgba(30,50,120,.14) !important; }
+html[data-theme="light"] .acct-amount { text-shadow: none; color: var(--text); }
+html[data-theme="light"] .acct-amount small, html[data-theme="light"] .acct-link { color: #1f4fd8; }
+html[data-theme="light"] .acct-spark-line { stroke: #2f6bff; filter: none; }
+html[data-theme="light"] .acct-chip { background: rgba(255,255,255,.85); }
+html[data-theme="light"] .acct-stats strong.in, html[data-theme="light"] .acct-recent li.in .acct-amt { color: var(--success); }
+html[data-theme="light"] .acct-stats strong.out, html[data-theme="light"] .acct-recent li.out .acct-amt { color: var(--red); }
+
+/* Anmeldeseite hell */
+html[data-theme="light"] .auth-layout { background: rgba(255,255,255,.78) !important; border-color: var(--line) !important; box-shadow: 0 30px 80px rgba(30,50,120,.14) !important; }
+html[data-theme="light"] .auth-showcase { background: radial-gradient(circle at 70% 25%, rgba(122,77,255,.14), transparent 45%), linear-gradient(150deg, #ffffff, #eef3ff) !important; }
+html[data-theme="light"] .auth-card { background: rgba(255,255,255,.7) !important; }
+html[data-theme="light"] .auth-blob.b1 { background: #8fb2ff; opacity: .4; }
+html[data-theme="light"] .auth-blob.b2 { background: #c3b0ff; opacity: .4; }
+html[data-theme="light"] .auth-blob.b3 { background: #9ee6ff; opacity: .3; }
+html[data-theme="light"] .auth-spark { background: #2f6bff; box-shadow: 0 0 8px rgba(47,107,255,.5); }
+html[data-theme="light"] .auth-coin { background: radial-gradient(circle at 35% 30%, #ffffff, #8fd8ff 45%, #2f6bff 100%); color: #0f1733; box-shadow: 0 0 40px rgba(47,107,255,.35); }
+html[data-theme="light"] .auth-layout::before { background: conic-gradient(from var(--auth-angle, 0deg), transparent 0 60%, #2f6bff 75%, #7a4dff 85%, transparent 100%); }
+html[data-theme="light"] .auth-submit { background: linear-gradient(110deg, #2f6bff 35%, #9fc3ff 50%, #7a4dff 65%) !important; background-size: 200% 100% !important; color: #fff !important; }
+html[data-theme="light"] .auth-tabs button.active { background: var(--grad) !important; color: #fff !important; }
+html[data-theme="light"] .brand-mark.glow { filter: drop-shadow(0 0 8px rgba(47,107,255,.35)); }
+@media (max-width: 640px) { html[data-theme="light"] .dashboard-tabs { background: rgba(255,255,255,.95) !important; box-shadow: 0 -10px 26px rgba(30,50,120,.12) !important; } }

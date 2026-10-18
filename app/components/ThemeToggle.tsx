@@ -14,7 +14,7 @@ export function applyTheme(theme: Theme) {
   const root = document.documentElement;
   root.classList.add("theme-switching");
   if (theme === "light") root.dataset.theme = "light"; else delete root.dataset.theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#f3f6f4" : "#06090a");
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "light" ? "#f3f6ff" : "#0a0f1a");
   window.setTimeout(() => root.classList.remove("theme-switching"), 400);
 }
 
