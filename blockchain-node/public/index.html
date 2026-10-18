@@ -2581,8 +2581,10 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
       "if ($m.Groups[3].Success) { $sshArgs = @('-p', $m.Groups[3].Value) + $sshArgs }",
       "$host.UI.RawUI.WindowTitle = 'GIBB Server - ' + $target",
       "Write-Host ('Verbinde mit ' + $target + ' ...')",
-      "if ($m.Groups[4].Success) { $run = 'sudo /usr/local/bin/gibb-' + $m.Groups[4].Value.ToLower() + '; exec bash -l'; Write-Host ('Fuehre aus: sudo gibb-' + $m.Groups[4].Value); $sshArgs = @('-t') + $sshArgs + @($run) }",
+      "$gibb = if ($m.Groups[4].Success) { $m.Groups[4].Value.ToLower() } else { '' }",
+      "if ($gibb) { $run = 'sudo /usr/local/bin/gibb-' + $gibb; if ($gibb -eq 'help') { $run += '; exec bash -l' }; Write-Host ('Fuehre aus: sudo gibb-' + $gibb); $sshArgs = @('-t') + $sshArgs + @($run) }",
       "& ssh.exe @sshArgs",
+      "if ($gibb -and $gibb -ne 'help') { exit $LASTEXITCODE }",
       "Read-Host 'Verbindung beendet - Enter zum Schliessen'",
     ].join("\r\n");
     const setup = [
