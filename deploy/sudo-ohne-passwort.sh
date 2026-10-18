@@ -18,24 +18,24 @@ fi
 if [ -z "$NUTZER" ] || [ "$NUTZER" = "root" ]; then echo "Bitte als normaler Benutzer mit sudo starten (nicht als root)." >&2; exit 1; fi
 
 # Sicherheit: Wer die Skripte ändern kann, könnte sonst alles als root ausführen.
-for p in "$APP_DIR" "$APP_DIR/deploy"; do
+# Erlaubt: root oder der System-Benutzer der App (gibb, ohne Anmeldung). Nicht erlaubt: du selbst
+# oder Schreibrechte für Gruppe/andere – dann könntest du über die Knöpfe ohne Passwort root werden.
+RUN_USER="${RUN_USER:-gibb}"
+pruefe() {
+  local p="$1" owner perm
   owner="$(stat -c %U "$p")"; perm="$(stat -c %a "$p")"
-  if [ "$owner" != "root" ] || [ $(( 0$perm & 022 )) -ne 0 ]; then
-    echo "Abbruch: $p gehört nicht root oder ist für andere beschreibbar ($owner, $perm)." >&2
-    echo "Erst beheben:  sudo chown root:root $p && sudo chmod go-w $p" >&2
+  if { [ "$owner" != "root" ] && [ "$owner" != "$RUN_USER" ]; } || [ "$owner" = "$NUTZER" ] || [ $(( 0$perm & 022 )) -ne 0 ]; then
+    echo "Abbruch: $p ist für dich oder andere änderbar (Besitzer $owner, Rechte $perm)." >&2
+    echo "Erst beheben:  sudo chmod go-w $p" >&2
     exit 1
   fi
-done
+}
+for p in "$APP_DIR" "$APP_DIR/deploy"; do pruefe "$p"; done
 LINES=""
 for name in update help backup version code; do
   link="/usr/local/bin/gibb-$name"
   [ -e "$link" ] || { echo "Fehlt: $link – zuerst sudo gibb-update ausführen." >&2; exit 1; }
-  target="$(readlink -f "$link")"
-  owner="$(stat -c %U "$target")"; perm="$(stat -c %a "$target")"
-  if [ "$owner" != "root" ] || [ $(( 0$perm & 022 )) -ne 0 ]; then
-    echo "Abbruch: $target gehört nicht root oder ist für andere beschreibbar ($owner, $perm)." >&2
-    exit 1
-  fi
+  pruefe "$(readlink -f "$link")"
   # "" = keine zusätzlichen Argumente erlaubt
   LINES="$LINES$NUTZER ALL=(root) NOPASSWD: $link \"\"
 "
