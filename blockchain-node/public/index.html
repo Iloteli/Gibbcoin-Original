@@ -1089,7 +1089,11 @@
 
   <section class="card design-card owner-basic" id="designCard" data-perm="w:siteDesign">
     <h2>Design der Hauptseite <span>gilt sofort für alle Besucher</span></h2>
-    <div class="dsg-group"><b>Farbwelt</b><div class="dsg-opts" data-dsg="siteAccent">
+    <div class="dsg-group"><b>Design</b><small class="muted">Original = das erste grüne Design · Neu = Neon Glass</small><div class="dsg-opts" data-dsg="siteStyle">
+      <button type="button" data-v="original"><i style="background:linear-gradient(145deg,#75f59a,#2ed164)"></i>Original</button>
+      <button type="button" data-v="new"><i style="background:linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)"></i>Neu</button>
+    </div></div>
+    <div class="dsg-group"><b>Farbwelt</b> <small class="muted">nur im neuen Design</small><div class="dsg-opts" data-dsg="siteAccent">
       <button type="button" data-v="neon"><i style="background:linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)"></i>Neon Blau</button>
       <button type="button" data-v="emerald"><i style="background:linear-gradient(120deg,#0fa37a,#5ff5b8,#2ad1c9)"></i>Smaragd</button>
       <button type="button" data-v="violet"><i style="background:linear-gradient(120deg,#6a3dff,#c08bff,#ff6bd5)"></i>Violett</button>
@@ -2520,7 +2524,7 @@ setTimeout(() => void pfLoad(), 300);
 // ---------- Design der Hauptseite ----------
 function designSync(settings) {
   const w = settings?.website ?? {};
-  const cur = { siteAccent: w.siteAccent ?? "neon", siteMode: w.siteMode ?? "dark", siteMotion: w.siteMotion ?? "full" };
+  const cur = { siteAccent: w.siteAccent ?? "neon", siteMode: w.siteMode ?? "dark", siteMotion: w.siteMotion ?? "full", siteStyle: w.siteStyle ?? "new" };
   document.querySelectorAll(".dsg-opts").forEach((g) => g.querySelectorAll("button").forEach((b) => { b.classList.toggle("active", b.dataset.v === cur[g.dataset.dsg]); b.setAttribute("aria-pressed", String(b.dataset.v === cur[g.dataset.dsg])); }));
 }
 $("designCard").addEventListener("click", async (e) => {

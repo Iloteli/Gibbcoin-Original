@@ -3,12 +3,13 @@
 import { useEffect } from "react";
 import { getSupabase } from "../lib/supabase";
 
-type Design = { accent?: string; mode?: string; motion?: string };
+type Design = { accent?: string; mode?: string; motion?: string; style?: string };
 const CACHE = "gibb-site-design";
 
 function apply(d: Design) {
   const root = document.documentElement;
   root.dataset.accent = ["emerald", "violet", "gold"].includes(d.accent ?? "") ? d.accent : "neon";
+  root.dataset.style = d.style === "original" ? "original" : "new";
   root.dataset.motion = ["reduced", "off"].includes(d.motion ?? "") ? d.motion : "full";
   // Standard-Modus nur, wenn die Person selbst nichts gewählt hat (☀️/🌙 hat Vorrang)
   let own: string | null = null;

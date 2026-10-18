@@ -1,6 +1,6 @@
 // GIBB-Coin-Zeichen: Sechseck-Münze mit geometrischem G, Verlauf Electric Blue → Cyan → Violett.
 export function BrandMark({ size = 40, glow = true, className = "" }: { size?: number; glow?: boolean; className?: string }) {
-  return (
+  return (<>
     <svg className={`brand-mark ${glow ? "glow" : ""} ${className}`} width={size} height={size} viewBox="0 0 64 64" role="img" aria-label="GIBB Coin">
       <defs>
         <linearGradient id="gibb-mark-fill" x1="8" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse">
@@ -20,5 +20,7 @@ export function BrandMark({ size = 40, glow = true, className = "" }: { size?: n
       <path d="M40.5 25.5A10.5 10.5 0 1 0 42.5 34H33" fill="none" stroke="#ffffff" strokeWidth="4.2" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="44.5" cy="20.5" r="2.2" fill="#f5c66b" />
     </svg>
-  );
+    {/* Zeichen des Original-Designs (nur sichtbar, wenn auf der Chain-Seite "Original" gewählt ist) */}
+    <span className={`coin-mark brand-original ${className}`} aria-hidden="true" style={{ width: size, height: size }}>G</span>
+  </>);
 }
