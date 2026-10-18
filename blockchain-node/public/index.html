@@ -558,6 +558,12 @@
   .footer-edit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: center; }
   .footer-preview { display: grid; gap: 10px; justify-items: center; padding: 18px; border-radius: 16px; border: 1px dashed var(--line); }
   @media (max-width: 760px) { .footer-edit { grid-template-columns: 1fr; } .site-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); } }
+  .dsg-group { display: grid; gap: 8px; margin-bottom: 16px; }
+  .dsg-group > b { font-size: 14px; }
+  .dsg-opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dsg-opts button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 14px; font-weight: 700; }
+  .dsg-opts button i { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 10px rgba(255,255,255,.25); }
+  .dsg-opts button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; box-shadow: 0 8px 24px rgba(62,224,255,.3); }
 </style>
 </head>
 <body>
@@ -1032,6 +1038,23 @@
     <div class="log" id="log"></div>
   </section>
 
+  <section class="card design-card owner-basic" id="designCard" data-perm="w:siteDesign">
+    <h2>Design der Hauptseite <span>gilt sofort für alle Besucher</span></h2>
+    <div class="dsg-group"><b>Farbwelt</b><div class="dsg-opts" data-dsg="siteAccent">
+      <button type="button" data-v="neon"><i style="background:linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)"></i>Neon Blau</button>
+      <button type="button" data-v="emerald"><i style="background:linear-gradient(120deg,#0fa37a,#5ff5b8,#2ad1c9)"></i>Smaragd</button>
+      <button type="button" data-v="violet"><i style="background:linear-gradient(120deg,#6a3dff,#c08bff,#ff6bd5)"></i>Violett</button>
+      <button type="button" data-v="gold"><i style="background:linear-gradient(120deg,#d9821a,#ffd27a,#ff8f5a)"></i>Gold</button>
+    </div></div>
+    <div class="dsg-group"><b>Standard-Modus</b><small class="muted">Besucher können mit ☀️/🌙 trotzdem selbst wechseln</small><div class="dsg-opts" data-dsg="siteMode">
+      <button type="button" data-v="dark">🌙 Dunkel</button><button type="button" data-v="light">☀️ Hell</button>
+    </div></div>
+    <div class="dsg-group"><b>Animationen</b><div class="dsg-opts" data-dsg="siteMotion">
+      <button type="button" data-v="full">✨ Voll</button><button type="button" data-v="reduced">🌊 Ruhig</button><button type="button" data-v="off">⏸ Aus</button>
+    </div></div>
+    <div class="msg" id="designMsg"></div>
+  </section>
+
   <section class="card footer-card owner-basic" id="footerCard" data-perm="w:madeBy">
     <h2>Fusszeile <span>„Made by“ auf beiden Websites</span></h2>
     <p class="muted" style="margin:0 0 12px">Dieser Text steht ganz unten auf der Hauptseite und der Chain-Seite. Leer lassen, um die Fusszeile auszublenden.</p>
@@ -1063,7 +1086,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
+  einstellungen: ["#designCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
   infos: ["#infosCard"],
 };
 {
@@ -2358,6 +2381,25 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     b.appendChild(w); setTimeout(() => w.remove(), 650);
   }, { passive: true });
 }
+
+// ---------- Design der Hauptseite ----------
+function designSync(settings) {
+  const w = settings?.website ?? {};
+  const cur = { siteAccent: w.siteAccent ?? "neon", siteMode: w.siteMode ?? "dark", siteMotion: w.siteMotion ?? "full" };
+  document.querySelectorAll(".dsg-opts").forEach((g) => g.querySelectorAll("button").forEach((b) => { b.classList.toggle("active", b.dataset.v === cur[g.dataset.dsg]); b.setAttribute("aria-pressed", String(b.dataset.v === cur[g.dataset.dsg])); }));
+}
+$("designCard").addEventListener("click", async (e) => {
+  const b = e.target.closest(".dsg-opts button"); if (!b) return;
+  const key = b.closest(".dsg-opts").dataset.dsg;
+  b.closest(".dsg-opts").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+  try {
+    const r = await api("/api/settings", { website: { [key]: b.dataset.v } });
+    if (stats) stats.settings = r;
+    designSync(r);
+    say("designMsg", r.websitePush?.ok === false ? `Gespeichert – Hauptseite noch nicht aktualisiert (${r.websitePush?.error ?? "?"}).` : "Übernommen – die Hauptseite zeigt es beim nächsten Laden (spätestens nach 2 Minuten).", r.websitePush?.ok === false);
+  } catch (err) { say("designMsg", err.message, true); }
+});
+setInterval(() => { if (stats?.settings) designSync(stats.settings); }, 3000);
 
 // ---------- Fusszeile "Made by" ----------
 const FOOTER_DEFAULT = "Made by Ilja";

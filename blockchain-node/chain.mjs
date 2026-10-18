@@ -45,7 +45,7 @@ export function defaultWebsiteSettings() {
     marketStepPercent: 0.05, minPrice: 0.25, maxPrice: 50, maxTrade: 1000,
     buyEnabled: false, sellEnabled: false, dailySellLimit: 0,
     adminCoinGrants: false,
-    bankEnabled: false, bankIban: "", bankHolder: "", bankStreet: "", bankZip: "", bankCity: "", cardEnabled: false, creditsEnabled: true, registrationEnabled: false, madeBy: "Made by Ilja",
+    bankEnabled: false, bankIban: "", bankHolder: "", bankStreet: "", bankZip: "", bankCity: "", cardEnabled: false, creditsEnabled: true, registrationEnabled: false, madeBy: "Made by Ilja", siteAccent: "neon", siteMode: "dark", siteMotion: "full",
     disabledTabs: [],
   };
 }
@@ -71,6 +71,9 @@ function sanitizeWebsite(current, patch) {
   if (patch.bankHolder !== undefined) next.bankHolder = String(patch.bankHolder).trim().slice(0, 80);
   if (patch.bankStreet !== undefined) next.bankStreet = String(patch.bankStreet).trim().slice(0, 70);
   if (patch.bankZip !== undefined) next.bankZip = String(patch.bankZip).trim().slice(0, 4);
+  if (patch.siteAccent !== undefined) next.siteAccent = ["neon", "emerald", "violet", "gold"].includes(patch.siteAccent) ? patch.siteAccent : "neon";
+  if (patch.siteMode !== undefined) next.siteMode = patch.siteMode === "light" ? "light" : "dark";
+  if (patch.siteMotion !== undefined) next.siteMotion = ["full", "reduced", "off"].includes(patch.siteMotion) ? patch.siteMotion : "full";
   // Steuerzeichen (Zeilenumbrüche usw.) entfernen
   if (patch.madeBy !== undefined) next.madeBy = [...String(patch.madeBy)].filter((ch) => ch.charCodeAt(0) >= 32).join("").trim().slice(0, 120);
   if (patch.bankCity !== undefined) next.bankCity = String(patch.bankCity).trim().slice(0, 35);

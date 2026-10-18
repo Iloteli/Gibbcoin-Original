@@ -5,6 +5,7 @@ import { MaintenanceWatch } from "./components/MaintenanceWatch";
 import { InteractionFx } from "./components/InteractionFx";
 import { AmbientBackground } from "./components/AmbientBackground";
 import { SiteFooter } from "./components/SiteFooter";
+import { SiteDesign } from "./components/SiteDesign";
 import "./globals.css";
 
 const title = "GIBB Coin";
@@ -67,7 +68,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" />
       </head>
-      <body><DeviceClass /><ServiceWorkerRegistration /><MaintenanceWatch /><InteractionFx /><AmbientBackground />{children}<SiteFooter /></body>
+      <body><DeviceClass /><ServiceWorkerRegistration /><MaintenanceWatch /><SiteDesign /><InteractionFx /><AmbientBackground />{children}<SiteFooter /></body>
     </html>
   );
 }

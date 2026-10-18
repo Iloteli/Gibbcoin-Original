@@ -3659,3 +3659,26 @@ html[data-theme="light"] .avatar:not(img) { box-shadow: 0 4px 12px rgba(47,107,2
 :root:not([data-theme="light"]) .success-message,
 :root:not([data-theme="light"]) .transaction-collapse:hover,
 :root:not([data-theme="light"]) .notification-collapse:hover { border-color: var(--line) !important; }
+
+/* ===== Farbwelten der Hauptseite (auf der Chain-Seite einstellbar) ===== */
+html[data-accent="emerald"]:not([data-theme="light"]) { --electric: #14b88a; --cyan: #5ff5b8; --violet: #2ad1c9; --green: #5ff5b8; --green-2: #14b88a; --grad: linear-gradient(120deg, #0fa37a, #5ff5b8 45%, #2ad1c9); --aqua: #5ff5b8; }
+html[data-accent="violet"]:not([data-theme="light"]) { --electric: #7a4dff; --cyan: #c08bff; --violet: #ff6bd5; --green: #c08bff; --green-2: #7a4dff; --grad: linear-gradient(120deg, #6a3dff, #c08bff 45%, #ff6bd5); --aqua: #c08bff; }
+html[data-accent="gold"]:not([data-theme="light"]) { --electric: #e08a1e; --cyan: #ffd27a; --violet: #ff8f5a; --green: #ffd27a; --green-2: #e08a1e; --grad: linear-gradient(120deg, #d9821a, #ffd27a 45%, #ff8f5a); --aqua: #ffd27a; }
+html[data-accent="emerald"][data-theme="light"] { --green: #0f9a70; --green-2: #0b7d5b; --grad: linear-gradient(120deg, #0f9a70, #22c3a0 45%, #1aa6b8); }
+html[data-accent="violet"][data-theme="light"] { --green: #6a3dff; --green-2: #5a2fe0; --grad: linear-gradient(120deg, #6a3dff, #a46bff 45%, #e04fb8); }
+html[data-accent="gold"][data-theme="light"] { --green: #c4700f; --green-2: #a35c0a; --grad: linear-gradient(120deg, #c4700f, #e39b2b 45%, #e0632f); }
+/* Hintergrund-Lichter in der Farbwelt */
+html[data-accent="emerald"] .ambient-flow { filter: hue-rotate(-60deg) saturate(1.1); }
+html[data-accent="violet"] .ambient-flow { filter: hue-rotate(40deg); }
+html[data-accent="gold"] .ambient-flow { filter: hue-rotate(170deg) saturate(.9); }
+html[data-accent="emerald"] .brand-mark, html[data-accent="emerald"] .ambient-dot, html[data-accent="emerald"] .ambient-waves { filter: hue-rotate(-60deg); }
+html[data-accent="violet"] .brand-mark, html[data-accent="violet"] .ambient-dot, html[data-accent="violet"] .ambient-waves { filter: hue-rotate(40deg); }
+html[data-accent="gold"] .brand-mark, html[data-accent="gold"] .ambient-dot, html[data-accent="gold"] .ambient-waves { filter: hue-rotate(170deg); }
+
+/* Animationen: reduziert = Hintergrund ruhig, aus = gar keine Bewegung */
+html[data-motion="reduced"] .ambient-layer, html[data-motion="reduced"] .ambient-hex, html[data-motion="reduced"] .ambient-ring, html[data-motion="reduced"] .ambient-dot, html[data-motion="reduced"] .ambient-waves .wave, html[data-motion="reduced"] .auth-spark { animation: none !important; }
+html[data-motion="reduced"] .ambient-dot, html[data-motion="reduced"] .auth-spark { display: none; }
+html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation: none !important; transition: none !important; }
+html[data-motion="off"] .ambient-dot, html[data-motion="off"] .ambient-waves, html[data-motion="off"] .auth-spark, html[data-motion="off"] body::before { display: none !important; }
+html[data-motion="off"] .fx-tilt { transform: none !important; }
+html[data-motion="off"] .fx-reveal { opacity: 1 !important; transform: none !important; }
