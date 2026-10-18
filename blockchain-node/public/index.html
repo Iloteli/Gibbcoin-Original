@@ -627,7 +627,7 @@
       <h3 class="ad-h">Alle Konten <span class="muted" style="font-weight:500">Chain-Konten und Owner der Hauptseite (melden sich mit Website-E-Mail an)</span></h3>
       <div class="acc-tools">
         <input id="accSearch" placeholder="Konto suchen" autocomplete="off" />
-        <div class="ca-quick" id="accFilter"><button type="button" data-f="all" class="active">Alle</button><button type="button" data-f="full">Full</button><button type="button" data-f="basic">Basic</button><button type="button" data-f="user">Normal</button><button type="button" data-f="off">Deaktiviert</button></div>
+        <div class="ca-quick" id="accFilter"><button type="button" data-f="all" class="active">Alle</button><button type="button" data-f="full">Full</button><button type="button" data-f="basic">Basic</button><button type="button" data-f="off">Deaktiviert</button></div>
       </div>
       <div class="acc-head" aria-hidden="true"><span>Konto</span><span>Stufe</span><span>Aktionen</span></div>
       <div class="acc-list">
@@ -1900,7 +1900,7 @@ function accRender() {
   $("olList").innerHTML = "";
   $("nuList").innerHTML = list.map((r) => {
     const levelSel = r.owner ? '<span class="ad-badge owner full-always">Full · immer</span>'
-      : `<select data-acc="level">${(r.kind === "web" ? ["basic", "full"] : ["user", "basic", "full"]).map((l) => `<option value="${l}"${r.level === l ? " selected" : ""}>${levelName[l]}</option>`).join("")}</select>`;
+      : `<select data-acc="level">${["basic", "full"].map((l) => `<option value="${l}"${r.level === l ? " selected" : ""}>${levelName[l]}</option>`).join("")}</select>`;
     const acts = r.owner ? "" : [
       r.level === "basic" ? `<button data-acc="perms">Rechte</button>` : `<button class="ph" tabindex="-1" aria-hidden="true">Rechte</button>`,
       `<button data-acc="toggle">${r.disabled ? "Aktivieren" : "Deaktivieren"}</button>`,

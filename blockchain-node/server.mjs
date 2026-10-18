@@ -316,7 +316,7 @@ const routes = {
     const isPrimaryOwner = u.role === "super_admin";
     // Stufe: Full = alle Rechte (wie der Owner), Basic = eingeschränkte Owner-Rechte
     if (u.role !== "super_admin" && u.level === "full") u.role = "super_admin";
-    else if (u.role !== "super_admin" && u.level === "basic") u.role = "owner_basic";
+    else if (u.role !== "super_admin") u.role = "owner_basic"; // jedes Chain-Konto ist mindestens Basic
     if (isPrimaryOwner && OWNER_2FA) {
       if (!body.code) throw new Error("second_factor_required");
       if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }

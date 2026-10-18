@@ -348,13 +348,13 @@ export class Blockchain {
       this.ensureOwner();
       this.save();
     }
-    return { address: u.address, username: u.username, role: u.role, level: u.role === "super_admin" ? "full" : (u.level ?? "user") };
+    return { address: u.address, username: u.username, role: u.role, level: u.role === "super_admin" ? "full" : (u.level === "full" ? "full" : "basic") };
   }
 
   // ---------- Chain-Logins verwalten (nur Owner) ----------
   listUsers() {
     return Object.entries(this.users).map(([key, u]) => ({
-      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null, disabled: Boolean(u.disabled), level: u.role === "super_admin" ? "full" : (u.level ?? "user"),
+      key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null, disabled: Boolean(u.disabled), level: u.role === "super_admin" ? "full" : (u.level === "full" ? "full" : "basic"),
       balance: this.accounts[u.address]?.balance ?? 0,
     })).sort((a, b) => a.key.localeCompare(b.key));
   }
@@ -376,7 +376,7 @@ export class Blockchain {
     const u = this.users[key];
     if (!u) throw new Error("user_not_found");
     if (u.role === "super_admin") throw new Error("account_is_protected");
-    u.level = ["basic", "full"].includes(level) ? level : "user";
+    u.level = level === "full" ? "full" : "basic"; // "Normal" gibt es nicht mehr
     this.save();
     return { username: u.username, level: u.level };
   }
