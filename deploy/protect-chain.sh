@@ -11,9 +11,19 @@ AUTH_FILE=/etc/caddy/chain-auth.caddy
 CHAIN_USER="${CHAIN_USER:-ilja}"
 
 if [ "${1:-}" = "--off" ]; then
+  # Import-Zeile aus dem Caddyfile nehmen, sonst lädt Caddy die fehlende Datei nicht
+  if grep -q "import $AUTH_FILE" /etc/caddy/Caddyfile; then
+    cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak
+    grep -v "import $AUTH_FILE" /etc/caddy/Caddyfile.bak > /etc/caddy/Caddyfile
+  fi
   rm -f "$AUTH_FILE"
+  if ! caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1; then
+    echo "Caddy-Konfiguration ungültig – alte Datei wird wiederhergestellt." >&2
+    [ -f /etc/caddy/Caddyfile.bak ] && cp /etc/caddy/Caddyfile.bak /etc/caddy/Caddyfile
+    exit 1
+  fi
   systemctl reload caddy
-  echo "Schutz der Chain-Seite entfernt."
+  echo "Schutz der Chain-Seite entfernt – kein Browser-Anmeldefenster mehr."
   exit 0
 fi
 
