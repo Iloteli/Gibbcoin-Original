@@ -510,6 +510,48 @@
   @keyframes g-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
   @keyframes g-shine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
   @media (prefers-reduced-motion: reduce) { #authGate .ab, #authGate .as, .gate-coin, .gate-coin-wrap, #authGate .box::before, #authGate .box > *, #authSubmit { animation: none !important; } #authGate .as { display: none; } }
+  /* ===== Designsystem v7 "Neon Glass": Electric Blue · Cyan · Violett · Gold ===== */
+  :root { --bg: #0a0f1a; --panel: rgba(22,31,52,.66); --panel-2: rgba(14,22,40,.72); --line: rgba(120,160,255,.16); --text: #eef3ff; --muted: #9aa8c7; --green: #3ee0ff; --cyan: #3ee0ff; --violet: #8b5cff; --electric: #2f7bff; --gold: #f5c66b; --grad: linear-gradient(120deg, #2f7bff, #3ee0ff 45%, #8b5cff); }
+  body { background: var(--bg) !important; }
+  .ambient { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+  .ambient-flow { position: absolute; inset: -6%; background: radial-gradient(40% 50% at 15% 20%, rgba(47,123,255,.3), transparent 70%), radial-gradient(35% 45% at 85% 15%, rgba(139,92,255,.26), transparent 70%), radial-gradient(45% 55% at 70% 85%, rgba(62,224,255,.18), transparent 70%); animation: amb-flow 26s ease-in-out infinite alternate; }
+  .ambient-waves { position: absolute; left: 0; top: 30%; width: 100%; height: 60%; }
+  .ambient-waves .wave { fill: none; stroke-width: 1.4; stroke-dasharray: 8 14; animation: amb-wave 18s linear infinite; }
+  .ambient-waves .w1 { stroke: rgba(62,224,255,.25); } .ambient-waves .w2 { stroke: rgba(139,92,255,.2); animation-duration: 26s; animation-direction: reverse; }
+  .ambient-hex { position: absolute; width: 220px; height: 220px; clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0 50%); background: linear-gradient(140deg, rgba(62,224,255,.08), rgba(139,92,255,.04)); animation: amb-spin 70s linear infinite; }
+  .ambient-hex.h1 { left: 4%; top: 18%; } .ambient-hex.h2 { right: 6%; top: 58%; width: 300px; height: 300px; animation-direction: reverse; }
+  @keyframes amb-flow { 0% { transform: translate(0,0) scale(1); } 50% { transform: translate(-3%,2%) scale(1.06); } 100% { transform: translate(3%,-2%) scale(1.02); } }
+  @keyframes amb-wave { to { stroke-dashoffset: -440; } }
+  @keyframes amb-spin { to { transform: rotate(360deg); } }
+  header h1 { display: flex; align-items: center; gap: 10px; }
+  .brand-mark { filter: drop-shadow(0 0 10px rgba(62,224,255,.45)); }
+  header { background: rgba(10,15,26,.72) !important; border-bottom-color: var(--line) !important; }
+  .page-nav { background: rgba(16,24,42,.75) !important; border-color: var(--line) !important; }
+  .page-nav button.active { background: var(--grad) !important; background-size: 200% 100% !important; color: #061024 !important; box-shadow: 0 8px 28px rgba(62,224,255,.3) !important; animation: v7-grad 6s ease infinite; }
+  .card { background: linear-gradient(160deg, rgba(28,38,64,.66), rgba(14,21,38,.72)) !important; border-color: var(--line) !important; backdrop-filter: blur(16px) saturate(140%); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 20px 50px rgba(2,6,20,.45) !important; }
+  button.primary, .primary { background: var(--grad) !important; background-size: 200% 100% !important; color: #061024 !important; border: 0 !important; box-shadow: 0 10px 28px rgba(47,123,255,.3); animation: v7-grad 6s ease infinite; }
+  button { background: rgba(22,31,52,.7); border-color: rgba(120,180,255,.28); }
+  button:hover:not(:disabled) { border-color: #3ee0ff; }
+  input, select, textarea, .an-box textarea { background: rgba(10,16,30,.7) !important; border-color: rgba(120,180,255,.28) !important; transition: border-color .25s, box-shadow .25s; }
+  input:focus, select:focus, textarea:focus { border-color: #3ee0ff !important; box-shadow: 0 0 0 4px rgba(62,224,255,.14), 0 0 22px rgba(47,123,255,.22) !important; outline: none; }
+  .stats > div strong, .odds-item .top span { color: #eef3ff; }
+  .live-pill, .status { border-color: rgba(62,224,255,.35) !important; }
+  .fx-tilt { border-color: rgba(62,224,255,.45) !important; box-shadow: 0 22px 50px rgba(2,6,20,.5), 0 0 26px rgba(47,123,255,.18) !important; }
+  .card::after, .stats > div::after { background: radial-gradient(340px circle at var(--cx) var(--cy), rgba(62,224,255,.14), rgba(139,92,255,.07) 40%, transparent 70%) !important; }
+  html.fx-glow body::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 30%), rgba(62,224,255,.12), rgba(139,92,255,.07) 40%, transparent 70%) !important; }
+  .wallet-filter button.active, .ca-quick button.active, #stRange button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; }
+  #authGate { background: var(--bg) !important; }
+  #authGate .b1 { background: #2f7bff !important; } #authGate .b2 { background: #8b5cff !important; } #authGate .b3 { background: #3ee0ff !important; }
+  #authGate .as { background: #3ee0ff !important; box-shadow: 0 0 12px #3ee0ff !important; }
+  #authGate .box::before { background: conic-gradient(from var(--g-angle, 0deg), transparent 0 60%, #3ee0ff 75%, #8b5cff 85%, transparent 100%) !important; }
+  .gate-coin { background: radial-gradient(circle at 35% 30%, #d6f6ff, #3ee0ff 45%, #2f7bff 100%) !important; color: #061024 !important; box-shadow: 0 0 40px rgba(62,224,255,.5) !important; }
+  #authSubmit, #authGate button.primary { background: linear-gradient(110deg, #3ee0ff 35%, #e6fbff 50%, #8b5cff 65%) !important; background-size: 200% 100% !important; }
+  @keyframes v7-grad { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+  .wallet-row .avatar:not(.web) { background: rgba(62,224,255,.12) !important; color: #3ee0ff !important; }
+  .wallet-row .avatar.web { background: rgba(139,92,255,.16) !important; color: #c4b2ff !important; }
+  .tag-web { color: #3ee0ff !important; border-color: rgba(62,224,255,.35) !important; }
+  @media (max-width: 640px) { .ambient-hex.h2 { display: none; } .page-nav { background: rgba(12,18,34,.94) !important; } }
+  @media (prefers-reduced-motion: reduce) { .ambient-flow, .ambient-waves .wave, .ambient-hex, .page-nav button.active, button.primary, .primary { animation: none !important; } }
 </style>
 </head>
 <body>
@@ -537,8 +579,9 @@
     <div class="msg" id="authMsg"></div>
   </div>
 </div>
+<div class="ambient" aria-hidden="true"><div class="ambient-flow"></div><svg class="ambient-waves" viewBox="0 0 1440 600" preserveAspectRatio="none"><path class="wave w1" d="M0 360 C240 300 480 420 720 360 S1200 300 1440 360"/><path class="wave w2" d="M0 420 C260 380 520 470 780 410 S1220 360 1440 420"/></svg><i class="ambient-hex h1"></i><i class="ambient-hex h2"></i></div>
 <header>
-  <h1>⛓ GIBB Coin <small>Chain</small> <small class="ver" id="appVersion" title="Installierte Version"></small></h1>
+  <h1><svg class="brand-mark" width="30" height="30" viewBox="0 0 64 64" role="img" aria-label="GIBB Coin"><defs><linearGradient id="gm-f" x1="8" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2f7bff"/><stop offset=".55" stop-color="#3ee0ff"/><stop offset="1" stop-color="#8b5cff"/></linearGradient></defs><path d="M32 3 57 17.5v29L32 61 7 46.5v-29Z" fill="url(#gm-f)"/><path d="M32 11 50 21.5v21L32 53 14 42.5v-21Z" fill="#070b16" fill-opacity=".55"/><path d="M40.5 25.5A10.5 10.5 0 1 0 42.5 34H33" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44.5" cy="20.5" r="2.2" fill="#f5c66b"/></svg> GIBB Coin <small>Chain</small> <small class="ver" id="appVersion" title="Installierte Version"></small></h1>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span class="whoami" id="whoami" hidden><span>Konto:</span> <b id="whoName">—</b> <button id="logout" type="button">Abmelden</button></span>
     <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>

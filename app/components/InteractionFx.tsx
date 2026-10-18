@@ -60,6 +60,26 @@ export function InteractionFx() {
       target.appendChild(ripple);
       window.setTimeout(() => ripple.remove(), 700);
     };
+    // Einblenden beim Scrollen: Karten unterhalb des Bildschirms erscheinen weich, sobald sie sichtbar werden
+    const seen = new WeakSet<Element>();
+    const io = "IntersectionObserver" in window ? new IntersectionObserver((entries) => {
+      for (const entry of entries) if (entry.isIntersecting) { entry.target.classList.add("is-visible"); io?.unobserve(entry.target); }
+    }, { rootMargin: "0px 0px -6% 0px" }) : null;
+    const scan = () => {
+      if (!io) return;
+      document.querySelectorAll(".dashboard-view .card, .dashboard-view .stat-card, .dashboard-view .home-launchpad").forEach((el) => {
+        if (seen.has(el)) return;
+        seen.add(el);
+        const r = el.getBoundingClientRect();
+        if (r.top < window.innerHeight && r.bottom > 0) return; // schon sichtbar: nicht verstecken
+        el.classList.add("fx-reveal");
+        io.observe(el);
+      });
+    };
+    scan();
+    let scanQueued = 0;
+    const mo = new MutationObserver(() => { if (!scanQueued) scanQueued = window.setTimeout(() => { scanQueued = 0; scan(); }, 250); });
+    mo.observe(document.body, { childList: true, subtree: true });
     if (fine) {
       root.classList.add("fx-glow");
       window.addEventListener("pointermove", onMove, { passive: true });
@@ -67,6 +87,9 @@ export function InteractionFx() {
     }
     window.addEventListener("pointerdown", onDown, { passive: true });
     return () => {
+      mo.disconnect();
+      io?.disconnect();
+      if (scanQueued) window.clearTimeout(scanQueued);
       root.classList.remove("fx-glow");
       resetTilt();
       window.removeEventListener("pointermove", onMove);

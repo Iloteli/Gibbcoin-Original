@@ -21,6 +21,8 @@ import { openUserProfile, UserProfileModal } from "./UserProfileModal";
 import { HomePriceCard } from "./PriceChart";
 import { ThemeToggle } from "./ThemeToggle";
 import { WelcomeTour } from "./WelcomeTour";
+import { BrandMark } from "./BrandMark";
+import { AccountHero } from "./AccountHero";
 import { ProfileBadges } from "./ProfileBadges";
 
 // Bereiche werden erst beim ersten Öffnen geladen (kleinerer Start, schnellere Hauptseite)
@@ -591,7 +593,7 @@ export function Dashboard({ user }: Props) {
       <header className="header">
         <div className="container header-inner">
           <a className="brand" href="#top" aria-label="GIBB Coin Startseite">
-            <span className="coin-mark">G</span>
+            <BrandMark size={40} />
             <span className="brand-copy"><strong>GIBB Coin</strong><span>Wallet</span></span>
           </a>
           <nav className="desktop-nav" aria-label="Hauptnavigation">
@@ -738,7 +740,7 @@ export function Dashboard({ user }: Props) {
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
-        <div className="view-heading"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
+        <AccountHero userId={user.id} profile={profile} wallet={wallet} transactions={transactions} onNavigate={openView} />
         <section className="card card-pad profile-card" id="profile" style={{ borderColor: profile?.profile_color }}><div className="profile-identity">{avatar ? <Image className="profile-avatar" src={avatar} alt="Profilbild" width={64} height={64} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="profile-avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}<div><span>Angemeldet als</span><h2>{displayName}</h2><p>{profile?.bio || "Dein persönliches GIBB Coin Profil"}</p></div></div><div className="profile-facts"><div><span>Rolle / Titel</span><strong>{roleLabel}</strong></div>{visualRoleLabel && <div><span>Fun-Rang</span><strong className="visual-role-text">{visualRoleLabel}</strong></div>}<div><span>Kontostatus</span><strong className={accountLocked ? "danger-text" : "success-text"}>{accountLocked ? wallet?.locked_until ? `Gesperrt bis ${new Date(wallet.locked_until).toLocaleString("de-CH")}` : "Gesperrt" : "Aktiv & geschützt"}</strong></div><div><span>Anmeldung</span><strong>{user.app_metadata?.provider === "google" ? "Google" : "E-Mail"}</strong></div></div></section>
         {profile && !offlineMode && <section className="card card-pad my-badges-card"><div className="card-head"><h2>Deine Abzeichen</h2><button type="button" className="secondary compact" onClick={() => openUserProfile(user.id)}>Öffentliches Profil ansehen</button></div><ProfileBadges userId={user.id} balance={wallet?.balance ?? 0} role={profile.role} showLocked /></section>}
         {profile && <AccountReadiness profile={profile} wallet={wallet} onNavigate={openView} />}

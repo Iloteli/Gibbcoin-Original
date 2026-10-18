@@ -3,6 +3,7 @@ import { DeviceClass } from "./components/DeviceClass";
 import { ServiceWorkerRegistration } from "./components/ServiceWorkerRegistration";
 import { MaintenanceWatch } from "./components/MaintenanceWatch";
 import { InteractionFx } from "./components/InteractionFx";
+import { AmbientBackground } from "./components/AmbientBackground";
 import "./globals.css";
 
 const title = "GIBB Coin";
@@ -10,7 +11,7 @@ const description = "GIBB Coins sicher senden, empfangen, kaufen und mit persön
 const metadataBase = new URL("https://gibbcoin.netlify.app");
 
 export const viewport: Viewport = {
-  themeColor: "#121a1f",
+  themeColor: "#0a0f1a",
   width: "device-width",
   initialScale: 1,
   // Ohne cover bleibt env(safe-area-inset-*) auf iPhones bei 0. Zusammen mit
@@ -65,7 +66,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" />
       </head>
-      <body><DeviceClass /><ServiceWorkerRegistration /><MaintenanceWatch /><InteractionFx />{children}</body>
+      <body><DeviceClass /><ServiceWorkerRegistration /><MaintenanceWatch /><InteractionFx /><AmbientBackground />{children}</body>
     </html>
   );
 }
