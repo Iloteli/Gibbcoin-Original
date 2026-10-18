@@ -420,6 +420,8 @@
   .bi-chip { display: inline-flex; align-items: center; padding: 8px 14px; border-radius: 999px; border: 1px solid rgba(126,245,163,.35); color: #eef4f0; text-decoration: none; font-size: 13px; font-weight: 600; transition: background .2s; }
   .bi-chip:hover { background: rgba(126,245,163,.12); }
   html { scroll-padding-top: 80px; }
+  header h1 .ver { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500; color: var(--muted, #8fa39a); border: 1px solid var(--line, #1c2823); border-radius: 999px; padding: 2px 8px; margin-left: 4px; }
+  header h1 .ver:empty { display: none; }
 </style>
 </head>
 <body>
@@ -446,7 +448,7 @@
   </div>
 </div>
 <header>
-  <h1>⛓ GIBB Coin <small>Chain</small></h1>
+  <h1>⛓ GIBB Coin <small>Chain</small> <small class="ver" id="appVersion" title="Installierte Version"></small></h1>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
     <span class="whoami" id="whoami" hidden><span>Konto:</span> <b id="whoName">—</b> <button id="logout" type="button">Abmelden</button></span>
     <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>
@@ -984,6 +986,7 @@ async function refresh() {
 
 const lastStatValues = {};
 function renderStats(s) {
+  if (s.version) { $("appVersion").textContent = `v${s.version.version}${s.version.build ? ` · Build ${s.version.build}` : ""}`; $("appVersion").title = `Version ${s.version.label}`; }
   $("stats").innerHTML = [
     ["Kurs", price(s.price) + " Rp"], ["Blockhöhe", s.height], ["Schwierigkeit", s.difficultyBits + " Bit"], ["Umlauf", fmt(s.supply) + " GIBB"],
     ["Marktkapital", fmtChf(s.marketCapRappen)], ["24h Volumen", fmt(s.volume24h) + " GIBB"], ["Ø Blockzeit", s.averageBlockSeconds == null ? "–" : s.averageBlockSeconds.toFixed(1) + " s"], ["Belohnung", s.settings.reward + " GIBB"],

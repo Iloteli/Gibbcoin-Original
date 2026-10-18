@@ -12,15 +12,23 @@ ln -sf "$APP_DIR/deploy/maintenance.sh" /usr/local/bin/gibb-wartung 2>/dev/null 
 ln -sf "$APP_DIR/deploy/chain-key.sh" /usr/local/bin/gibb-chain-key 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/reload-clients.sh" /usr/local/bin/gibb-neuladen 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/login-code.sh" /usr/local/bin/gibb-code 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/backup.sh" /usr/local/bin/gibb-backup 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/help.sh" /usr/local/bin/gibb-help 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/version.sh" /usr/local/bin/gibb-version 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/autoupdate-switch.sh" /usr/local/bin/gibb-autoupdate 2>/dev/null || true
 FORCE=1 bash "$APP_DIR/deploy/auto-update.sh"
 systemctl reload caddy 2>/dev/null || true
 sleep 3
 echo
 echo "== Dienste"
-for s in gibb-node gibb-website gibb-gateway caddy gibb-update.timer; do
+for s in gibb-node gibb-website gibb-gateway caddy; do
   printf '  %-20s %s\n' "$s" "$(systemctl is-active "$s" 2>/dev/null)"
 done
-echo "== Version: $(git -C "$APP_DIR" log -1 --format='%h %s' | cut -c1-80)"
+echo "== Version: $(bash "$APP_DIR/deploy/version.sh")"
+echo "   Letzte Änderung: $(git -c safe.directory='*' -C "$APP_DIR" log -1 --format='%s' | cut -c1-90)"
+printf '   Automatische Updates: %s
+' "$(systemctl is-active gibb-update.timer >/dev/null 2>&1 && echo an || echo aus)"
+echo "   Alle Befehle: gibb-help"
 echo "== Erreichbarkeit"
 printf '  Website (8080)   %s\n' "$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/)"
 printf '  Chain   (8787)   %s\n' "$(curl -s -m 5 -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/stats)"

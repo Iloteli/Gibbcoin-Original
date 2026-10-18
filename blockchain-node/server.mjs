@@ -1,7 +1,7 @@
 // HTTP-Server für den GIBB-Blockchain-Node: REST-API + Verwaltungs-Website.
 // Start:  node blockchain-node/server.mjs   (Port über PORT, Datei über CHAIN_FILE)
 
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { createServer as createHttpsServer } from "node:https";
 import { readFile } from "node:fs/promises";
@@ -20,6 +20,14 @@ import { ALL_PERMISSIONS, PERMISSION_CATALOG, normalizePermissions } from "./per
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
+// Version: Nummer aus package.json + Build (Anzahl Commits) + Datum, z. B. "1.0.0 · Build 412 · 18.10.2026"
+const VERSION = (() => {
+  let ver = "?", build = "", date = "";
+  try { ver = JSON.parse(_read(join(here, "..", "package.json"), "utf8")).version; } catch { /* ohne package.json */ }
+  try { build = execFileSync("git", ["-c", "safe.directory=*", "rev-list", "--count", "HEAD"], { cwd: here, encoding: "utf8", timeout: 3000 }).trim(); } catch { /* ohne git */ }
+  try { date = execFileSync("git", ["-c", "safe.directory=*", "log", "-1", "--format=%cd", "--date=format:%d.%m.%Y"], { cwd: here, encoding: "utf8", timeout: 3000 }).trim(); } catch { /* ohne git */ }
+  return { version: ver, build, date, label: [ver, build && `Build ${build}`, date].filter(Boolean).join(" · ") };
+})();
 const chain = new Blockchain(process.env.CHAIN_FILE ?? join(here, "data", "chain.json"));
 
 // Der Server mined nicht selbst: Browser oder der lokale Miner-Prozess holen Vorlagen
@@ -291,7 +299,7 @@ const dropSessionsOfAddress = (address) => {
 
 const routes = {
   "GET /api/permissions": () => ({ catalog: PERMISSION_CATALOG }),
-  "GET /api/stats": () => ({ ...chain.stats(), recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, settingsSync: settingsSync.status(), fallbackMiner: fallbackMiner.status() }),
+  "GET /api/stats": () => ({ ...chain.stats(), version: VERSION, recentBlocks, log, localMiner: localMinerState(), walletCredit: { enabled: walletCredit.enabled, pending: walletCredit.pendingCount() }, settingsSync: settingsSync.status(), fallbackMiner: fallbackMiner.status() }),
   // ---------- Lokale Anmeldung (kein Cloud-Supabase) ----------
   "POST /api/auth/register": (_, body) => {
     if (process.env.NODE_REGISTRATION !== "1") throw new Error("registration_disabled");
