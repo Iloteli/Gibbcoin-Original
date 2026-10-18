@@ -24,6 +24,10 @@ export const PERMISSION_CATALOG = [
   { group: "🖥 Server-Einstellungen", items: [
     ["s:fallbackMinerEnabled", "Reserve-Miner an/aus"], ["s:fallbackDelaySeconds", "Reserve-Miner Einsprung"], ["s:browserMinerThreads", "Browser-Miner Kerne"],
   ] },
+  { group: "🖥 Server-Befehle (SSH)", items: [
+    ["a:ssh", "Server verbinden (SSH-Karte)"], ["a:sshUpdate", "Knopf gibb-update"], ["a:sshHelp", "Knopf gibb-help"],
+    ["a:sshBackup", "Knopf gibb-backup"], ["a:sshVersion", "Knopf gibb-version"], ["a:sshCode", "Knopf gibb-code"],
+  ] },
   { group: "⚙ Chain-Aktionen", items: [
     ["a:miner", "Server-Miner starten/stoppen"], ["a:verify", "Kette prüfen"], ["a:bank", "Banküberweisungen bestätigen"],
   ] },

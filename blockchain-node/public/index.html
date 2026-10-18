@@ -892,7 +892,7 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
-  <section class="card ssh-card owner-only" id="sshCard">
+  <section class="card ssh-card owner-basic" id="sshCard" data-perm="a:ssh">
     <h2>Server verbinden <span>SSH</span></h2>
     <p class="muted" style="margin:0 0 12px">Öffnet dein SSH-Programm (Terminal) direkt mit dem Server. Das Passwort tippst du dort ein – es geht nie über diese Seite. Die Angaben bleiben nur in diesem Browser gespeichert.</p>
     <div class="sgrid">
@@ -906,11 +906,11 @@
     <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
     <p class="muted" style="margin:0 0 8px">Klick = SSH öffnen und den Befehl direkt ausführen (braucht „Windows einrichten“). 📋 = nur kopieren. Ohne sudo-Passwort: einmal auf dem Server <code>sudo gibb-sudo</code> ausführen.</p>
     <div class="ssh-quick" id="sshQuick">
-      <span><button type="button" data-run="update">⬆ gibb-update</button><button type="button" class="cp" data-cmd="sudo gibb-update" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="help">❓ gibb-help</button><button type="button" class="cp" data-cmd="sudo gibb-help" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="backup">💾 gibb-backup</button><button type="button" class="cp" data-cmd="sudo gibb-backup" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="version">🏷 gibb-version</button><button type="button" class="cp" data-cmd="sudo gibb-version" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="code">🔑 gibb-code</button><button type="button" class="cp" data-cmd="sudo gibb-code" title="Kopieren">📋</button></span>
+      <span data-perm="a:sshUpdate"><button type="button" data-run="update">⬆ gibb-update</button><button type="button" class="cp" data-cmd="sudo gibb-update" title="Kopieren">📋</button></span>
+      <span data-perm="a:sshHelp"><button type="button" data-run="help">❓ gibb-help</button><button type="button" class="cp" data-cmd="sudo gibb-help" title="Kopieren">📋</button></span>
+      <span data-perm="a:sshBackup"><button type="button" data-run="backup">💾 gibb-backup</button><button type="button" class="cp" data-cmd="sudo gibb-backup" title="Kopieren">📋</button></span>
+      <span data-perm="a:sshVersion"><button type="button" data-run="version">🏷 gibb-version</button><button type="button" class="cp" data-cmd="sudo gibb-version" title="Kopieren">📋</button></span>
+      <span data-perm="a:sshCode"><button type="button" data-run="code">🔑 gibb-code</button><button type="button" class="cp" data-cmd="sudo gibb-code" title="Kopieren">📋</button></span>
     </div>
     <div class="msg" id="sshMsg"></div>
   </section>
