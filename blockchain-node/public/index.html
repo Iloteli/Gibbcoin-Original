@@ -80,6 +80,7 @@
   #authGate h2 { margin: 0 0 4px; font-size: 22px; }
   #authGate p { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
   #authGate .tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+  #authGate .tabs:has(#tabReg[hidden]) { display: none; } /* nur ein Reiter: Leiste ausblenden */
   #authGate .tabs button { flex: 1; }
   #authGate .tabs button.active { background: var(--green); color: #07100a; border-color: transparent; }
   .whoami { display: inline-flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
@@ -474,6 +475,14 @@
     header > div { gap: 8px !important; width: 100%; justify-content: space-between; }
   }
   @media (prefers-reduced-motion: reduce) { html.fx-glow body::before, .fx-ripple { display: none; } button:active:not(:disabled) { transform: none; } }
+  /* Spotlight und Neigung der Karten */
+  html.fx-glow body::before { background: radial-gradient(640px circle at var(--mx, 50%) var(--my, 30%), rgba(126,245,163,.18), rgba(95,212,255,.09) 38%, transparent 70%) !important; }
+  .card, .stats > div, .odds-item, .limit-row { position: relative; --cx: 50%; --cy: 50%; }
+  .card::after, .stats > div::after, .odds-item::after, .limit-row::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s; background: radial-gradient(340px circle at var(--cx) var(--cy), rgba(126,245,163,.15), rgba(95,212,255,.06) 40%, transparent 70%); }
+  .fx-tilt { transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-2px) !important; border-color: rgba(126,245,163,.35) !important; box-shadow: 0 22px 46px rgba(0,0,0,.3) !important; transition: transform .18s ease-out, border-color .25s, box-shadow .25s !important; }
+  .fx-tilt::after { opacity: 1; }
+  .fx-ripple { background: radial-gradient(circle, rgba(255,255,255,.55), rgba(126,245,163,.25) 40%, transparent 70%) !important; }
+  @media (prefers-reduced-motion: reduce) { .fx-tilt { transform: none !important; } .card::after { display: none; } }
 </style>
 </head>
 <body>
@@ -2222,7 +2231,25 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   const root = document.documentElement; let frame = 0;
   if (matchMedia("(pointer: fine)").matches) {
     root.classList.add("fx-glow");
-    addEventListener("pointermove", (e) => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0; root.style.setProperty("--mx", `${e.clientX}px`); root.style.setProperty("--my", `${e.clientY}px`); }); }, { passive: true });
+    let last = null, tilted = null;
+    const reset = () => { if (tilted) { tilted.classList.remove("fx-tilt"); tilted = null; } };
+    addEventListener("pointermove", (e) => {
+      last = e; if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0; const ev = last;
+        root.style.setProperty("--mx", `${ev.clientX}px`); root.style.setProperty("--my", `${ev.clientY}px`);
+        // Karte unter der Maus: Spotlight an der Mausposition und leichte Neigung
+        const card = ev.target.closest?.(".card, .stats > div, .odds-item, .limit-row");
+        if (card !== tilted) reset();
+        if (!card) return;
+        const r = card.getBoundingClientRect(); const px = (ev.clientX - r.left) / r.width; const py = (ev.clientY - r.top) / r.height;
+        const k = r.width > 700 ? 1 : 3;
+        card.style.setProperty("--cx", `${(px * 100).toFixed(1)}%`); card.style.setProperty("--cy", `${(py * 100).toFixed(1)}%`);
+        card.style.setProperty("--rx", `${((0.5 - py) * k).toFixed(2)}deg`); card.style.setProperty("--ry", `${((px - 0.5) * k).toFixed(2)}deg`);
+        card.classList.add("fx-tilt"); tilted = card;
+      });
+    }, { passive: true });
+    document.addEventListener("pointerleave", reset);
   }
   addEventListener("pointerdown", (e) => {
     const b = e.target.closest("button"); if (!b || b.disabled) return;

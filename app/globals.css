@@ -3095,3 +3095,27 @@ button:active:not(:disabled), .primary:active:not(:disabled), .secondary:active:
   .fx-ripple { display: none; }
   .stat-card:hover, .home-launchpad:hover, .home-price-card:hover { transform: none; }
 }
+
+/* ===== Design v6: deutlichere Animationen ===== */
+/* Obere Leiste im Kopf entfernt – die Bereichs-Leiste darunter reicht */
+.desktop-nav { display: none !important; }
+
+/* Stärkerer Lichtschein */
+html.fx-glow body::before { background: radial-gradient(640px circle at var(--mx, 50%) var(--my, 30%), rgba(126,245,163,.18), rgba(95,212,255,.09) 38%, transparent 70%); }
+
+/* Karte leuchtet unter der Maus auf und neigt sich leicht */
+.card, .stat-card, .home-shortcuts button { --cx: 50%; --cy: 50%; transform-style: preserve-3d; }
+.card:not(.balance-card)::after, .stat-card::after, .home-shortcuts button::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .3s;
+  background: radial-gradient(360px circle at var(--cx) var(--cy), rgba(126,245,163,.16), rgba(95,212,255,.06) 40%, transparent 70%);
+}
+.card, .stat-card, .home-shortcuts button { position: relative; }
+.fx-tilt { transform: perspective(1000px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px) !important; border-color: rgba(126,245,163,.35) !important; box-shadow: 0 24px 50px rgba(0,0,0,.32), 0 0 0 1px rgba(126,245,163,.08) !important; }
+.fx-tilt::after { opacity: 1; }
+.card, .stat-card { transition: transform .18s ease-out, border-color .25s, box-shadow .25s !important; }
+
+/* Deutlichere Welle */
+.fx-ripple { background: radial-gradient(circle, rgba(255,255,255,.55), rgba(126,245,163,.25) 40%, transparent 70%) !important; animation-duration: .65s !important; }
+
+html[data-theme="light"] .card:not(.balance-card)::after, html[data-theme="light"] .stat-card::after { background: radial-gradient(360px circle at var(--cx) var(--cy), rgba(21,163,74,.10), transparent 70%); }
+@media (prefers-reduced-motion: reduce) { .fx-tilt { transform: none !important; } .card:not(.balance-card)::after, .stat-card::after { display: none; } }
