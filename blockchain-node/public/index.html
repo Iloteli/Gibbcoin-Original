@@ -898,8 +898,8 @@
       <div class="field"><label for="sshPort">Port</label><input id="sshPort" type="number" min="1" max="65535" value="22" /></div>
     </div>
     <div class="ssh-cmd"><code id="sshCmd">ssh …</code></div>
-    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button></div>
-    <small class="muted">Passiert nichts beim Klick? Dann kennt dein PC keine ssh://-Links: Befehl kopieren und in PowerShell oder im Terminal einfügen.</small>
+    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button><button type="button" id="sshWin">🪟 Windows einrichten (einmalig)</button></div>
+    <small class="muted">Passiert beim Klick auf „Jetzt verbinden“ nichts? Windows kennt ssh://-Links von Haus aus nicht. Einmal „Windows einrichten“ klicken, die Datei <b>gibb-ssh-einrichten.cmd</b> öffnen (bei der Warnung „Weitere Informationen → Trotzdem ausführen“) – danach öffnet „Jetzt verbinden“ PowerShell mit der Verbindung. Ohne Admin-Rechte, nur für dein Windows-Konto.</small>
     <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
     <div class="ssh-quick" id="sshQuick">
       <button type="button" data-cmd="sudo gibb-update">⬆ sudo gibb-update</button><button type="button" data-cmd="sudo gibb-help">❓ sudo gibb-help</button><button type="button" data-cmd="sudo gibb-backup">💾 sudo gibb-backup</button><button type="button" data-cmd="sudo gibb-version">🏷 sudo gibb-version</button><button type="button" data-cmd="sudo gibb-code">🔑 sudo gibb-code</button>
@@ -2561,6 +2561,48 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   sshUpdate();
   const copy = async (text) => { try { await navigator.clipboard.writeText(text); say("sshMsg", `Kopiert: ${text}`); } catch { say("sshMsg", "Kopieren nicht möglich – bitte von Hand markieren.", true); } };
   $("sshCopy").onclick = () => void copy($("sshCmd").textContent);
+  // Einmalige Einrichtung für Windows: ssh://-Links öffnen PowerShell mit ssh.
+  // Der Link wird nur als Argument übergeben und streng geprüft (kein Ausführen von Link-Inhalt).
+  $("sshWin").onclick = () => {
+    const opener = [
+      "param([string]$Url)",
+      "$m = [regex]::Match($Url, '^ssh://(?:([a-z_][a-z0-9._-]{0,31})@)?([a-z0-9][a-z0-9.-]{0,252})(?::([0-9]{1,5}))?/?$', 'IgnoreCase')",
+      "if (-not $m.Success) { Write-Host 'Ungueltiger SSH-Link:' $Url; Read-Host 'Enter zum Schliessen'; exit 1 }",
+      "$target = if ($m.Groups[1].Success) { $m.Groups[1].Value + '@' + $m.Groups[2].Value } else { $m.Groups[2].Value }",
+      "$sshArgs = @($target)",
+      "if ($m.Groups[3].Success) { $sshArgs = @('-p', $m.Groups[3].Value) + $sshArgs }",
+      "$host.UI.RawUI.WindowTitle = 'GIBB Server - ' + $target",
+      "Write-Host ('Verbinde mit ' + $target + ' ...')",
+      "& ssh.exe @sshArgs",
+      "Read-Host 'Verbindung beendet - Enter zum Schliessen'",
+    ].join("\r\n");
+    const setup = [
+      "$ErrorActionPreference = 'Stop'",
+      "$dir = Join-Path $env:LOCALAPPDATA 'GibbSSH'",
+      "New-Item -ItemType Directory -Force -Path $dir | Out-Null",
+      `$script = @'\r\n${opener}\r\n'@`,
+      "Set-Content -Path (Join-Path $dir 'open.ps1') -Value $script -Encoding UTF8",
+      "$key = 'HKCU:\\Software\\Classes\\ssh'",
+      "New-Item -Path \"$key\\shell\\open\\command\" -Force | Out-Null",
+      "Set-ItemProperty -Path $key -Name '(default)' -Value 'URL:SSH Protocol'",
+      "Set-ItemProperty -Path $key -Name 'URL Protocol' -Value ''",
+      "$cmd = 'powershell.exe -NoProfile -ExecutionPolicy Bypass -File \"' + (Join-Path $dir 'open.ps1') + '\" \"%1\"'",
+      "Set-ItemProperty -Path \"$key\\shell\\open\\command\" -Name '(default)' -Value $cmd",
+      "if (-not (Get-Command ssh.exe -ErrorAction SilentlyContinue)) { Write-Host 'Achtung: ssh.exe fehlt - unter Einstellungen > Apps > Optionale Features den OpenSSH-Client installieren.' }",
+      "Write-Host 'Fertig! ssh://-Links oeffnen jetzt PowerShell. Rueckgaengig: Registry-Schluessel HKCU\\Software\\Classes\\ssh loeschen.'",
+    ].join("\r\n");
+    // PowerShell -EncodedCommand erwartet UTF-16LE in Base64
+    const bytes = new Uint8Array(setup.length * 2);
+    for (let i = 0; i < setup.length; i++) { const c = setup.charCodeAt(i); bytes[i * 2] = c & 255; bytes[i * 2 + 1] = c >> 8; }
+    let bin = ""; bytes.forEach((b) => { bin += String.fromCharCode(b); });
+    const cmdFile = `@echo off\r\nrem GIBB Coin: ssh://-Links unter Windows oeffnen (nur fuer dieses Windows-Konto)\r\npowershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${btoa(bin)}\r\npause\r\n`;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([cmdFile], { type: "application/octet-stream" }));
+    a.download = "gibb-ssh-einrichten.cmd";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    say("sshMsg", "Datei gibb-ssh-einrichten.cmd heruntergeladen – öffne sie einmal, danach funktioniert „Jetzt verbinden“.");
+  };
   $("sshGo").addEventListener("click", (e) => { if ($("sshGo").getAttribute("href") === "#") { e.preventDefault(); say("sshMsg", "Bitte zuerst den Server eintragen.", true); } else say("sshMsg", "SSH-Programm wird geöffnet …"); });
   $("sshQuick").addEventListener("click", (e) => { const b = e.target.closest("button[data-cmd]"); if (b) void copy(b.dataset.cmd); });
 }
