@@ -1796,7 +1796,7 @@ setInterval(() => { if (document.visibilityState === "visible") void bankLoad();
 
 // ---------- Admin (Hauptseite) ----------
 let adminPin = "", adUsers = [], adAuditRows = [], adDays = 7, adVerified = new Set();
-const adErrors = { admin_pin_invalid: "Admin-PIN falsch.", admin_pin_locked: "Admin-PIN nach zu vielen Fehlversuchen gesperrt – lege einen neuen fest.", admin_pin_not_set: "Noch kein Admin-PIN – lege oben einen fest.", admin_pin_required: "Bitte zuerst den Admin-PIN eingeben.", account_is_protected: "Dieses Konto ist geschützt.", cannot_lock_own_account: "Das eigene Konto kann nicht gebannt werden.", email_delivery_failed: "Die E-Mail konnte nicht verschickt werden.", function_not_allowed: "Diese Aktion ist nicht erlaubt.", ...caErrors };
+const adErrors = { case_not_found: "Support-Fall nicht gefunden (schon gelöscht?).",  admin_pin_invalid: "Admin-PIN falsch.", admin_pin_locked: "Admin-PIN nach zu vielen Fehlversuchen gesperrt – lege einen neuen fest.", admin_pin_not_set: "Noch kein Admin-PIN – lege oben einen fest.", admin_pin_required: "Bitte zuerst den Admin-PIN eingeben.", account_is_protected: "Dieses Konto ist geschützt.", cannot_lock_own_account: "Das eigene Konto kann nicht gebannt werden.", email_delivery_failed: "Die E-Mail konnte nicht verschickt werden.", function_not_allowed: "Diese Aktion ist nicht erlaubt.", ...caErrors };
 const adFail = (e) => say("adMsg", adErrors[e.message] || errors[e.message] || e.message, true);
 const adCall = async (fn, args = {}) => {
   const r = await api("/api/admin/call", { fn, args });
@@ -1924,7 +1924,7 @@ async function adLoad(part) {
       adOpsData = Array.isArray(ops) ? ops : [];
       const center = await adCall("admin_list_control_center_page", { p_page: 1, p_page_size: 12 }).catch(() => null);
       const c = Array.isArray(center) ? center[0] : center;
-      $("adTickets").innerHTML = (c?.tickets ?? []).map((t) => `<div class="item bank-order" data-case="${h(t.id)}" data-prio="${h(t.priority)}"><div><b>${h(t.subject)}</b><br><small class="muted">${h(t.priority)}</small></div><div class="acts"><select data-casestatus>${["open", "in_progress", "waiting", "closed"].map((st) => `<option value="${st}"${t.status === st ? " selected" : ""}>${({ open: "Offen", in_progress: "In Arbeit", waiting: "Wartet", closed: "Geschlossen" })[st]}</option>`).join("")}</select></div></div>`).join("") || `<div class="muted">Keine Support-Fälle.</div>`;
+      $("adTickets").innerHTML = (c?.tickets ?? []).map((t) => `<div class="item bank-order" data-case="${h(t.id)}" data-prio="${h(t.priority)}"><div><b>${h(t.subject)}</b><br><small class="muted">${h(t.priority)}</small></div><div class="acts"><select data-casestatus>${["open", "in_progress", "waiting", "closed"].map((st) => `<option value="${st}"${t.status === st ? " selected" : ""}>${({ open: "Offen", in_progress: "In Arbeit", waiting: "Wartet", closed: "Geschlossen" })[st]}</option>`).join("")}</select><button type="button" class="danger" data-casedel title="Support-Fall löschen">🗑 Löschen</button></div></div>`).join("") || `<div class="muted">Keine Support-Fälle.</div>`;
     }
     if (part === "audit") { adAuditRows = (await adCall("admin_list_audit_logs", { p_limit: 200 })) ?? []; adRenderAudit(); }
     if (part === "visitors") {
@@ -1973,6 +1973,14 @@ $("adTickets").addEventListener("change", async (e) => {
   const sel = e.target.closest("select[data-casestatus]"); if (!sel || !needPin()) return;
   const row = sel.closest("[data-case]");
   try { await adCall("admin_update_case", { p_case_id: row.dataset.case, p_status: sel.value, p_priority: row.dataset.prio, p_pin: adminPin }); say("adMsg", "Support-Fall gespeichert."); } catch (err) { adFail(err); }
+});
+$("adTickets").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-casedel]"); if (!btn) return;
+  const row = btn.closest("[data-case]"); const subject = row.querySelector("b")?.textContent ?? "";
+  if (!needPin()) return;
+  if (!confirm(`Support-Fall „${subject}“ endgültig löschen?`)) return;
+  try { await api("/api/admin/case-delete", { caseId: row.dataset.case, subject, pin: adminPin }); row.remove(); say("adMsg", "Support-Fall gelöscht."); if (!$("adTickets").children.length) $("adTickets").innerHTML = `<div class="muted">Keine Support-Fälle.</div>`; }
+  catch (err) { adFail(err); }
 });
 $("adSaveThreshold").onclick = async () => {
   if (!needPin()) return;

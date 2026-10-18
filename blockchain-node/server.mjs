@@ -617,6 +617,14 @@ const routes = {
     note("auth", `Chain-Konto ${r.from} heisst jetzt ${r.username}`);
     return r;
   },
+  "POST /api/admin/case-delete": async (_, body) => {
+    await requireAdminPermission(body, "a:tools");
+    const id = String(body.caseId ?? "").toLowerCase();
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("case_not_found");
+    await settingsSync.deleteSupportCase(id, String(body.pin ?? ""));
+    note("auth", `Support-Fall gelöscht: ${String(body.subject ?? id).slice(0, 60)}`);
+    return { ok: true };
+  },
   // Profilbild auf der Hauptseite für einen Benutzer sperren/erlauben
   "POST /api/admin/avatar-block": async (_, body) => {
     await requireAdminPermission(body, "a:accounts");
