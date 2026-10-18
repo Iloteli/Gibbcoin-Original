@@ -573,6 +573,14 @@
   .subnav button[data-sub="all"] { margin-left: auto; }
   body .page > .sub-off.sub-off.sub-off { display: none !important; }
   @media (max-width: 640px) { .subnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; } .subnav button { flex: 0 0 auto; } .subnav button[data-sub="all"] { margin-left: 0; } }
+  .odds-info { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .oi-row { display: grid; gap: 4px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.03); }
+  .oi-name { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .oi-tag { font-size: 11.5px; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+  .oi-tag.fair { background: rgba(126,245,163,.14); color: #7ef5a3; }
+  .oi-tag.low { background: rgba(255,120,120,.15); color: #ff8f8f; }
+  .oi-tag.high { background: rgba(246,200,95,.16); color: #f6c85f; }
+  .oi-now { font-size: 13.5px; }
 </style>
 </head>
 <body>
@@ -774,7 +782,10 @@
       <h3 class="ad-h">Einsätze pro Spiel <span class="muted" style="font-weight:500">leer = keine Grenze · Dino Run: Mindesteinsatz ist der Eintritt</span></h3>
       <div class="limits-table" id="adLimits"></div>
       <div class="actions"><button type="button" class="primary" id="adLimitsSave">Einsätze speichern</button></div>
-      <p class="muted" style="margin:6px 0 12px">Die Gewinnchancen der Spiele findest du jetzt im Bereich <a href="#infosCard">ℹ Infos</a>.</p>
+      <h3 class="ad-h">Gewinnchancen <span class="muted" style="font-weight:500">100 % = fair · weniger = Gewinne seltener, mehr = häufiger · Übersicht im Bereich <a href="#infosCard">ℹ Infos</a></span></h3>
+      <div class="odds-grid" id="adOdds"></div>
+      <div class="actions"><button type="button" id="adOddsReset">Alle auf fair (100 %)</button><button type="button" class="primary" id="adOddsSave">Gewinnchancen speichern</button></div>
+      <div class="msg" id="oddsMsg"></div>
       <h3 class="ad-h">Globale Spielgrenzen</h3>
       <div class="sgrid">
         <div class="field"><label for="adMaxWager">Max. Einsatz pro Spiel</label><input id="adMaxWager" type="number" min="1" placeholder="kein Limit" /><small>GIBB · leer = kein Limit</small></div>
@@ -1076,11 +1087,9 @@
   </section>
 
   <section class="card infos-card owner-basic" id="infosCard" data-perm="a:games">
-    <h2>Gewinnchancen der Spiele <span>100 % = fair</span></h2>
-    <p class="muted" style="margin:0 0 12px">Gilt für alle Spieler gleich und wird ihnen in den Spielregeln angezeigt. Weniger als 100 % = Gewinne seltener, mehr = häufiger.</p>
-    <div class="odds-grid" id="adOdds"></div>
-    <div class="actions"><button type="button" id="adOddsReset">Alle auf fair (100 %)</button><button type="button" class="primary" id="adOddsSave">Gewinnchancen speichern</button></div>
-    <div class="msg" id="oddsMsg"></div>
+    <h2>Gewinnchancen der Spiele <span>so sind sie gerade eingestellt</span></h2>
+    <p class="muted" style="margin:0 0 12px">Gilt für alle Spieler gleich. Ändern kannst du sie unter <a href="#adminCard">🛡 Verwaltung → Admin → 🎮 Spiele</a>.</p>
+    <div class="odds-info" id="oddsInfo"><div class="muted">Wird geladen …</div></div>
   </section>
 
 </main>
@@ -1128,7 +1137,7 @@ function showPage(page, { save = true } = {}) {
   document.querySelectorAll(".page").forEach((p) => { p.hidden = p.dataset.page !== page; });
   document.querySelectorAll("#pageNav button").forEach((b) => { b.classList.toggle("active", b.dataset.page === page); b.setAttribute("aria-current", b.dataset.page === page ? "page" : "false"); });
   if (save) { try { localStorage.setItem("chain-page", page); } catch { /* privat */ } }
-  if (page === "infos" && typeof oddsLoad === "function") void oddsLoad();
+  if ((page === "infos" || page === "verwaltung") && typeof oddsLoad === "function") void oddsLoad();
 }
 function refreshPageNav() {
   document.querySelectorAll("#pageNav button").forEach((b) => { b.hidden = !pageVisible(b.dataset.page); });
@@ -1594,7 +1603,7 @@ function applyPermissions(perms) {
   if (isBasic && first && document.querySelector(".stab[data-tab].active")?.classList.contains("perm-off")) first.click();
   if (stats?.settings) renderPayMethods(stats.settings);
   refreshPageNav();
-  if (document.querySelector('.page[data-page="infos"]')?.hidden === false) void oddsLoad();
+  if (document.querySelector('.page[data-page="infos"]')?.hidden === false || document.querySelector('.page[data-page="verwaltung"]')?.hidden === false) void oddsLoad();
 }
 const isFullView = () => document.body.classList.contains("is-owner");
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
@@ -2363,14 +2372,28 @@ $("adLimitsSave").onclick = async () => {
 
 // ---------- Gewinnchancen der Spiele ----------
 const ODDS_GAMES = [
-  { key: "coin_flip", label: "🪙 Münzwurf", base: 1 / 2, unit: "Treffer" },
-  { key: "dice_duel", label: "🎲 Würfelduell", base: 15 / 36, unit: "Sieg" },
-  { key: "high_card", label: "🃏 High Card", base: 6 / 13, unit: "Sieg" },
-  { key: "plinko", label: "🔻 Plinko", base: 2 / 9, unit: "3-fach-Fach" },
-  { key: "roulette", label: "🎡 Roulette", base: 18 / 37, unit: "Rot/Schwarz", base2: 1 / 37, unit2: "Einzelzahl" },
-  { key: "slots", label: "🎰 Slot Machine" }, { key: "baccarat", label: "♢ Baccarat" }, { key: "keno", label: "⑨ Keno" },
-  { key: "wheel", label: "◉ Glücksrad" }, { key: "mines", label: "✦ Mines" }, { key: "bingo", label: "▤ Bingo" }, { key: "crash", label: "↗ Crash" },
+  { key: "coin_flip", label: "🪙 Münzwurf", base: 1 / 2, unit: "Treffer", rule: "Kopf und Zahl je 50 % · Treffer zahlt 2×." },
+  { key: "dice_duel", label: "🎲 Würfelduell", base: 15 / 36, unit: "Sieg", rule: "Zwei faire Würfel: Gewinn 15/36 · Gleichstand 6/36 · Verlust 15/36." },
+  { key: "high_card", label: "🃏 High Card", base: 6 / 13, unit: "Sieg", rule: "Kartenwerte 1–13: Gewinn 6/13 · Gleichstand 1/13 · Verlust 6/13." },
+  { key: "plinko", label: "🔻 Plinko", base: 2 / 9, unit: "3-fach-Fach", rule: "9 Fächer: 2× 3-fach, 2× 1-fach, 5× ohne Auszahlung." },
+  { key: "roulette", label: "🎡 Roulette", base: 18 / 37, unit: "Rot/Schwarz", base2: 1 / 37, unit2: "Einzelzahl", rule: "37 Zahlen: Rot/Schwarz je 18 von 37 · Einzelzahl 1 von 37." },
+  { key: "slots", label: "🎰 Slot Machine", rule: "6 Symbole pro Walze · Paar 2× · drei gleiche 8× · drei Siebener 20×." },
+  { key: "baccarat", label: "♢ Baccarat", rule: "Spieler 2× · Bank 1,95× · Unentschieden 9×." },
+  { key: "keno", label: "⑨ Keno", rule: "5 aus 40 · Auszahlung ab 2 Treffern." },
+  { key: "wheel", label: "◉ Glücksrad", rule: "8 gleich grosse Felder mit festen Multiplikatoren." },
+  { key: "mines", label: "✦ Mines", rule: "3 Minen in 9 Feldern · sicheres Feld zahlt 2×." },
+  { key: "bingo", label: "▤ Bingo", rule: "Eine Zahl aus 75 · Bingo-Treffer zahlt 12×." },
+  { key: "crash", label: "↗ Crash", rule: "Ziel wird bezahlt, wenn es vor dem Crash liegt." },
 ];
+// Infos: nur anzeigen, wie die Chancen gerade sind
+function oddsInfoRender(odds) {
+  $("oddsInfo").innerHTML = ODDS_GAMES.map((g) => {
+    const f = Number(odds?.[g.key] ?? 1);
+    const now = g.base ? `${g.unit}: <b>${pct(g.base * f)}</b>${f !== 1 ? ` <span class="muted">statt ${pct(g.base)}</span>` : ""}${g.base2 ? ` · ${g.unit2}: <b>${pct(g.base2 * f)}</b>` : ""}` : f === 1 ? "wie normal" : f < 1 ? "Gewinne seltener als normal" : "Gewinne häufiger als normal";
+    const tag = f === 1 ? `<span class="oi-tag fair">fair</span>` : `<span class="oi-tag ${f < 1 ? "low" : "high"}">${Math.round(f * 100)} %</span>`;
+    return `<div class="oi-row"><div class="oi-name"><b>${g.label}</b>${tag}</div><div class="oi-now">${now}</div><small class="muted">${g.rule}</small></div>`;
+  }).join("");
+}
 const pct = (x) => `${(Math.min(x, 0.95) * 100).toLocaleString("de-CH", { maximumFractionDigits: 1 })} %`;
 function oddsRender(odds) {
   $("adOdds").innerHTML = ODDS_GAMES.map((g) => {
@@ -2379,8 +2402,8 @@ function oddsRender(odds) {
   }).join("");
 }
 async function oddsLoad() {
-  try { oddsRender((await api("/api/games/odds", {})).odds); }
-  catch (err) { $("adOdds").innerHTML = `<div class="muted">${h(adErrors[err.message] || caErrors[err.message] || err.message)}</div>`; }
+  try { const { odds } = await api("/api/games/odds", {}); oddsRender(odds); oddsInfoRender(odds); }
+  catch (err) { const m = `<div class="muted">${h(adErrors[err.message] || caErrors[err.message] || err.message)}</div>`; $("adOdds").innerHTML = m; $("oddsInfo").innerHTML = m; }
 }
 $("adOdds").addEventListener("input", (e) => {
   const item = e.target.closest(".odds-item"); if (!item) return;
@@ -2391,7 +2414,7 @@ $("adOdds").addEventListener("input", (e) => {
 $("adOddsReset").onclick = () => oddsRender({});
 $("adOddsSave").onclick = async () => {
   const odds = Object.fromEntries([...document.querySelectorAll(".odds-item")].map((el) => [el.dataset.game, Number(el.querySelector("input").value) / 100]));
-  try { oddsRender((await api("/api/games/odds/set", { odds })).odds); say("oddsMsg", "Gewinnchancen gespeichert – gelten ab der nächsten Runde."); }
+  try { const saved = (await api("/api/games/odds/set", { odds })).odds; oddsRender(saved); oddsInfoRender(saved); say("oddsMsg", "Gewinnchancen gespeichert – gelten ab der nächsten Runde."); }
   catch (err) { say("oddsMsg", adErrors[err.message] || caErrors[err.message] || err.message, true); }
 };
 

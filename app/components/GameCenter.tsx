@@ -125,35 +125,6 @@ const wagers = [1, 10, 50, 100, 500, 1_000, 5_000, 10_000];
 const plinkoMultipliers = [3, 1, 0, 0, 0, 0, 0, 1, 3];
 const DINO_ENTRY_COST = 150;
 const casinoGameKeys: GameKey[] = ["slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"];
-// Gewinnchancen, die der Owner auf der Chain-Seite eingestellt hat (1 = fair)
-const oddsBase: Partial<Record<GameKey, [number, string]>> = {
-  coin_flip: [1 / 2, "Treffer"], dice_duel: [15 / 36, "Sieg"], high_card: [6 / 13, "Sieg"], plinko: [2 / 9, "3-fach-Fach"], roulette: [18 / 37, "Rot/Schwarz"],
-};
-function oddsNote(game: GameKey, factor: number | undefined) {
-  const base = oddsBase[game];
-  if (factor === undefined || Number(factor) === 1) return "";
-  if (!base) return Number(factor) < 1 ? `Gewinne kommen seltener vor als normal (Faktor ${Math.round(Number(factor) * 100)} %).` : `Gewinne kommen häufiger vor als normal (Faktor ${Math.round(Number(factor) * 100)} %).`;
-  const p = (x: number) => `${(Math.min(x, 0.95) * 100).toLocaleString("de-CH", { maximumFractionDigits: 1 })} %`;
-  return `${base[1]} ${p(base[0] * Number(factor))} statt ${p(base[0])}${game === "roulette" ? ` · Einzelzahl ${p(Number(factor) / 37)}` : ""}.`;
-}
-const fairRules: Record<GameKey, string> = {
-  roulette: "37 gleich mögliche Zahlen: Rot/Schwarz je 18 von 37 · Einzelzahl 1 von 37.",
-  coin_flip: "Kopf und Zahl haben je 50 % Chance · Treffer zahlt 2×.",
-  blackjack: "Klassisches Ziel 21 gegen die Bank · Gleichstand zahlt den Einsatz zurück.",
-  dice_duel: "Zwei faire Würfel: Gewinn 15/36 · Gleichstand 6/36 · Verlust 15/36.",
-  high_card: "Zwei Kartenwerte 1–13: Gewinn 6/13 · Gleichstand 1/13 · Verlust 6/13.",
-  poker: "Eine Ziehrunde, sichtbare Handwertung und feste Multiplikatoren.",
-  plinko: "9 gleich verteilte Fächer: 2× 3-fach, 2× 1-fach, 5× ohne Auszahlung.",
-  dino_run: "150 GIBB Eintritt · je bestätigte 1’000 Punkte 100 GIBB Prämie.",
-  slots: "6 Symbole pro Walze · Paar 2× · drei gleiche 8× · drei Siebener 20×.",
-  baccarat: "Spieler 2× · Bank 1,95× · Unentschieden 9×.",
-  keno: "5 aus 40; Auszahlungen ab 2 Treffern stehen direkt am Spielfeld.",
-  wheel: "8 gleich grosse Felder mit sichtbar aufgedruckten Multiplikatoren.",
-  mines: "3 Minen in 9 Feldern · ein aufgedecktes sicheres Feld zahlt 2×.",
-  bingo: "Eine Zahl aus 75; der feste Bingo-Treffer zahlt 12×.",
-  crash: "Das gewählte Ziel wird nur bezahlt, wenn es vor dem serverseitigen Crash liegt.",
-};
-
 function gameError(message?: string) {
   if (message?.includes("insufficient_balance")) return "Dein Wallet hat nicht genügend GIBB für diesen Einsatz.";
   if (message?.includes("game_disabled")) return "Dieses Spiel wurde von einem Admin deaktiviert.";
@@ -274,7 +245,6 @@ function SlotReels({ symbols, busy, animationKey }: { symbols: string[]; busy: b
 
 export function GameCenter({ walletBalance, onChanged }: Props) {
   const [state, setState] = useState<CenterState | null>(null);
-  const [odds, setOdds] = useState<Record<string, number>>({});
   const [wagerLimits, setWagerLimits] = useState<Record<string, { min: number; max: number | null }>>({});
   const [playerSafety, setPlayerSafety] = useState<PlayerSafety | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameKey>("roulette");
@@ -321,7 +291,6 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
       ]);
       // Eingestellte Gewinnchancen (fehlt die Funktion noch, gelten die fairen Werte)
       void supabase.rpc("get_game_wager_limits").then(({ data: limitData }) => { if (limitData && typeof limitData === "object") setWagerLimits(limitData as Record<string, { min: number; max: number | null }>); });
-      void supabase.rpc("get_game_odds").then(({ data: oddsData }) => { if (oddsData && typeof oddsData === "object") setOdds(oddsData as Record<string, number>); });
       if (rpcError || safetyError) {
         setError(gameError(rpcError?.message ?? safetyError?.message));
         setLoading(false);
@@ -857,7 +826,7 @@ export function GameCenter({ walletBalance, onChanged }: Props) {
 
           <div className={`game-wallet-hint ${selectedGame === "dino_run" ? dino || dinoCanStart ? "ready" : "insufficient" : wagerValid && currentBalance >= wager ? "ready" : "insufficient"}`}><span>{selectedGame === "dino_run" ? dino ? "Lauf aktiv · Eintritt bezahlt" : dinoCanStart ? "150 GIBB Eintritt bereit" : "150 GIBB erforderlich" : !wagerValid ? "Einsatz prüfen" : currentBalance < wager ? "Guthaben reicht noch nicht" : "Bereit zum Spielen"}</span><strong>{new Intl.NumberFormat("de-CH").format(currentBalance)} GIBB im Haupt-Wallet</strong>{selectedGame === "dino_run" ? <small>{dino ? "Jede bestätigte 1’000er-Marke bringt automatisch 100 GIBB." : dinoCanStart ? "Der Server zieht den Eintritt beim Start genau einmal ab." : "Sammle oder empfange zuerst genügend GIBB für den Eintritt."}</small> : !wagerValid ? <small>Erlaubt sind positive ganze Beträge innerhalb deiner Spielschutz-Limits.</small> : currentBalance < wager && <small>Gib einen kleineren eigenen Betrag ein oder fordere GIBB an.</small>}</div>
 
-          <details className="fair-rules"><summary>Regeln, Chancen &amp; Fairness</summary><p>{fairRules[selectedGame]}</p>{oddsNote(selectedGame, odds[selectedGame]) && <p className="odds-note"><b>Aktuell eingestellt:</b> {oddsNote(selectedGame, odds[selectedGame])}</p>}<small>Ergebnisse entstehen serverseitig mit festen Regeln. Es gibt keine versteckten personenbezogenen Gewinnchancen. Jede abgeschlossene Runde erhält einen SHA-256-Prüfcode.</small></details>
+          <details className="fair-rules"><summary>Fairness</summary><small>Ergebnisse entstehen serverseitig mit festen Regeln. Es gibt keine versteckten personenbezogenen Gewinnchancen. Jede abgeschlossene Runde erhält einen SHA-256-Prüfcode.</small></details>
 
           {dinoRewardNotice && selectedGame === "dino_run" && <p className="message success-message dino-reward-notice" role="status">✓ {dinoRewardNotice}</p>}
           {dinoPendingScore !== null && selectedGame === "dino_run" && <button type="button" className="secondary compact" onClick={() => { dinoFinalQueuedRef.current = false; syncDinoScore(dinoPendingScore, true); }}>Dino-Ergebnis erneut synchronisieren</button>}

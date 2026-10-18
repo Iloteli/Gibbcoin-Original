@@ -31,7 +31,7 @@ test("enforces transparent games, personal protection and period leaderboards", 
     read("supabase/migrations/20260908063951_community_rewards_safety_upgrade.sql"),
   ]);
   assert.doesNotMatch(game, /play_visual_prank_game|get_effective_visual_pranks/);
-  assert.match(game, /Regeln, Chancen &amp; Fairness/); assert.match(game, /fairness_hash/);
+  assert.match(game, /<summary>Fairness<\/summary>/); assert.doesNotMatch(game, /get_game_odds/); assert.match(game, /fairness_hash/);
   assert.match(game, /p_period: leaderboardPeriod/); assert.match(safety, /update_my_player_safety/);
   assert.match(safety, /start_my_game_break/); assert.match(migration, /daily_loss_limit/);
   assert.match(migration, /revoke all on function public\.play_visual_prank_game/);
