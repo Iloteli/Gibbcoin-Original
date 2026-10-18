@@ -36,7 +36,7 @@ before(async () => {
     const u = users[email];
     if (req.url.startsWith("/auth/v1/user")) return u ? send(200, { id: u.id, email }) : send(401, {});
     if (req.url.startsWith("/rest/v1/profiles")) return send(200, u ? [{ role: u.role, username: u.username, display_name: u.username }] : []);
-    if (req.url.includes("node_list_users")) return send(200, { ok: true, users: Object.entries(users).map(([e, x]) => ({ id: x.id, username: x.username, display_name: x.username, role: x.role, balance: 10 })) });
+    if (req.url.includes("node_list_users")) return send(200, { ok: true, users: Object.entries(users).map(([, x]) => ({ id: x.id, username: x.username, display_name: x.username, role: x.role, balance: 10 })) });
     return send(200, { ok: true });
   }).listen(SB_PORT);
   dir = mkdtempSync(join(tmpdir(), "gibb-lvl-"));

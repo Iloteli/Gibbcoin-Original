@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 // Kurzer Rundgang beim ersten Login: hebt nacheinander die wichtigsten Stellen hervor.
 // Erneut starten: window.dispatchEvent(new Event("gibb:start-tour"))
@@ -30,6 +30,9 @@ export function WelcomeTour() {
   const [index, setIndex] = useState(0);
   const [box, setBox] = useState<Box | null>(null);
   const open = steps.length > 0;
+  const nextRef = useRef<HTMLButtonElement | null>(null);
+  // Tastatur: Fokus auf "Weiter", sobald ein Schritt erscheint
+  useEffect(() => { if (open) nextRef.current?.focus({ preventScroll: true }); }, [open, index]);
 
   const start = useCallback(() => {
     const available = STEPS.filter((s) => visibleTarget(s.selector));
@@ -59,14 +62,18 @@ export function WelcomeTour() {
     if (!open) return;
     const step = steps[index];
     const el = visibleTarget(step.selector);
-    if (!el) { if (index < steps.length - 1) setIndex(index + 1); else finish(); return; }
+    if (!el) {
+      // Ziel gerade nicht sichtbar: Schritt überspringen
+      const skip = window.setTimeout(() => { if (index < steps.length - 1) setIndex(index + 1); else finish(); }, 0);
+      return () => window.clearTimeout(skip);
+    }
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     const measure = () => { const r = el.getBoundingClientRect(); setBox({ top: r.top, left: r.left, width: r.width, height: r.height }); };
-    measure();
+    const first = window.requestAnimationFrame(measure);
     const timer = window.setInterval(measure, 120);
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", measure, true);
-    return () => { window.clearInterval(timer); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
+    return () => { window.cancelAnimationFrame(first); window.clearInterval(timer); window.removeEventListener("resize", measure); window.removeEventListener("scroll", measure, true); };
   }, [open, index, steps, finish]);
 
   useEffect(() => {
@@ -105,7 +112,7 @@ export function WelcomeTour() {
           <button type="button" className="tour-skip" onClick={finish}>Überspringen</button>
           <span>
             {index > 0 && <button type="button" className="secondary compact" onClick={() => setIndex(index - 1)}>Zurück</button>}
-            <button type="button" className="primary compact" autoFocus onClick={() => (last ? finish() : setIndex(index + 1))}>{last ? "Los geht's" : "Weiter"}</button>
+            <button type="button" className="primary compact" ref={nextRef} onClick={() => (last ? finish() : setIndex(index + 1))}>{last ? "Los geht's" : "Weiter"}</button>
           </span>
         </div>
       </div>

@@ -30,17 +30,23 @@ export function PriceChart({ history, price, height = 180 }: { history: PricePoi
     return () => ro.disconnect();
   }, []);
 
+  // Aktuelle Zeit als Zustand (jede Minute neu), damit die Berechnung rein bleibt
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(timer);
+  }, []);
+
   const points = useMemo(() => {
     const all = history.map((h) => ({ t: new Date(h.t).getTime(), p: Number(h.p), k: h.k, n: h.n })).filter((h) => Number.isFinite(h.t) && Number.isFinite(h.p));
     const ms = RANGES.find((r) => r.key === range)?.ms ?? Infinity;
-    const now = Date.now();
     const inRange = all.filter((h) => now - h.t <= ms);
     // Kurs am Anfang des Zeitraums (letzter Handel davor) und jetzt, damit die Linie den ganzen Zeitraum zeigt
     const before = all.filter((h) => now - h.t > ms).slice(-1)[0];
     const list = [...(before && ms !== Infinity ? [{ ...before, t: now - ms }] : []), ...inRange];
     if (list.length) list.push({ t: now, p: price, k: "now", n: 0 });
     return list;
-  }, [history, range, price]);
+  }, [history, range, price, now]);
 
   const pad = { l: 8, r: 8, t: 14, b: 14 };
   const enough = points.length >= 2;
@@ -59,7 +65,6 @@ export function PriceChart({ history, price, height = 180 }: { history: PricePoi
   const change = first ? ((price - first) / first) * 100 : 0;
   const trend = change > 0.0001 ? "up" : change < -0.0001 ? "down" : "flat";
 
-  useEffect(() => setHover(null), [range]);
 
   const onMove = (clientX: number) => {
     const svg = svgRef.current;
@@ -80,7 +85,7 @@ export function PriceChart({ history, price, height = 180 }: { history: PricePoi
           <small className={`price-chart-change ${trend}`}>{hp ? when(hp.t) : `${trend === "up" ? "▲" : trend === "down" ? "▼" : "■"} ${Math.abs(change).toFixed(2)} % · ${RANGES.find((r) => r.key === range)?.label}`}</small>
         </div>
         <div className="price-chart-ranges" role="group" aria-label="Zeitraum">
-          {RANGES.map((r) => <button key={r.key} type="button" className={range === r.key ? "active" : ""} aria-pressed={range === r.key} onClick={() => setRange(r.key)}>{r.label}</button>)}
+          {RANGES.map((r) => <button key={r.key} type="button" className={range === r.key ? "active" : ""} aria-pressed={range === r.key} onClick={() => { setRange(r.key); setHover(null); }}>{r.label}</button>)}
         </div>
       </div>
       <div ref={boxRef} className="price-chart-box">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 type Theme = "dark" | "light";
 const KEY = "gibb-theme";
@@ -20,8 +20,7 @@ export function applyTheme(theme: Theme) {
 
 // Knopf oben rechts: wechselt zwischen hellem und dunklem Design und merkt sich die Wahl.
 export function ThemeToggle() {
-  const [theme, setTheme] = useState<Theme>("dark");
-  useEffect(() => setTheme(readTheme()), []);
+  const [theme, setTheme] = useState<Theme>(() => (typeof window === "undefined" ? "dark" : readTheme()));
   const toggle = () => {
     const next: Theme = theme === "light" ? "dark" : "light";
     setTheme(next);
@@ -30,7 +29,7 @@ export function ThemeToggle() {
   };
   return (
     <button type="button" className="theme-toggle" onClick={toggle} aria-label={theme === "light" ? "Dunkles Design einschalten" : "Helles Design einschalten"} title={theme === "light" ? "Dunkles Design" : "Helles Design"}>
-      <span aria-hidden="true">{theme === "light" ? "🌙" : "☀️"}</span>
+      <span aria-hidden="true" suppressHydrationWarning>{theme === "light" ? "🌙" : "☀️"}</span>
     </button>
   );
 }

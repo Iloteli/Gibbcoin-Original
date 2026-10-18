@@ -392,6 +392,7 @@ const routes = {
     return block;
   },
   "GET /api/mempool": () => chain.mempool,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- supabaseId bewusst weglassen
   "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, { supabaseId: _sid, ...a }]) => ({ address, ...a, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
   "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
   "POST /api/order": (_, body) => {
