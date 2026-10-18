@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 import type { Recipient } from "../lib/types";
@@ -98,11 +99,12 @@ export function PaymentsHub({ userId, onRecipient, onChanged }: Props) {
       setSearching(true);
       const { data } = await supabase.rpc("search_users", { p_query: needle });
       if (!active) return;
-      setResults(((data ?? []) as Array<{ user_id: string; username: string; display_name: string }>).filter((item) => item.user_id !== userId).map((item) => ({
+      setResults(((data ?? []) as Array<{ user_id: string; username: string; display_name: string; avatar_url?: string | null; profile_color?: string | null }>).filter((item) => item.user_id !== userId).map((item) => ({
         id: item.user_id,
         display_name: item.display_name,
         email_hint: `@${item.username}`,
-        avatar_url: null,
+        avatar_url: item.avatar_url ?? null,
+        profile_color: item.profile_color ?? null,
       })));
       setSearching(false);
     }, 250);
@@ -227,5 +229,5 @@ type SearchProps = {
 };
 
 function RecipientSearch({ query, selected, results, searching, onQuery, onSelect, onClear }: SearchProps) {
-  return <div className="field recipient-search-field"><label htmlFor="hub-recipient">Person suchen</label><div className={`search-control ${selected ? "has-selection" : ""}`}><input className="input" id="hub-recipient" autoComplete="off" value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Name oder Benutzername …" />{selected && <button type="button" aria-label="Auswahl entfernen" onClick={onClear}>×</button>}</div>{searching && <div className="search-hint">Suche läuft …</div>}{!searching && query.trim().length >= 2 && !selected && results.length === 0 && <div className="search-hint">Keine passende Person gefunden.</div>}{results.length > 0 && <div className="recipient-list">{results.map((item) => <button type="button" key={item.id} className="recipient" onClick={() => onSelect(item)}><span className="recipient-avatar" aria-hidden="true">{item.display_name[0]}</span><span><strong>{item.display_name}</strong><small>{item.email_hint}</small></span><b aria-hidden="true">→</b></button>)}</div>}</div>;
+  return <div className="field recipient-search-field"><label htmlFor="hub-recipient">Person suchen</label><div className={`search-control ${selected ? "has-selection" : ""}`}><input className="input" id="hub-recipient" autoComplete="off" value={query} onChange={(event) => onQuery(event.target.value)} placeholder="Name oder Benutzername …" />{selected && <button type="button" aria-label="Auswahl entfernen" onClick={onClear}>×</button>}</div>{searching && <div className="search-hint">Suche läuft …</div>}{!searching && query.trim().length >= 2 && !selected && results.length === 0 && <div className="search-hint">Keine passende Person gefunden.</div>}{results.length > 0 && <div className="recipient-list">{results.map((item) => <button type="button" key={item.id} className="recipient" onClick={() => onSelect(item)}>{item.avatar_url ? <Image className="recipient-avatar recipient-pic" src={item.avatar_url} alt="" width={36} height={36} unoptimized referrerPolicy="no-referrer" /> : <span className="recipient-avatar" aria-hidden="true" style={item.profile_color ? { background: item.profile_color, color: "#061024" } : undefined}>{item.display_name[0]}</span>}<span><strong>{item.display_name}</strong><small>{item.email_hint}</small></span><b aria-hidden="true">→</b></button>)}</div>}</div>;
 }

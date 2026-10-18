@@ -35,8 +35,9 @@ revoke all on function public.admin_list_users(text) from public, anon;
 grant execute on function public.admin_list_users(text) to authenticated;
 
 -- Empfängersuche (Senden, Zahlungen): nur Benutzername und Anzeigename, nie E-Mail.
-create or replace function public.search_users(p_query text)
-returns table (user_id uuid, username text, display_name text)
+drop function if exists public.search_users(text);
+create function public.search_users(p_query text)
+returns table (user_id uuid, username text, display_name text, avatar_url text, profile_color text)
 language plpgsql
 stable
 security definer
@@ -48,7 +49,7 @@ begin
   if auth.uid() is null then raise exception 'authentication_required'; end if;
   if pg_catalog.char_length(v_needle) < 2 then return; end if;
   return query
-  select p.id, coalesce(p.username, ''), p.display_name
+  select p.id, coalesce(p.username, ''), p.display_name, p.avatar_url, p.profile_color
   from public.profiles p
   join public.wallets w on w.user_id = p.id and w.status = 'active'
   where p.id <> auth.uid()

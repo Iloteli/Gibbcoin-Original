@@ -28,6 +28,7 @@ export type Recipient = {
   display_name: string;
   email_hint: string;
   avatar_url: string | null;
+  profile_color?: string | null;
 };
 
 export type Transaction = {

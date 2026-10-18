@@ -1,12 +1,13 @@
 "use client";
 
+import Image from "next/image";
 import { useCallback, useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 import { openUserProfile } from "./UserProfileModal";
 
 type Period = "week" | "month" | "all";
 type Entry = {
-  user_id: string; username: string; display_name: string; profile_color: string | null; equipped_title: string | null;
+  user_id: string; username: string; display_name: string; profile_color: string | null; avatar_url?: string | null; equipped_title: string | null;
   achievements: number; tasks: number; check_ins: number; blocks: number; points: number; rank: number;
 };
 type Board = { period: Period; entries: Entry[]; me: Entry | null };
@@ -75,7 +76,7 @@ export function CommunityLeaderboard({ userId }: { userId: string }) {
             <li key={e.user_id} className={`place-${i + 1}${e.user_id === userId ? " you" : ""}`}>
               <button type="button" onClick={() => openUserProfile(e.user_id)} title="Profil ansehen">
                 <span className="lb-medal" aria-hidden="true">{["🥇", "🥈", "🥉"][i]}</span>
-                <span className="lb-avatar" style={{ background: e.profile_color ?? undefined }} aria-hidden="true">{(e.username || "?").slice(0, 1).toUpperCase()}</span>
+                {e.avatar_url ? <Image className="lb-avatar lb-pic" src={e.avatar_url} alt="" width={34} height={34} unoptimized referrerPolicy="no-referrer" /> : <span className="lb-avatar" style={{ background: e.profile_color ?? undefined }} aria-hidden="true">{(e.username || "?").slice(0, 1).toUpperCase()}</span>}
                 <strong>{e.username}{e.user_id === userId ? " (du)" : ""}</strong>
                 {e.equipped_title && <small>{e.equipped_title}</small>}
                 <b>{e.points} Punkte</b>
@@ -91,7 +92,7 @@ export function CommunityLeaderboard({ userId }: { userId: string }) {
             <li key={e.user_id} className={e.user_id === userId ? "you" : ""}>
               <span className="lb-rank">#{e.rank}</span>
               <button type="button" className="lb-name" onClick={() => openUserProfile(e.user_id)}>
-                <span className="lb-avatar small" style={{ background: e.profile_color ?? undefined }} aria-hidden="true">{(e.username || "?").slice(0, 1).toUpperCase()}</span>
+                {e.avatar_url ? <Image className="lb-avatar small lb-pic" src={e.avatar_url} alt="" width={26} height={26} unoptimized referrerPolicy="no-referrer" /> : <span className="lb-avatar small" style={{ background: e.profile_color ?? undefined }} aria-hidden="true">{(e.username || "?").slice(0, 1).toUpperCase()}</span>}
                 {e.username}{e.user_id === userId ? " (du)" : ""}
               </button>
               <span className="lb-detail">{e.achievements} Erfolge · {e.tasks} Aufgaben · {e.blocks} Blöcke</span>

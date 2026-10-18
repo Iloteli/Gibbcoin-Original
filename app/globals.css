@@ -3697,3 +3697,6 @@ html[data-style="original"] .brand-mark, html[data-style="original"] .ambient, h
 .acct-hero-new { display: contents; }
 .view-heading.only-original { display: none; }
 html[data-style="original"] .view-heading.only-original { display: block; }
+
+/* Profilbilder anderer Benutzer (Empfängersuche, Rangliste) */
+img.recipient-pic, img.lb-pic { object-fit: cover; padding: 0; border-radius: 50%; aspect-ratio: 1; }
