@@ -3493,8 +3493,11 @@ html[data-theme="light"] .brand-mark.glow { filter: drop-shadow(0 0 8px rgba(47,
 .notification-bell:hover, .profile-button:hover, .theme-toggle:hover { border-color: var(--cyan, #3ee0ff) !important; box-shadow: 0 0 0 3px rgba(62,224,255,.12); }
 .notification-bell b { background: var(--grad, linear-gradient(120deg,#2f7bff,#3ee0ff)) !important; color: #fff !important; border-color: var(--bg) !important; box-shadow: 0 0 10px rgba(47,123,255,.45); }
 .profile-button { border-radius: 999px !important; }
-.avatar:not(img) { background: var(--grad, linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)) !important; color: #fff !important; border-radius: 50% !important; font-weight: 800; box-shadow: 0 0 12px rgba(62,224,255,.35); }
-img.avatar { border-radius: 50% !important; }
+/* Buchstaben-Avatar: eigene Profilfarbe hat Vorrang, sonst Verlauf */
+.avatar:not(img) { color: #fff; border-radius: 50%; font-weight: 800; box-shadow: 0 0 12px rgba(62,224,255,.35); }
+.avatar:not(img):not([style*="background"]) { background: var(--grad, linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)); }
+img.avatar, img.profile-avatar { object-fit: cover; aspect-ratio: 1; }
+img.avatar { border-radius: 50%; border: 2px solid transparent; }
 .profile-meta span { color: var(--cyan, #3ee0ff) !important; }
 html[data-theme="light"] .notification-bell, html[data-theme="light"] .profile-button, html[data-theme="light"] .theme-toggle { background: rgba(255,255,255,.85) !important; box-shadow: 0 4px 14px rgba(30,50,120,.08); }
 html[data-theme="light"] .notification-bell:hover, html[data-theme="light"] .profile-button:hover, html[data-theme="light"] .theme-toggle:hover { border-color: #2f6bff !important; box-shadow: 0 0 0 3px rgba(47,107,255,.12); }
@@ -3516,7 +3519,6 @@ html[data-theme="light"] .avatar:not(img) { box-shadow: 0 4px 12px rgba(47,107,2
 :root:not([data-theme="light"]) .auth-layout,
 :root:not([data-theme="light"]) .auth-tabs,
 :root:not([data-theme="light"]) .auth-tabs button.active,
-:root:not([data-theme="light"]) .avatar,
 :root:not([data-theme="light"]) .blockchain-meter,
 :root:not([data-theme="light"]) .coin-choice button,
 :root:not([data-theme="light"]) .dashboard-tabs,
