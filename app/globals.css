@@ -3487,3 +3487,20 @@ html[data-theme="light"] .auth-submit { background: linear-gradient(110deg, #2f6
 html[data-theme="light"] .auth-tabs button.active { background: var(--grad) !important; color: #fff !important; }
 html[data-theme="light"] .brand-mark.glow { filter: drop-shadow(0 0 8px rgba(47,107,255,.35)); }
 @media (max-width: 640px) { html[data-theme="light"] .dashboard-tabs { background: rgba(255,255,255,.95) !important; box-shadow: 0 -10px 26px rgba(30,50,120,.12) !important; } }
+/* Kopfzeile: Glocke, Profil-Knopf und Profilbild passend zu Neon Glass (hell und dunkel) */
+.notification-bell, .profile-button, .theme-toggle { background: var(--panel) !important; border: 1px solid var(--line) !important; backdrop-filter: blur(12px); transition: border-color .2s, box-shadow .2s, transform .15s; }
+.notification-bell { color: var(--text) !important; border-radius: 50% !important; }
+.notification-bell:hover, .profile-button:hover, .theme-toggle:hover { border-color: var(--cyan, #3ee0ff) !important; box-shadow: 0 0 0 3px rgba(62,224,255,.12); }
+.notification-bell b { background: var(--grad, linear-gradient(120deg,#2f7bff,#3ee0ff)) !important; color: #fff !important; border-color: var(--bg) !important; box-shadow: 0 0 10px rgba(47,123,255,.45); }
+.profile-button { border-radius: 999px !important; }
+.avatar:not(img) { background: var(--grad, linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)) !important; color: #fff !important; border-radius: 50% !important; font-weight: 800; box-shadow: 0 0 12px rgba(62,224,255,.35); }
+img.avatar { border-radius: 50% !important; }
+.profile-meta span { color: var(--cyan, #3ee0ff) !important; }
+html[data-theme="light"] .notification-bell, html[data-theme="light"] .profile-button, html[data-theme="light"] .theme-toggle { background: rgba(255,255,255,.85) !important; box-shadow: 0 4px 14px rgba(30,50,120,.08); }
+html[data-theme="light"] .notification-bell:hover, html[data-theme="light"] .profile-button:hover, html[data-theme="light"] .theme-toggle:hover { border-color: #2f6bff !important; box-shadow: 0 0 0 3px rgba(47,107,255,.12); }
+html[data-theme="light"] .profile-meta span { color: #1f4fd8 !important; }
+html[data-theme="light"] .avatar:not(img) { box-shadow: 0 4px 12px rgba(47,107,255,.3); }
+.bell-icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; transform-origin: 50% 10%; }
+.notification-bell:hover .bell-icon { animation: bell-ring .6s ease; }
+@keyframes bell-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
+@media (prefers-reduced-motion: reduce) { .notification-bell:hover .bell-icon { animation: none; } }

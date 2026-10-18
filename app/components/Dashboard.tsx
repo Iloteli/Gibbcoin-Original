@@ -601,7 +601,7 @@ export function Dashboard({ user }: Props) {
           </nav>
           <div className="header-actions">
             <ThemeToggle />
-            <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><span aria-hidden="true">◎</span>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
+            <button className="notification-bell" type="button" onClick={() => openView("activity", "notifications")} aria-label={`${unreadNotifications} ungelesene Benachrichtigungen`}><svg className="bell-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9a6 6 0 1 1 12 0c0 5 2 6.5 2 6.5H4S6 14 6 9Z" /><path d="M10 19a2 2 0 0 0 4 0" /></svg>{unreadNotifications > 0 && <b>{Math.min(unreadNotifications, 99)}</b>}</button>
             <div className="menu-wrap">
               <button className="profile-button" type="button" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen} aria-haspopup="menu">
                 {avatar ? <Image className="avatar" src={avatar} alt="" width={40} height={40} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}
