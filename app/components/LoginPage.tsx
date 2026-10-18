@@ -59,6 +59,17 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [registrationCooldownSeconds, setRegistrationCooldownSeconds] = useState(0);
+  // Registrieren nur, wenn der Owner es auf der Chain-Seite eingeschaltet hat
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    let alive = true;
+    void supabase.rpc("get_site_features").then(({ data }) => {
+      if (alive) setRegistrationOpen((data as { registration_enabled?: boolean } | null)?.registration_enabled === true);
+    });
+    return () => { alive = false; };
+  }, []);
 
   useEffect(() => {
     const notice = window.sessionStorage.getItem("gibb-account-notice");
@@ -161,7 +172,10 @@ export function LoginPage() {
 
         <section className="auth-card" aria-labelledby="login-title">
           <div className="auth-card-heading"><span className="eyebrow">{mode === "forgot" ? "Sicherer Zugang" : "Willkommen"}</span><h2 id="login-title">{mode === "login" ? "Bei GIBB Coin anmelden" : mode === "register" ? "Dein Konto erstellen" : "Passwort zurücksetzen"}</h2><p>{mode === "login" ? "Melde dich mit E-Mail und Passwort an." : mode === "register" ? "Registriere dich ausschliesslich mit E-Mail und Passwort." : "Wir senden dir einen Bestätigungslink an die E-Mail-Adresse deines Kontos."}</p></div>
-          {mode !== "forgot" && <p className="auth-no-signup">Neue Konten erstellt der Owner. Noch kein Konto? Melde dich beim Owner.</p>}
+          {mode !== "forgot" && (registrationOpen ? <div className="auth-tabs" role="tablist" aria-label="Anmeldemodus">
+            <button type="button" role="tab" aria-selected={mode === "login"} className={mode === "login" ? "active" : ""} onClick={() => changeMode("login")}>Anmelden</button>
+            <button type="button" role="tab" aria-selected={mode === "register"} className={mode === "register" ? "active" : ""} onClick={() => changeMode("register")}>Registrieren</button>
+          </div> : <p className="auth-no-signup">Neue Konten erstellt der Owner. Noch kein Konto? Melde dich beim Owner.</p>)}
           <form className="email-auth-form" onSubmit={submitEmailAuth}>
             <div className="field"><label htmlFor="auth-email">E-Mail-Adresse</label><input className="input" id="auth-email" type="email" inputMode="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="name@beispiel.ch" required /></div>
             {mode !== "forgot" && <div className="field"><label htmlFor="auth-password">Passwort <span>mindestens 8 Zeichen</span></label><div className="password-control"><input className="input" id="auth-password" type={showPassword ? "text" : "password"} minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}>{showPassword ? "Aus" : "An"}</button></div>{mode === "login" && <button className="forgot-password-link" type="button" onClick={() => changeMode("forgot")}>Passwort vergessen?</button>}</div>}

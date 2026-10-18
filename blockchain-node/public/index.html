@@ -708,7 +708,7 @@
   </section>
 
   <section class="card pay-card owner-basic" id="payCard">
-    <h2>Zahlarten <span>Kaufen-Tab der Hauptseite</span></h2>
+    <h2>Zahlarten & Registrieren <span>Hauptseite</span></h2>
     <p class="muted" style="margin:0 0 12px">Ein Klick schaltet die Kaufart sofort für alle ein oder aus.</p>
     <div class="pay-methods" id="payMethods"></div>
     <div class="msg" id="payMsg"></div>
@@ -1669,6 +1669,7 @@ const payMethods = [
   { key: "cardEnabled", label: "💳 Karte / TWINT", hint: "Über Stripe – nur aktivieren, wenn Stripe eingerichtet ist", def: false },
   { key: "creditsEnabled", label: "🪙 Mit Credits kaufen", hint: "Bezahlen mit Credits aus Verkäufen", def: true },
   { key: "bankEnabled", label: "🏦 Banküberweisung", hint: "Braucht IBAN unter Einstellungen → Markt & Coinwert", def: false },
+  { key: "registrationEnabled", label: "📝 Registrieren", hint: "An: jeder kann sich auf der Hauptseite selbst ein Konto anlegen. Aus: nur du erstellst Konten.", def: false },
 ];
 function renderPayMethods(settings) {
   const w = settings?.website ?? {};

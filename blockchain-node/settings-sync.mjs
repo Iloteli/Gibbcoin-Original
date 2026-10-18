@@ -76,6 +76,12 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
         body: JSON.stringify({ p_key: secret, p_card: Boolean(w.cardEnabled), p_credits: w.creditsEnabled !== false }),
       });
       if (!card.ok && card.status !== 404) throw new Error(`card_http_${card.status}`);
+      const registration = await fetchImpl(`${url}/rest/v1/rpc/node_set_registration`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_enabled: w.registrationEnabled === true }),
+      });
+      if (!registration.ok && registration.status !== 404) throw new Error(`registration_http_${registration.status}`);
       const address = await fetchImpl(`${url}/rest/v1/rpc/node_set_bank_address`, {
         method: "POST",
         headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
