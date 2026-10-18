@@ -427,6 +427,17 @@
   .limit-row b { font-size: 13px; }
   .limit-row input { padding: 8px 10px; font-family: "IBM Plex Mono", monospace; font-size: 13px; }
   .limit-head { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 8px; padding: 0 12px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  /* Bereiche */
+  .page-nav { position: sticky; top: 64px; z-index: 30; display: flex; gap: 6px; width: min(1180px, calc(100% - 32px)); margin: 12px auto 18px; padding: 6px; border-radius: 999px; border: 1px solid var(--line); background: rgba(11,17,14,.88); backdrop-filter: blur(12px); overflow-x: auto; scrollbar-width: none; }
+  .page-nav::-webkit-scrollbar { display: none; }
+  .page-nav button { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 0; border-radius: 999px; padding: 10px 16px; background: transparent; color: var(--muted, #8fa39a); font-size: 14px; font-weight: 700; white-space: nowrap; transition: background .2s, color .2s; }
+  .page-nav button:hover { color: var(--text, #eef4f0); background: rgba(255,255,255,.04); }
+  .page-nav button.active { background: #7ef5a3; color: #06210f; box-shadow: 0 8px 24px rgba(126,245,163,.22); }
+  .page-nav button[hidden] { display: none; }
+  .page { display: grid; gap: 18px; animation: v3-in .35s ease both; }
+  .page[hidden] { display: none; }
+  .page > * { margin-top: 0 !important; margin-bottom: 0 !important; }
+  @media (max-width: 640px) { header { position: static; } .page-nav { top: 6px; border-radius: 18px; } .page-nav button { padding: 9px 12px; font-size: 13px; } }
 </style>
 </head>
 <body>
@@ -459,6 +470,13 @@
     <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>
   </div>
 </header>
+<nav class="page-nav" id="pageNav" aria-label="Bereiche der Chain-Seite">
+  <button type="button" data-page="uebersicht"><span aria-hidden="true">⌂</span>Übersicht</button>
+  <button type="button" data-page="markt"><span aria-hidden="true">📈</span>Markt</button>
+  <button type="button" data-page="chain"><span aria-hidden="true">⛓</span>Blockchain</button>
+  <button type="button" data-page="verwaltung" class="nav-admin"><span aria-hidden="true">🛡</span>Verwaltung</button>
+  <button type="button" data-page="einstellungen" class="nav-admin"><span aria-hidden="true">⚙</span>Einstellungen</button>
+</nav>
 <main>
   <section class="card basic-info" id="basicInfo">
     <div class="bi-head"><div><span class="bi-kicker">DEIN ZUGANG</span><h2>Basic-Konto</h2><p class="muted">Du kannst minen und die Bereiche unten verwalten. GIBB senden und am Markt handeln geht mit Basic nicht.</p></div></div>
@@ -897,6 +915,67 @@
 <script type="module">
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "/blockchain-core.js";
 const $ = (id) => document.getElementById(id);
+// ---------- Bereiche: Karten in Seiten einsortieren (nichts wird entfernt) ----------
+const PAGES = {
+  uebersicht: ["#basicInfo", "#stats", "main > .grid3"],
+  markt: ["main > .market-wrap"],
+  chain: ["main > .verify-card", "#blocksFold", "#log"],
+  verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
+  einstellungen: ["#settingsCard", "#payCard", "#notifyCard"],
+};
+{
+  const main = document.querySelector("main");
+  for (const [page, selectors] of Object.entries(PAGES)) {
+    const box = document.createElement("div");
+    box.className = "page"; box.dataset.page = page; box.hidden = true;
+    for (const sel of selectors) {
+      let el = document.querySelector(sel);
+      if (!el) continue;
+      if (!el.matches("main > *")) el = el.closest("main > *") ?? el; // ganze Karte mitnehmen
+      box.appendChild(el);
+    }
+    main.appendChild(box);
+  }
+  // Übrige Karten (falls neue dazukommen) landen in der Übersicht
+  for (const el of [...main.children]) if (!el.classList.contains("page")) document.querySelector('.page[data-page="uebersicht"]').appendChild(el);
+}
+function pageVisible(page) {
+  if (page === "verwaltung" || page === "einstellungen") {
+    const body = document.body.classList;
+    if (!body.contains("is-owner") && !body.contains("is-basic")) return false;
+    // Basic: Bereich nur zeigen, wenn mindestens eine Karte darin erlaubt ist
+    return [...document.querySelectorAll(`.page[data-page="${page}"] > *`)].some((el) => getComputedStyle(el).display !== "none");
+  }
+  return true;
+}
+function showPage(page, { save = true } = {}) {
+  if (!PAGES[page] || !pageVisible(page)) page = "uebersicht";
+  document.querySelectorAll(".page").forEach((p) => { p.hidden = p.dataset.page !== page; });
+  document.querySelectorAll("#pageNav button").forEach((b) => { b.classList.toggle("active", b.dataset.page === page); b.setAttribute("aria-current", b.dataset.page === page ? "page" : "false"); });
+  if (save) { try { localStorage.setItem("chain-page", page); } catch { /* privat */ } }
+}
+function refreshPageNav() {
+  document.querySelectorAll("#pageNav button").forEach((b) => { b.hidden = !pageVisible(b.dataset.page); });
+  const current = document.querySelector("#pageNav button.active")?.dataset.page;
+  if (!current || !pageVisible(current)) showPage("uebersicht", { save: false });
+}
+$("pageNav").addEventListener("click", (e) => { const b = e.target.closest("button[data-page]"); if (b) { showPage(b.dataset.page); window.scrollTo({ top: 0, behavior: "smooth" }); } });
+// Sprung zu einer Karte in einem anderen Bereich: Bereich zuerst öffnen
+{
+  const nativeScroll = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (...args) {
+    const page = this.closest?.(".page");
+    if (page?.hidden) showPage(page.dataset.page);
+    return nativeScroll.apply(this, args);
+  };
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="#"]'); if (!a || a.getAttribute("href").length < 2) return;
+    const target = document.getElementById(a.getAttribute("href").slice(1));
+    if (target) { e.preventDefault(); target.scrollIntoView({ behavior: "smooth", block: "start" }); }
+  });
+}
+new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+{ let start = "uebersicht"; try { start = localStorage.getItem("chain-page") || start; } catch { /* privat */ } showPage(start, { save: false }); refreshPageNav(); }
 // Listen, die sich alle paar Sekunden aktualisieren, nur neu zeichnen, wenn sich etwas geändert hat.
 // So bleibt die Scroll-Position erhalten und nichts blinkt beim Aktualisieren.
 {
@@ -1300,6 +1379,7 @@ function applyPermissions(perms) {
   else { try { if (adUsers.length) adRenderUsers(); } catch { /* noch nicht geladen */ } }
   if (isBasic && first && document.querySelector(".stab[data-tab].active")?.classList.contains("perm-off")) first.click();
   if (stats?.settings) renderPayMethods(stats.settings);
+  refreshPageNav();
 }
 const isFullView = () => document.body.classList.contains("is-owner");
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));

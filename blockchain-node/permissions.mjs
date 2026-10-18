@@ -15,18 +15,18 @@ export const PERMISSION_CATALOG = [
     ["s:tradingFeePercent", "Handelsgebühr"], ["w:maxTrade", "Max. GIBB pro Handel"], ["w:dailySellLimit", "Verkaufslimit pro Person"],
     ["s:startPrice", "Startpreis Chain-Markt"], ["s:startingCash", "Startguthaben Chain-Wallets"], ["s:minOrderAmount", "Min. Ordermenge"],
   ] },
-  { group: "🗂 Tabs & 💳 Zahlarten", items: [
+  { group: "🗂 Hauptseite: Tabs, Zahlarten & Registrieren", items: [
     ["w:disabledTabs", "Tabs der Hauptseite ein/aus"], ["w:cardEnabled", "Karte / TWINT an/aus"], ["w:creditsEnabled", "Mit Credits kaufen an/aus"], ["w:registrationEnabled", "Registrieren an/aus"],
   ] },
-  { group: "🖥 Server", items: [
+  { group: "🖥 Server-Einstellungen", items: [
     ["s:fallbackMinerEnabled", "Reserve-Miner an/aus"], ["s:fallbackDelaySeconds", "Reserve-Miner Einsprung"], ["s:browserMinerThreads", "Browser-Miner Kerne"],
   ] },
-  { group: "⚙ Aktionen", items: [
+  { group: "⚙ Chain-Aktionen", items: [
     ["a:miner", "Server-Miner starten/stoppen"], ["a:verify", "Kette prüfen"], ["a:bank", "Banküberweisungen bestätigen"],
   ] },
   { group: "🛡 Verwaltung der Hauptseite", items: [
     ["a:accounts", "Konten ansehen, bannen, Passwort-Reset, Fun-Rang"], ["a:accountsCreate", "Neue Konten erstellen"], ["a:accountsDelete", "Konten löschen"],
-    ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele verwalten"], ["a:tools", "Tools & Support-Fälle"],
+    ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele: an/aus, Grenzen, Einsätze, Gewinnchancen"], ["a:tools", "Tools & Support-Fälle"],
     ["a:audit", "Protokoll ansehen"], ["a:visitors", "Besucher-Statistik"],
     ["a:stats", "Statistik-Dashboard"], ["a:announce", "Ankündigung auf der Hauptseite"], ["a:bulk", "Bonus für alle"],
   ] },
