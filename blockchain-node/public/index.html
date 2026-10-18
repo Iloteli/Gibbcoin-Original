@@ -564,6 +564,14 @@
   .dsg-opts button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 14px; font-weight: 700; }
   .dsg-opts button i { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 10px rgba(255,255,255,.25); }
   .dsg-opts button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; box-shadow: 0 8px 24px rgba(62,224,255,.3); }
+  .subnav { display: flex; flex-wrap: wrap; gap: 8px; }
+  .subnav[hidden], .subnav button[hidden] { display: none; }
+  .subnav button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 700; background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--muted, #8fa39a); }
+  .subnav button:hover { color: var(--text, #eef4f0); }
+  .subnav button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; }
+  .subnav button[data-sub="all"] { margin-left: auto; }
+  body .page > .sub-off.sub-off.sub-off { display: none !important; }
+  @media (max-width: 640px) { .subnav { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; } .subnav button { flex: 0 0 auto; } .subnav button[data-sub="all"] { margin-left: 0; } }
 </style>
 </head>
 <body>
@@ -1110,7 +1118,7 @@ function pageVisible(page) {
     const body = document.body.classList;
     if (!body.contains("is-owner") && !body.contains("is-basic")) return false;
     // Basic: Bereich nur zeigen, wenn mindestens eine Karte darin erlaubt ist
-    return [...document.querySelectorAll(`.page[data-page="${page}"] > *`)].some((el) => getComputedStyle(el).display !== "none");
+    return [...document.querySelectorAll(`.page[data-page="${page}"] > *:not(.subnav)`)].some((el) => el.classList.contains("sub-off") || getComputedStyle(el).display !== "none");
   }
   return true;
 }
@@ -1143,6 +1151,44 @@ $("pageNav").addEventListener("click", (e) => { const b = e.target.closest("butt
 }
 new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 { let start = "uebersicht"; try { start = localStorage.getItem("chain-page") || start; } catch { /* privat */ } showPage(start, { save: false }); refreshPageNav(); }
+// ---------- Unter-Navigation: lange Bereiche zeigen immer nur eine Karte ----------
+const SUBNAV = {
+  verwaltung: { "#adminCard": "🛡 Admin", "#coinAdminCard": "🪙 Coins", "#bankCard": "🏦 Bank", "#statsCard": "📊 Statistik", "#announceCard": "📣 Ankündigung" },
+  einstellungen: { "#designCard": "🎨 Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen" },
+};
+function subnavChoice(page) { try { return localStorage.getItem(`chain-sub-${page}`) || ""; } catch { return ""; } }
+function subnavApply(page, pick, { save = false } = {}) {
+  const box = document.querySelector(`.page[data-page="${page}"]`); const bar = box?.querySelector(".subnav"); if (!bar) return;
+  for (const sel of Object.keys(SUBNAV[page])) box.querySelector(sel)?.classList.remove("sub-off");
+  const allowed = Object.keys(SUBNAV[page]).filter((sel) => { const el = box.querySelector(sel); return el && getComputedStyle(el).display !== "none"; });
+  bar.hidden = allowed.length < 2;
+  if (pick !== "all" && !allowed.includes(pick)) pick = allowed[0] ?? "all";
+  if (bar.hidden) pick = "all";
+  for (const sel of allowed) box.querySelector(sel)?.classList.toggle("sub-off", pick !== "all" && sel !== pick);
+  bar.querySelectorAll("button").forEach((b) => { b.hidden = b.dataset.sub !== "all" && !allowed.includes(b.dataset.sub); b.classList.toggle("active", b.dataset.sub === pick); b.setAttribute("aria-pressed", String(b.dataset.sub === pick)); });
+  bar.dataset.pick = pick;
+  if (save) { try { localStorage.setItem(`chain-sub-${page}`, pick); } catch { /* privat */ } }
+}
+for (const [page, cards] of Object.entries(SUBNAV)) {
+  const box = document.querySelector(`.page[data-page="${page}"]`); if (!box) continue;
+  const bar = document.createElement("div"); bar.className = "subnav"; bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "Karte wählen");
+  bar.innerHTML = Object.entries(cards).map(([sel, label]) => `<button type="button" data-sub="${sel}">${label}</button>`).join("") + `<button type="button" data-sub="all">☰ Alle</button>`;
+  box.prepend(bar);
+  bar.addEventListener("click", (e) => { const b = e.target.closest("button[data-sub]"); if (b) subnavApply(page, b.dataset.sub, { save: true }); });
+  subnavApply(page, subnavChoice(page));
+}
+// Rechte/Rolle ändern sich nach dem Login → Auswahl neu prüfen
+new MutationObserver(() => { for (const page of Object.keys(SUBNAV)) subnavApply(page, document.querySelector(`.page[data-page="${page}"] .subnav`)?.dataset.pick || subnavChoice(page)); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+// Sprung zu einer versteckten Karte (z. B. Link) öffnet sie
+{
+  const jump = Element.prototype.scrollIntoView;
+  Element.prototype.scrollIntoView = function (...args) {
+    const card = this.closest?.(".sub-off"); const page = card?.closest(".page")?.dataset.page;
+    if (card && page) subnavApply(page, "#" + card.id, { save: true });
+    return jump.apply(this, args);
+  };
+}
+
 // Listen, die sich alle paar Sekunden aktualisieren, nur neu zeichnen, wenn sich etwas geändert hat.
 // So bleibt die Scroll-Position erhalten und nichts blinkt beim Aktualisieren.
 {
