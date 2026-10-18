@@ -608,6 +608,11 @@
   .acc-pic { margin: 0; }
   #whoPic:empty { display: none; }
   .who-pic { display: grid; place-items: center; font-weight: 800; object-fit: cover; width: 26px; height: 26px; border-radius: 8px; font-size: 12px; }
+  .ssh-cmd { margin: 4px 0 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.25); font-family: "IBM Plex Mono", monospace; overflow-x: auto; }
+  .ssh-cmd code { color: #3ee0ff; white-space: nowrap; }
+  a.btn-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-weight: 700; text-decoration: none; }
+  .ssh-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ssh-quick button { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -884,6 +889,24 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
+  <section class="card ssh-card owner-only" id="sshCard">
+    <h2>Server verbinden <span>SSH</span></h2>
+    <p class="muted" style="margin:0 0 12px">Öffnet dein SSH-Programm (Terminal) direkt mit dem Server. Das Passwort tippst du dort ein – es geht nie über diese Seite. Die Angaben bleiben nur in diesem Browser gespeichert.</p>
+    <div class="sgrid">
+      <div class="field"><label for="sshUser">Benutzer</label><input id="sshUser" autocomplete="off" placeholder="z. B. dein Server-Benutzer" /></div>
+      <div class="field"><label for="sshHost">Server</label><input id="sshHost" autocomplete="off" /></div>
+      <div class="field"><label for="sshPort">Port</label><input id="sshPort" type="number" min="1" max="65535" value="22" /></div>
+    </div>
+    <div class="ssh-cmd"><code id="sshCmd">ssh …</code></div>
+    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button></div>
+    <small class="muted">Passiert nichts beim Klick? Dann kennt dein PC keine ssh://-Links: Befehl kopieren und in PowerShell oder im Terminal einfügen.</small>
+    <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
+    <div class="ssh-quick" id="sshQuick">
+      <button type="button" data-cmd="sudo gibb-update">⬆ sudo gibb-update</button><button type="button" data-cmd="sudo gibb-help">❓ sudo gibb-help</button><button type="button" data-cmd="sudo gibb-backup">💾 sudo gibb-backup</button><button type="button" data-cmd="sudo gibb-version">🏷 sudo gibb-version</button><button type="button" data-cmd="sudo gibb-code">🔑 sudo gibb-code</button>
+    </div>
+    <div class="msg" id="sshMsg"></div>
+  </section>
+
   <section class="card notify-card owner-only" id="notifyCard">
     <h2>Benachrichtigungen <span id="ntState">Push aufs Handy</span></h2>
     <p class="muted" style="margin:0 0 12px">Bekomme eine Push-Nachricht, wenn eine Banküberweisung oder ein Support-Fall eingeht oder der Server neu startet. Dafür die kostenlose App <b>ntfy</b> installieren (Android, iPhone, PC) und das Thema unten abonnieren.</p>
@@ -1153,7 +1176,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#profileCard", "#designCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
+  einstellungen: ["#profileCard", "#designCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
   infos: ["#infosCard"],
 };
 {
@@ -1213,7 +1236,7 @@ new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes
 // ---------- Unter-Navigation: lange Bereiche zeigen immer nur eine Karte ----------
 const SUBNAV = {
   verwaltung: { "#adminCard": "🛡 Admin", "#coinAdminCard": "🪙 Coins", "#bankCard": "🏦 Bank", "#statsCard": "📊 Statistik", "#announceCard": "📣 Ankündigung" },
-  einstellungen: { "#profileCard": "👤 Profil", "#designCard": "🎨 Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen" },
+  einstellungen: { "#profileCard": "👤 Profil", "#designCard": "🎨 Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen", "#sshCard": "🖥 Server" },
 };
 function subnavChoice(page) { try { return localStorage.getItem(`chain-sub-${page}`) || ""; } catch { return ""; } }
 function subnavApply(page, pick, { save = false } = {}) {
@@ -2549,6 +2572,28 @@ $("pfForm").addEventListener("submit", async (e) => {
   } catch (err) { say("pfMsg", pfErrors[err.message] || err.message, true); }
 });
 setTimeout(() => void pfLoad(), 300);
+
+// ---------- Server per SSH verbinden (nur Link/Befehl – kein Terminal im Browser) ----------
+{
+  const KEY = "gibb-ssh";
+  let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { /* privat */ }
+  $("sshUser").value = saved.user ?? ""; $("sshHost").value = saved.host ?? location.hostname; $("sshPort").value = saved.port ?? 22;
+  const clean = (v, re) => (re.test(v) ? v : "");
+  const sshUpdate = () => {
+    const user = clean($("sshUser").value.trim(), /^[a-z_][a-z0-9._-]{0,31}$/i), host = clean($("sshHost").value.trim(), /^[a-z0-9.-]{1,253}$|^\[?[0-9a-f:]+\]?$/i);
+    const port = Math.min(65535, Math.max(1, Math.trunc(Number($("sshPort").value) || 22)));
+    const target = user ? `${user}@${host}` : host;
+    $("sshCmd").textContent = host ? `ssh ${port !== 22 ? `-p ${port} ` : ""}${target}` : "Server eintragen";
+    $("sshGo").href = host ? `ssh://${target}${port !== 22 ? `:${port}` : ""}` : "#";
+    try { localStorage.setItem(KEY, JSON.stringify({ user: $("sshUser").value.trim(), host: $("sshHost").value.trim(), port })); } catch { /* privat */ }
+  };
+  ["sshUser", "sshHost", "sshPort"].forEach((id) => $(id).addEventListener("input", sshUpdate));
+  sshUpdate();
+  const copy = async (text) => { try { await navigator.clipboard.writeText(text); say("sshMsg", `Kopiert: ${text}`); } catch { say("sshMsg", "Kopieren nicht möglich – bitte von Hand markieren.", true); } };
+  $("sshCopy").onclick = () => void copy($("sshCmd").textContent);
+  $("sshGo").addEventListener("click", (e) => { if ($("sshGo").getAttribute("href") === "#") { e.preventDefault(); say("sshMsg", "Bitte zuerst den Server eintragen.", true); } else say("sshMsg", "SSH-Programm wird geöffnet …"); });
+  $("sshQuick").addEventListener("click", (e) => { const b = e.target.closest("button[data-cmd]"); if (b) void copy(b.dataset.cmd); });
+}
 
 // ---------- Design der Hauptseite ----------
 function designSync(settings) {
