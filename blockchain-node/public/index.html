@@ -360,6 +360,26 @@
   .up-panel { margin: 14px 0 18px; padding: 16px; border-radius: 16px; border: 1px solid rgba(126,245,163,.35); background: rgba(126,245,163,.05); display: grid; gap: 12px; animation: v3-in .35s ease both; }
   #upPerms.up-off { opacity: .45; }
   html, body { overflow-x: clip; }
+  .acc-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+  .acc-tools input { flex: 1 1 200px; }
+  .acc-head { display: grid; grid-template-columns: minmax(0, 1fr) 130px 480px; gap: 12px; padding: 0 14px 6px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .acc-row { display: grid !important; grid-template-columns: minmax(0, 1fr) 130px 480px; cursor: default; gap: 12px; align-items: center; }
+  .acc-row .acc-name b { font-size: 15px; }
+  .acc-row .acc-name small { display: block; margin-top: 3px; }
+  .acc-row .acc-level select { width: 100%; }
+  .acc-row .acc-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .acc-row .acc-acts button { padding: 9px 8px; font-size: 13px; white-space: nowrap; }
+  .acc-row .acc-acts .ph { visibility: hidden; }
+  .acc-row.off { opacity: .6; }
+  .std-perms { margin-top: 16px; border: 1px solid var(--line); border-radius: 16px; padding: 12px 16px; }
+  .std-perms > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 10px; }
+  .std-perms > summary::before { content: "▸"; color: #7ef5a3; transition: transform .2s; }
+  .std-perms[open] > summary::before { transform: rotate(90deg); }
+  .std-perms > summary::-webkit-details-marker { display: none; }
+  .std-perms[open] > summary { margin-bottom: 12px; }
+  .acc-row .tag-custom { color: #7ef5a3; border-color: rgba(126,245,163,.35); }
+  .acc-row .full-always { justify-self: start; }
+  @media (max-width: 900px) { .acc-head { display: none; } .acc-row { grid-template-columns: 1fr; } .acc-row .acc-acts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
 <body>
@@ -582,6 +602,11 @@
         <div class="actions"><button class="primary" type="submit">Chain-Konto erstellen</button></div>
       </form>
       <h3 class="ad-h">Alle Konten <span class="muted" style="font-weight:500">Chain-Konten und Owner der Hauptseite (melden sich mit Website-E-Mail an)</span></h3>
+      <div class="acc-tools">
+        <input id="accSearch" placeholder="Konto suchen" autocomplete="off" />
+        <div class="ca-quick" id="accFilter"><button type="button" data-f="all" class="active">Alle</button><button type="button" data-f="full">Full</button><button type="button" data-f="basic">Basic</button><button type="button" data-f="user">Normal</button><button type="button" data-f="off">Deaktiviert</button></div>
+      </div>
+      <div class="acc-head" aria-hidden="true"><span>Konto</span><span>Stufe</span><span>Aktionen</span></div>
       <div class="acc-list">
         <div class="list" id="nuList"></div>
         <div class="list" id="olList"></div>
@@ -594,11 +619,11 @@
         <label class="switch"><input type="checkbox" id="upCustom" /><span class="knob"></span><span class="switch-text"><b>Eigene Rechte für dieses Konto</b><small>aus = es gelten die Standardrechte für Basic (unten)</small></span></label>
         <div id="upPerms"></div>
       </div>
-      <div class="basic-head">
-        <h3 class="ad-h" style="margin:0">Standardrechte für Basic <span class="muted" style="font-weight:500">gelten für alle Basic-Konten ohne eigene Rechte</span></h3>
-        <button type="button" class="primary" id="basicPreview">👁 Basic-Ansicht ansehen</button>
-      </div>
-      <div id="basicPerms"></div>
+      <details class="std-perms">
+        <summary><span><b>Standardrechte für Basic</b> <span class="muted">gelten für alle Basic-Konten ohne eigene Rechte · zum Bearbeiten aufklappen</span></span></summary>
+        <div class="basic-head"><span></span><button type="button" class="primary" id="basicPreview">👁 Basic-Ansicht ansehen</button></div>
+        <div id="basicPerms"></div>
+      </details>
     </div>
     <div class="adpanel" data-adp="visitors" hidden>
       <div class="ca-quick" id="adRange"><button type="button" data-days="7" class="active">7 Tage</button><button type="button" data-days="30">30 Tage</button><button type="button" data-days="3650">Alles</button></div>
@@ -1489,7 +1514,7 @@ $("adCreate").addEventListener("submit", async (e) => {
 const genPass = () => { const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => chars[b % chars.length]).join(""); };
 const nuErrors = { basic_no_transfers: "Basic-Konten können keine Coins bewegen.", account_disabled: "Dieses Konto ist deaktiviert.", chain_logins_disabled: "Anmeldungen sind gerade nur für den Owner möglich.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", username_taken: "Dieser Benutzername ist schon vergeben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert.", user_not_found: "Konto nicht gefunden.", account_is_protected: "Das Owner-Konto ist geschützt." };
 const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] || e.message, true);
-async function nuLoad() {
+async function nuLoadOld() {
   try {
     const users = (await api("/api/admin/node-users", {})).users ?? [];
     $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b><span class="acc-type">Chain-Konto</span>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select>${u.level === "basic" ? `<button data-nu="perms" data-addr="${h(u.address)}">Rechte</button>` : ""}<button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
@@ -1566,7 +1591,7 @@ $("payMethods").addEventListener("click", async (e) => {
 });
 
 // ---------- Owner der Hauptseite: Basic / Full ----------
-async function olLoad() {
+async function olLoadOld() {
   try {
     const owners = (await api("/api/admin/owner-levels", {})).owners ?? [];
     $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b><span class="acc-type">Website-Owner</span> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `${o.level !== "full" ? `<button data-operm="sb_${h(o.id)}">Rechte</button>` : ""}<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
@@ -1655,7 +1680,7 @@ async function upOpen(address, who) {
 }
 async function upSave(custom) {
   const perms = custom ? [...document.querySelectorAll("[data-uperm]")].filter((el) => el.checked).map((el) => el.dataset.uperm) : null;
-  try { const r = await api("/api/admin/user-permissions/set", { address: upAddress, name: upWho, permissions: perms }); upRender(r); say("adMsg", custom ? `Eigene Rechte für ${upWho} gespeichert.` : `${upWho} nutzt wieder die Standardrechte für Basic.`); }
+  try { const r = await api("/api/admin/user-permissions/set", { address: upAddress, name: upWho, permissions: perms }); upRender(r); void accLoad(); say("adMsg", custom ? `Eigene Rechte für ${upWho} gespeichert.` : `${upWho} nutzt wieder die Standardrechte für Basic.`); }
   catch (err) { say("adMsg", adErrors[err.message] || err.message, true); }
 }
 $("upCustom").addEventListener("change", () => void upSave($("upCustom").checked));
@@ -1801,6 +1826,96 @@ $("buSend").onclick = async () => {
   finally { $("buSend").disabled = false; }
 };
 $("authSetupWrap").hidden = !new URLSearchParams(location.search).has("setup");
+
+// ---------- Alle Konten: eine Liste, gleiche Bedienung für jedes Konto ----------
+let accRows = [], accFilterVal = "all";
+const levelName = { user: "Normal", basic: "Basic", full: "Full" };
+async function accLoad() {
+  let nodeUsers = [], owners = [];
+  try { nodeUsers = (await api("/api/admin/node-users", {})).users ?? []; } catch (e) { nuFail(e); }
+  try { owners = (await api("/api/admin/owner-levels", {})).owners ?? []; } catch { owners = []; }
+  const rows = [];
+  for (const u of nodeUsers) rows.push({ kind: "chain", id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB${u.createdAt ? " · seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom });
+  for (const o of owners) {
+    if (o.primary) { const me = rows.find((r) => r.owner); if (me) { me.sub += ` · Website @${o.username}`; continue; } }
+    rows.push({ kind: "web", id: o.id, name: o.display_name || o.username, sub: `Website-Owner · @${o.username}`, level: o.level, owner: o.primary, disabled: o.disabled, address: `sb_${o.id}`, custom: o.custom });
+  }
+  const order = (r) => (r.owner ? 0 : r.level === "full" ? 1 : r.level === "basic" ? 2 : 3);
+  accRows = rows.sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name, "de"));
+  accRender();
+}
+function accRender() {
+  const q = $("accSearch").value.trim().toLowerCase();
+  const list = accRows.filter((r) => (!q || `${r.name} ${r.sub}`.toLowerCase().includes(q)) && (accFilterVal === "all" || (accFilterVal === "off" ? r.disabled : r.level === accFilterVal && !r.disabled)));
+  $("olList").innerHTML = "";
+  $("nuList").innerHTML = list.map((r) => {
+    const levelSel = r.owner ? '<span class="ad-badge owner full-always">Full · immer</span>'
+      : `<select data-acc="level">${(r.kind === "web" ? ["basic", "full"] : ["user", "basic", "full"]).map((l) => `<option value="${l}"${r.level === l ? " selected" : ""}>${levelName[l]}</option>`).join("")}</select>`;
+    const acts = r.owner ? "" : [
+      r.level === "basic" ? `<button data-acc="perms">Rechte</button>` : `<button class="ph" tabindex="-1" aria-hidden="true">Rechte</button>`,
+      `<button data-acc="toggle">${r.disabled ? "Aktivieren" : "Deaktivieren"}</button>`,
+      `<button data-acc="password">${r.kind === "web" ? "Passwort-Reset" : "Neues Passwort"}</button>`,
+      `<button class="danger" data-acc="delete">${r.kind === "web" ? "Entfernen" : "Löschen"}</button>`,
+    ].join("");
+    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div></div>`;
+  }).join("") || `<div class="muted">Keine Konten gefunden.</div>`;
+}
+$("accSearch").addEventListener("input", accRender);
+$("accFilter").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-f]"); if (!b) return;
+  document.querySelectorAll("#accFilter button").forEach((x) => x.classList.toggle("active", x === b));
+  accFilterVal = b.dataset.f; accRender();
+});
+$("nuList").addEventListener("change", async (e) => {
+  const sel = e.target.closest('select[data-acc="level"]'); if (!sel) return;
+  const row = sel.closest(".acc-row"); const { kind, id, name } = row.dataset;
+  if (sel.value === "full" && !confirm(`${name} auf Full setzen? Dann hat das Konto alle Rechte wie du (ohne Server-Code, den braucht nur Ilja).`)) { accRender(); return; }
+  try {
+    if (kind === "web") await api("/api/admin/owner-level", { userId: id, name, level: sel.value });
+    else await api("/api/admin/node-users/level", { username: id, level: sel.value });
+    say("adMsg", `${name} ist jetzt ${levelName[sel.value]} (muss sich neu anmelden).`);
+  } catch (err) { nuFail(err); }
+  await accLoad();
+});
+$("nuList").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-acc]"); if (!btn) return;
+  const row = btn.closest(".acc-row"); const { kind, id, name, addr } = row.dataset; const act = btn.dataset.acc;
+  try {
+    if (act === "perms") { void upOpen(addr, name); return; }
+    if (act === "toggle") {
+      const disable = btn.textContent === "Deaktivieren";
+      if (kind === "web") await api("/api/admin/owner-disable", { userId: id, name, disabled: disable });
+      else await api("/api/admin/node-users/disable", { username: id, disabled: disable });
+      say("adMsg", disable ? `${name} kann sich nicht mehr auf der Chain-Seite anmelden.` : `${name} ist wieder aktiv.`);
+    }
+    if (act === "password") {
+      if (kind === "web") {
+        if (!confirm(`Passwort-Reset-E-Mail an ${name} schicken?`)) return;
+        await api("/api/admin/password-reset", { userId: id });
+        say("adMsg", `Reset-E-Mail an ${name} verschickt.`);
+      } else {
+        const pw = prompt(`Neues Passwort für ${name} (mind. 8 Zeichen):`, genPass()); if (!pw) return;
+        await api("/api/admin/node-users/password", { username: id, password: pw });
+        say("adMsg", `Neues Passwort für ${name} gesetzt: ${pw} – der Person mitteilen. Bestehende Anmeldungen wurden beendet.`);
+      }
+    }
+    if (act === "delete") {
+      if (kind === "web") {
+        if (!confirm(`${name} den Owner-Rang wegnehmen? Das Website-Konto mit Guthaben bleibt bestehen, nur der Owner-Zugang (auch zur Chain-Seite) fällt weg.`)) return;
+        await adCall("admin_set_role", { p_target_user_id: id, p_role: "user", p_reason: "Chain-Seite: Owner entfernt" });
+        say("adMsg", `${name} ist kein Owner mehr.`);
+      } else {
+        if (!confirm(`Chain-Konto ${name} löschen? Die Anmeldung wird entfernt, das Wallet bleibt in der Kette.`)) return;
+        await api("/api/admin/node-users/delete", { username: id });
+        say("adMsg", `Chain-Konto ${name} gelöscht.`);
+      }
+    }
+  } catch (err) { nuFail(err); }
+  await accLoad();
+});
+async function nuLoad() { await accLoad(); }
+async function olLoad() { /* in accLoad enthalten */ }
+void nuLoadOld; void olLoadOld;
 </script>
 </body>
 </html>

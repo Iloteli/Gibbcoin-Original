@@ -221,6 +221,7 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
   const user = await websiteUser(auth.access_token);
   if (!user || user.role !== "super_admin") { loginFailed(nameKey, ipKey); throw new Error("not_owner_account"); }
   const level = ownerLevelOf(user.userId, user.email);
+  if (chain.ownerDisabled[user.userId] && String(user.email ?? "").toLowerCase() !== PRIMARY_OWNER_EMAIL) { loginFailed(nameKey, ipKey); throw new Error("account_disabled"); }
   if (String(user.email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL && OWNER_2FA) {
     if (!body.code) throw new Error("second_factor_required");
     if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
@@ -487,7 +488,20 @@ const routes = {
   "POST /api/admin/owner-levels": async (_, body) => {
     await requireOwner(body);
     const users = await settingsSync.listWebsiteUsers();
-    return { owners: users.filter((u) => u.role === "super_admin").map((u) => ({ id: u.id, username: u.username, display_name: u.display_name, primary: u.is_primary === true, level: u.is_primary === true || chain.ownerLevels[u.id] === "full" ? "full" : "basic" })) };
+    return { owners: users.filter((u) => u.role === "super_admin").map((u) => ({ id: u.id, username: u.username, display_name: u.display_name, primary: u.is_primary === true, disabled: chain.ownerDisabled[u.id] === true, custom: Array.isArray(chain.userPermissions[`sb_${u.id}`]), level: u.is_primary === true || chain.ownerLevels[u.id] === "full" ? "full" : "basic" })) };
+  },
+  // Website-Owner auf der Chain-Seite sperren/freigeben (Website-Konto bleibt unverändert)
+  "POST /api/admin/owner-disable": async (_, body) => {
+    await requireOwner(body);
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) throw new Error("invalid_request");
+    const target = (await settingsSync.listWebsiteUsers()).find((u) => String(u.id).toLowerCase() === id);
+    if (target?.is_primary === true) throw new Error("account_is_protected");
+    if (body.disabled === true) chain.ownerDisabled[id] = true; else delete chain.ownerDisabled[id];
+    chain.save();
+    if (body.disabled === true) dropSessionsOfAddress(`sb_${id}`);
+    note("auth", `Owner ${String(body.name ?? id).slice(0, 40)} ${body.disabled === true ? "auf der Chain-Seite gesperrt" : "wieder freigegeben"}`);
+    return { ok: true, disabled: body.disabled === true };
   },
   "POST /api/admin/owner-level": async (_, body) => {
     await requireOwner(body);
@@ -533,7 +547,7 @@ const routes = {
     const own = chain.userPermissions[address];
     return { address, custom: Array.isArray(own), permissions: normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions) };
   },
-  "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers() }; },
+  "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers().map((u) => ({ ...u, custom: Array.isArray(chain.userPermissions[u.address]) })) }; },
   "POST /api/admin/node-users/create": async (_, body) => {
     await requireOwner(body);
     const u = chain.registerUser(String(body.username ?? ""), String(body.password ?? ""));
