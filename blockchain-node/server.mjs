@@ -535,6 +535,12 @@ const routes = {
     await requireOwner(body);
     return notifier.send("test", "🔔 Test von GIBB Coin", "Wenn du das liest, kommen die Benachrichtigungen an.", { tags: ["bell"] });
   },
+  // Owner-Konto jetzt mit dem Website-Wallet verbinden (passiert sonst automatisch)
+  "POST /api/admin/link-owner-wallet": async (_, body) => {
+    await requireOwner(body);
+    await linkOwnerWallet();
+    return { address: chain.users[chain.ownerKey]?.address ?? null };
+  },
   // Rechte pro Basic-Konto (nur Full)
   "POST /api/admin/user-permissions": async (_, body) => {
     await requireOwner(body);
@@ -734,6 +740,36 @@ function json(res, status, data) {
   res.writeHead(status, { "content-type": "application/json; charset=utf-8", "cache-control": "no-store" });
   res.end(JSON.stringify(data));
 }
+
+// Owner-Konto der Chain-Seite mit dem Website-Wallet des Owners verbinden: ein Wallet für beides.
+// Guthaben auf dem alten Chain-Wallet wird vorher auf die Website gutgeschrieben.
+async function linkOwnerWallet() {
+  if (!settingsSync.enabled) return;
+  const owner = chain.users[chain.ownerKey];
+  if (!owner) return;
+  let users;
+  try { users = await settingsSync.listWebsiteUsers(); } catch { return; }
+  const primary = users.find((u) => u.is_primary === true);
+  if (!primary) return;
+  const target = `sb_${primary.id}`;
+  if (owner.address === target) return;
+  const old = owner.address;
+  if (chain.orders.some((o) => o.address === old) || chain.mempool.some((t) => t.from === old || t.to === old)) return; // später nochmals
+  if (!chain.accounts[target]) chain.upsertWebsiteAccount(primary.id, primary.username, Number(primary.balance ?? 0));
+  const oldAcc = chain.accounts[old];
+  const balance = Math.max(0, Math.trunc(oldAcc?.balance ?? 0));
+  if (balance > 0) {
+    try { await settingsSync.adjustWebsiteBalance(primary.id, balance, "Übertrag vom Chain-Wallet"); } catch { return; }
+  }
+  owner.address = target;
+  if (oldAcc && !oldAcc.source) delete chain.accounts[old];
+  chain.save();
+  dropSessionsOfAddress(old);
+  note("wallet", `Owner-Konto nutzt jetzt das Website-Wallet @${primary.username}${balance ? ` (${balance} GIBB übertragen)` : ""}`);
+  void settingsSync.syncAccounts();
+}
+setTimeout(() => void linkOwnerWallet(), Number(process.env.OWNER_LINK_DELAY_MS ?? 15_000)).unref();
+setInterval(() => void linkOwnerWallet(), 5 * 60_000).unref();
 
 server.listen(PORT, () => {
   void notifier.send("start", "🟢 Chain-Server gestartet", `Der GIBB-Chain-Server läuft wieder (Blöcke: ${chain.blocks.length}). Das passiert nach einem Update oder Neustart.`, { tags: ["white_check_mark"] });
