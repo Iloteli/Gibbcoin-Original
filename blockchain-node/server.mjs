@@ -209,13 +209,6 @@ const sessionOf = (body) => {
   return NO_AUTH && body?.__direct === true ? getGuest() : null;
 };
 const requireSession = (body) => { const sess = sessionOf(body); if (!sess) throw new Error("login_required"); return sess; };
-// Konto der Hauptseite zur Sitzung (Wallet sb_<id>, beim Owner auch über das Chain-Konto)
-const websiteIdOf = (sess) => {
-  const address = String(chain.users[String(sess?.username ?? "").toLowerCase()]?.address ?? sess?.address ?? "");
-  const m = /^sb_([0-9a-f-]{36})$/.exec(String(sess?.address ?? "").startsWith("sb_") ? sess.address : address);
-  if (!m) throw new Error("no_website_account");
-  return m[1];
-};
 const websiteOwnerSession = createWebsiteOwnerCheck();
 // Owner: Node-Login (token) ODER Owner der GibbCoin-Website (supabaseToken, geprüft bei der eigenen Datenbank).
 const requireOwner = async (body) => {
@@ -512,18 +505,6 @@ const routes = {
     note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} gelöscht`);
     void settingsSync.syncAccounts();
     return r;
-  },
-  // Eigenes Profil der Hauptseite (gleiche Einstellungen wie dort)
-  "POST /api/profile": async (_, body) => {
-    const id = websiteIdOf(requireSession(body));
-    return { profile: await settingsSync.getProfile(id) };
-  },
-  "POST /api/profile/set": async (_, body) => {
-    const id = websiteIdOf(requireSession(body));
-    const p = body.profile ?? {};
-    const profile = await settingsSync.updateProfile(id, { username: String(p.username ?? ""), display_name: String(p.display_name ?? ""), bio: String(p.bio ?? ""), profile_color: String(p.profile_color ?? ""), remove_avatar: p.remove_avatar === true });
-    chain.setWebsiteLook(id, profile?.avatar_url, profile?.profile_color);
-    return { profile };
   },
   // Anmeldungen für die Chain-Seite selbst (nur Owner)
   "POST /api/admin/owner-levels": async (_, body) => {
