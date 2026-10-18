@@ -20,13 +20,19 @@ import { ALL_PERMISSIONS, PERMISSION_CATALOG, normalizePermissions } from "./per
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
-// Version: Nummer aus package.json + Build (Anzahl Commits) + Datum, z. B. "1.0.0 · Build 412 · 18.10.2026"
+// Version im Format 1, 1.1, 1.2 … (Hauptnummer + Änderungen seit Start, siehe deploy/VERSION)
 const VERSION = (() => {
-  let ver = "?", build = "", date = "";
-  try { ver = JSON.parse(_read(join(here, "..", "package.json"), "utf8")).version; } catch { /* ohne package.json */ }
-  try { build = execFileSync("git", ["-c", "safe.directory=*", "rev-list", "--count", "HEAD"], { cwd: here, encoding: "utf8", timeout: 3000 }).trim(); } catch { /* ohne git */ }
+  let major = "1", start = 0, count = 0, date = "";
+  try {
+    const cfg = _read(join(here, "..", "deploy", "VERSION"), "utf8");
+    major = /HAUPT=(\d+)/.exec(cfg)?.[1] ?? major;
+    start = Number(/START=(\d+)/.exec(cfg)?.[1] ?? 0);
+  } catch { /* ohne Datei */ }
+  try { count = Number(execFileSync("git", ["-c", "safe.directory=*", "rev-list", "--count", "HEAD"], { cwd: here, encoding: "utf8", timeout: 3000 }).trim()); } catch { count = start; }
   try { date = execFileSync("git", ["-c", "safe.directory=*", "log", "-1", "--format=%cd", "--date=format:%d.%m.%Y"], { cwd: here, encoding: "utf8", timeout: 3000 }).trim(); } catch { /* ohne git */ }
-  return { version: ver, build, date, label: [ver, build && `Build ${build}`, date].filter(Boolean).join(" · ") };
+  const minor = Math.max(0, count - start);
+  const version = minor ? `${major}.${minor}` : major;
+  return { version, date, label: date ? `${version} (${date})` : version };
 })();
 const chain = new Blockchain(process.env.CHAIN_FILE ?? join(here, "data", "chain.json"));
 
@@ -673,6 +679,23 @@ const routes = {
     return r;
   },
   // Gewinnchancen der Sofort-Spiele (Recht "Spiele verwalten")
+  // Mindest-/Höchsteinsatz pro Spiel (Dino Run: Eintritt)
+  "POST /api/games/limits": async (_, body) => { await requireAdminPermission(body, "a:games"); return { limits: await settingsSync.getWagerLimits() }; },
+  "POST /api/games/limits/set": async (_, body) => {
+    await requireAdminPermission(body, "a:games");
+    const limits = {};
+    for (const [key, v] of Object.entries(body.limits ?? {})) {
+      if (!/^[a-z_]{2,30}$/.test(key)) continue;
+      if (v === null) { limits[key] = null; continue; }
+      const min = v?.min === "" || v?.min == null ? 1 : Math.trunc(Number(v.min));
+      const max = v?.max === "" || v?.max == null ? null : Math.trunc(Number(v.max));
+      if (!Number.isFinite(min) || min < 1 || (max !== null && (!Number.isFinite(max) || max < min))) throw new Error("invalid_limits");
+      limits[key] = { min, max };
+    }
+    const r = await settingsSync.setWagerLimits(limits);
+    note("settings", "Einsatzgrenzen der Spiele geändert");
+    return { limits: r };
+  },
   "POST /api/games/odds": async (_, body) => { await requireAdminPermission(body, "a:games"); return { odds: await settingsSync.getGameOdds() }; },
   "POST /api/games/odds/set": async (_, body) => {
     await requireAdminPermission(body, "a:games");

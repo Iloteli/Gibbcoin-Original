@@ -3025,3 +3025,4 @@ html[data-theme="light"] .tour-spot { box-shadow: 0 0 0 9999px rgba(16,32,26,.55
   .tour-card { padding: 16px; }
 }
 .fair-rules .odds-note { margin-top: 6px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(246,200,95,.35); background: rgba(246,200,95,.08); }
+.auth-no-signup { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }

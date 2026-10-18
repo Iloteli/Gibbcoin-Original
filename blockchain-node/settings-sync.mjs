@@ -238,6 +238,8 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   const bulkAdjust = async (amount, reason) => rpc("node_bulk_adjust", { p_amount: amount, p_reason: reason });
   const getAnnouncement = async () => (await rpc("node_get_announcement", {})).announcement ?? { enabled: false };
   const setAnnouncement = async (a) => rpc("node_set_announcement", { p_enabled: a.enabled, p_title: a.title, p_message: a.message, p_until: a.until, p_tone: a.tone });
+  const getWagerLimits = async () => (await rpc("node_get_game_wager_limits", {})).limits ?? {};
+  const setWagerLimits = async (limits) => (await rpc("node_set_game_wager_limits", { p_limits: limits })).limits ?? {};
   const getGameOdds = async () => (await rpc("node_get_game_odds", {})).odds ?? {};
   const setGameOdds = async (odds) => (await rpc("node_set_game_odds", { p_odds: odds })).odds ?? {};
   const deleteBankOrders = async (id) => rpc("node_delete_bank_orders", { p_id: id || null });
@@ -249,5 +251,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }

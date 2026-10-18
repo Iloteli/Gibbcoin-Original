@@ -1,0 +1,3 @@
+# Hauptversion und Commit-Zähler, ab dem gezählt wird (Version = HAUPT.(Commits - START))
+HAUPT=1
+START=401

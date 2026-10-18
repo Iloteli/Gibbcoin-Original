@@ -162,7 +162,9 @@ test("ships Dino Run with a 150 GIBB entry, server-paid milestones, and a verifi
   assert.match(gameCenter, /Dino Run/);
   assert.match(gameCenter, /1’000 Punkte = 100 GIBB/);
   assert.match(gameCenter, /const DINO_ENTRY_COST = 150/);
-  assert.match(gameCenter, /Dino Run starten · \$\{DINO_ENTRY_COST\} GIBB/);
+  // Eintritt ist auf der Chain-Seite einstellbar (Standard 150 GIBB)
+  assert.match(gameCenter, /Dino Run starten · \$\{dinoEntry\} GIBB/);
+  assert.match(gameCenter, /const dinoEntry = wagerLimits\.dino_run\?\.min \?\? DINO_ENTRY_COST/);
   assert.match(gameCenter, /start_dino_run/);
   assert.match(gameCenter, /sync_dino_run/);
   assert.match(gameCenter, /get_dino_leaderboard/);

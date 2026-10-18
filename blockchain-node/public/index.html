@@ -422,6 +422,11 @@
   html { scroll-padding-top: 80px; }
   header h1 .ver { font-family: "IBM Plex Mono", monospace; font-size: 11px; font-weight: 500; color: var(--muted, #8fa39a); border: 1px solid var(--line, #1c2823); border-radius: 999px; padding: 2px 8px; margin-left: 4px; }
   header h1 .ver:empty { display: none; }
+  .limits-table { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; margin-bottom: 10px; }
+  .limit-row { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 8px; align-items: center; padding: 8px 12px; border-radius: 12px; border: 1px solid var(--line); background: #08100c; }
+  .limit-row b { font-size: 13px; }
+  .limit-row input { padding: 8px 10px; font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+  .limit-head { display: grid; grid-template-columns: minmax(0, 1fr) 90px 90px; gap: 8px; padding: 0 12px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -609,6 +614,9 @@
     </div>
     <div class="adpanel" data-adp="games" hidden>
       <div class="switches" id="adGames"></div>
+      <h3 class="ad-h">Einsätze pro Spiel <span class="muted" style="font-weight:500">leer = keine Grenze · Dino Run: Mindesteinsatz ist der Eintritt</span></h3>
+      <div class="limits-table" id="adLimits"></div>
+      <div class="actions"><button type="button" class="primary" id="adLimitsSave">Einsätze speichern</button></div>
       <h3 class="ad-h">Gewinnchancen <span class="muted" style="font-weight:500">100 % = fair · gilt für alle gleich und wird den Spielern in den Regeln angezeigt</span></h3>
       <div class="odds-grid" id="adOdds"></div>
       <div class="actions"><button type="button" id="adOddsReset">Alle auf fair (100 %)</button><button type="button" class="primary" id="adOddsSave">Gewinnchancen speichern</button></div>
@@ -986,7 +994,7 @@ async function refresh() {
 
 const lastStatValues = {};
 function renderStats(s) {
-  if (s.version) { $("appVersion").textContent = `v${s.version.version}${s.version.build ? ` · Build ${s.version.build}` : ""}`; $("appVersion").title = `Version ${s.version.label}`; }
+  if (s.version) { $("appVersion").textContent = `Version ${s.version.version}`; $("appVersion").title = `Version ${s.version.label}`; }
   $("stats").innerHTML = [
     ["Kurs", price(s.price) + " Rp"], ["Blockhöhe", s.height], ["Schwierigkeit", s.difficultyBits + " Bit"], ["Umlauf", fmt(s.supply) + " GIBB"],
     ["Marktkapital", fmtChf(s.marketCapRappen)], ["24h Volumen", fmt(s.volume24h) + " GIBB"], ["Ø Blockzeit", s.averageBlockSeconds == null ? "–" : s.averageBlockSeconds.toFixed(1) + " s"], ["Belohnung", s.settings.reward + " GIBB"],
@@ -1512,6 +1520,7 @@ async function adLoad(part) {
     }
     if (part === "games") {
       void oddsLoad();
+      void limitsLoad();
       const [center, dino, limits] = await Promise.all([adCall("get_game_center_state"), adCall("get_dino_admin_state"), adCall("get_global_game_limits")]);
       const settings = (Array.isArray(center) ? center[0] : center)?.settings ?? [];
       $("adGames").innerHTML = settings.map((g) => `<label class="switch"><input type="checkbox" data-game="${h(g.game_key)}"${g.enabled ? " checked" : ""} /><span class="knob"></span><span class="switch-text"><b>${h(g.label)}</b><small>${g.enabled ? "aktiv" : "ausgeschaltet"}</small></span></label>`).join("");
@@ -2032,6 +2041,30 @@ Achtung: Darauf liegen noch ${fmt(bal)} GIBB – diese gehen verloren. Sende sie
     setTimeout(() => void refresh(), 250);
   } catch (err) { say("walletMsg", walletErrors[err.message] || err.message, true); }
 });
+
+// ---------- Einsätze pro Spiel ----------
+const LIMIT_GAMES = [["roulette","Roulette"],["coin_flip","Münzwurf"],["blackjack","Blackjack"],["dice_duel","Würfelduell"],["high_card","High Card"],["poker","5-Karten-Poker"],["plinko","Plinko"],["slots","Slot Machine"],["baccarat","Baccarat"],["keno","Keno"],["wheel","Glücksrad"],["mines","Mines"],["bingo","Bingo"],["crash","Crash"],["dino_run","Dino Run"]];
+function limitsRender(limits) {
+  const head = `<div class="limit-head" style="grid-column:1/-1"><span>Spiel</span><span>Mindestens</span><span>Höchstens</span></div>`;
+  $("adLimits").innerHTML = head + LIMIT_GAMES.map(([key, label]) => {
+    const l = limits?.[key] ?? {};
+    const dino = key === "dino_run";
+    return `<div class="limit-row" data-game="${key}"><b>${label}${dino ? ' <small class="muted">Eintritt</small>' : ""}</b><input type="number" min="1" step="1" data-k="min" value="${l.min ?? ""}" placeholder="${dino ? "150" : "1"}" aria-label="Mindesteinsatz ${label}" /><input type="number" min="1" step="1" data-k="max" value="${dino ? "" : l.max ?? ""}" placeholder="${dino ? "–" : "∞"}" ${dino ? "disabled" : ""} aria-label="Höchsteinsatz ${label}" /></div>`;
+  }).join("");
+}
+async function limitsLoad() {
+  try { limitsRender((await api("/api/games/limits", {})).limits); }
+  catch (err) { $("adLimits").innerHTML = `<div class="muted">${h(adErrors[err.message] || caErrors[err.message] || err.message)}</div>`; }
+}
+$("adLimitsSave").onclick = async () => {
+  const limits = {};
+  for (const row of document.querySelectorAll(".limit-row")) {
+    const min = row.querySelector('[data-k="min"]').value.trim(); const max = row.querySelector('[data-k="max"]').value.trim();
+    limits[row.dataset.game] = !min && !max ? null : { min: min || 1, max: max || null };
+  }
+  try { limitsRender((await api("/api/games/limits/set", { limits })).limits); say("adMsg", "Einsätze gespeichert – gelten ab der nächsten Runde."); }
+  catch (err) { say("adMsg", err.message === "invalid_limits" ? "Ungültig: der Höchsteinsatz muss mindestens so gross sein wie der Mindesteinsatz." : adErrors[err.message] || err.message, true); }
+};
 
 // ---------- Gewinnchancen der Spiele ----------
 const ODDS_GAMES = [
