@@ -552,6 +552,12 @@
   .tag-web { color: #3ee0ff !important; border-color: rgba(62,224,255,.35) !important; }
   @media (max-width: 640px) { .ambient-hex.h2 { display: none; } .page-nav { background: rgba(12,18,34,.94) !important; } }
   @media (prefers-reduced-motion: reduce) { .ambient-flow, .ambient-waves .wave, .ambient-hex, .page-nav button.active, button.primary, .primary { animation: none !important; } }
+  .site-footer { position: relative; z-index: 1; display: grid; justify-items: center; gap: 10px; padding: 26px 16px 34px; text-align: center; }
+  .site-footer-line { display: block; width: min(320px, 60%); height: 1px; margin: 0 auto; background: linear-gradient(90deg, transparent, #3ee0ff, #8b5cff, transparent); opacity: .6; }
+  .site-footer p, .footer-preview p { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; background: var(--grad); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: v7-grad 8s ease infinite; }
+  .footer-edit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: center; }
+  .footer-preview { display: grid; gap: 10px; justify-items: center; padding: 18px; border-radius: 16px; border: 1px dashed var(--line); }
+  @media (max-width: 760px) { .footer-edit { grid-template-columns: 1fr; } .site-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); } }
 </style>
 </head>
 <body>
@@ -1026,6 +1032,17 @@
     <div class="log" id="log"></div>
   </section>
 
+  <section class="card footer-card owner-basic" id="footerCard" data-perm="w:madeBy">
+    <h2>Fusszeile <span>„Made by“ auf beiden Websites</span></h2>
+    <p class="muted" style="margin:0 0 12px">Dieser Text steht ganz unten auf der Hauptseite und der Chain-Seite. Leer lassen, um die Fusszeile auszublenden.</p>
+    <div class="footer-edit">
+      <div class="field"><label for="footerInput">Text</label><input id="footerInput" maxlength="120" placeholder="z. B. Made by Ilja" autocomplete="off" /><small><span id="footerCount">0</span>/120 Zeichen</small></div>
+      <div class="footer-preview" aria-live="polite"><span class="site-footer-line" aria-hidden="true"></span><p id="footerPreview">Made by Ilja</p></div>
+    </div>
+    <div class="actions"><button type="button" id="footerReset">Standard</button><button type="button" class="primary" id="footerSave">Speichern</button></div>
+    <div class="msg" id="footerMsg"></div>
+  </section>
+
   <section class="card infos-card owner-basic" id="infosCard" data-perm="a:games">
     <h2>Gewinnchancen der Spiele <span>100 % = fair</span></h2>
     <p class="muted" style="margin:0 0 12px">Gilt für alle Spieler gleich und wird ihnen in den Spielregeln angezeigt. Weniger als 100 % = Gewinne seltener, mehr = häufiger.</p>
@@ -1035,6 +1052,7 @@
   </section>
 
 </main>
+<footer class="site-footer"><span class="site-footer-line" aria-hidden="true"></span><p id="siteFooterText">Made by Ilja</p></footer>
 
 <script type="module">
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "/blockchain-core.js";
@@ -1045,7 +1063,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#settingsCard", "#payCard", "#notifyCard"],
+  einstellungen: ["#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
   infos: ["#infosCard"],
 };
 {
@@ -2340,6 +2358,36 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     b.appendChild(w); setTimeout(() => w.remove(), 650);
   }, { passive: true });
 }
+
+// ---------- Fusszeile "Made by" ----------
+const FOOTER_DEFAULT = "Made by Ilja";
+let footerLoaded = false;
+function footerShow(text) {
+  $("siteFooterText").textContent = text;
+  $("siteFooterText").closest(".site-footer").hidden = !text.trim();
+}
+function footerSync(settings) {
+  const text = typeof settings?.website?.madeBy === "string" ? settings.website.madeBy : FOOTER_DEFAULT;
+  footerShow(text);
+  if (!footerLoaded || document.activeElement !== $("footerInput")) { $("footerInput").value = text; footerPreview(); }
+  footerLoaded = true;
+}
+function footerPreview() {
+  const v = $("footerInput").value;
+  $("footerPreview").textContent = v.trim() || "(Fusszeile ausgeblendet)";
+  $("footerCount").textContent = String(v.length);
+}
+$("footerInput").addEventListener("input", footerPreview);
+$("footerReset").onclick = () => { $("footerInput").value = FOOTER_DEFAULT; footerPreview(); };
+$("footerSave").onclick = async () => {
+  try {
+    const r = await api("/api/settings", { website: { madeBy: $("footerInput").value } });
+    if (stats) stats.settings = r;
+    footerSync(r);
+    say("footerMsg", r.websitePush?.ok === false ? `Gespeichert – Hauptseite noch nicht aktualisiert (${r.websitePush?.error ?? "?"}).` : "Gespeichert – erscheint auf beiden Websites.", r.websitePush?.ok === false);
+  } catch (err) { say("footerMsg", err.message, true); }
+};
+setInterval(() => { if (stats?.settings) footerSync(stats.settings); }, 3000);
 </script>
 </body>
 </html>

@@ -3504,3 +3504,9 @@ html[data-theme="light"] .avatar:not(img) { box-shadow: 0 4px 12px rgba(47,107,2
 .notification-bell:hover .bell-icon { animation: bell-ring .6s ease; }
 @keyframes bell-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 40% { transform: rotate(-12deg); } 60% { transform: rotate(8deg); } 80% { transform: rotate(-4deg); } }
 @media (prefers-reduced-motion: reduce) { .notification-bell:hover .bell-icon { animation: none; } }
+/* "Made by"-Fusszeile */
+.site-footer { position: relative; z-index: 1; display: grid; justify-items: center; gap: 10px; padding: 28px 16px 36px; text-align: center; }
+.site-footer-line { width: min(320px, 60%); height: 1px; background: linear-gradient(90deg, transparent, var(--cyan, #3ee0ff), var(--violet, #8b5cff), transparent); opacity: .6; }
+.site-footer p { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; background: var(--grad, linear-gradient(120deg, #2f7bff, #3ee0ff, #8b5cff)); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: v7-grad 8s ease infinite; }
+@media (max-width: 640px) { .site-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); } }
+@media (prefers-reduced-motion: reduce) { .site-footer p { animation: none; } }

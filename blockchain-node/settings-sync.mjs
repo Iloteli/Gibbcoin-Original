@@ -76,6 +76,12 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
         body: JSON.stringify({ p_key: secret, p_card: Boolean(w.cardEnabled), p_credits: w.creditsEnabled !== false }),
       });
       if (!card.ok && card.status !== 404) throw new Error(`card_http_${card.status}`);
+      const footer = await fetchImpl(`${url}/rest/v1/rpc/node_set_footer`, {
+        method: "POST",
+        headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+        body: JSON.stringify({ p_key: secret, p_text: typeof w.madeBy === "string" ? w.madeBy : "Made by Ilja" }),
+      });
+      if (!footer.ok && footer.status !== 404) throw new Error(`footer_http_${footer.status}`);
       const registration = await fetchImpl(`${url}/rest/v1/rpc/node_set_registration`, {
         method: "POST",
         headers: { apikey: apiKey, authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
