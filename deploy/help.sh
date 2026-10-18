@@ -26,6 +26,7 @@ cat <<HELP
 
   Anmeldung & Sicherheit
     sudo gibb-code                   Server-Code für den Owner-Login (5 Min. gültig)
+    sudo gibb-sudo [aus]             Knöpfe der Chain-Seite ohne sudo-Passwort (ein/aus)
     sudo gibb-chain-key              neuen Chain-Schlüssel für Supabase erzeugen
 
   Zustand prüfen

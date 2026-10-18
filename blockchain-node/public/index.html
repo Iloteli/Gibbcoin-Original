@@ -602,7 +602,10 @@
   .ssh-cmd code { color: var(--cyan); white-space: nowrap; }
   a.btn-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-weight: 700; text-decoration: none; }
   .ssh-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ssh-quick > span { display: inline-flex; }
   .ssh-quick button { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+  .ssh-quick button[data-run] { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+  .ssh-quick button.cp { border-top-left-radius: 0; border-bottom-left-radius: 0; border-left: 0; padding-left: 10px; padding-right: 10px; }
   /* Farbwelten und Animationen der Chain-Seite (Einstellungen → Chain-Design) */
   html[data-accent="emerald"] { --electric: #14b88a; --cyan: #5ff5b8; --violet: #2ad1c9; --green: #5ff5b8; --grad: linear-gradient(120deg, #0fa37a, #5ff5b8 45%, #2ad1c9); }
   html[data-accent="violet"] { --electric: #7a4dff; --cyan: #c08bff; --violet: #ff6bd5; --green: #c08bff; --grad: linear-gradient(120deg, #6a3dff, #c08bff 45%, #ff6bd5); }
@@ -901,8 +904,13 @@
     <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button><button type="button" id="sshWin">🪟 Windows einrichten (einmalig)</button></div>
     <small class="muted">Passiert beim Klick auf „Jetzt verbinden“ nichts? Windows kennt ssh://-Links von Haus aus nicht. Einmal „Windows einrichten“ klicken, die Datei <b>gibb-ssh-einrichten.cmd</b> öffnen (bei der Warnung „Weitere Informationen → Trotzdem ausführen“) – danach öffnet „Jetzt verbinden“ PowerShell mit der Verbindung. Ohne Admin-Rechte, nur für dein Windows-Konto.</small>
     <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
+    <p class="muted" style="margin:0 0 8px">Klick = SSH öffnen und den Befehl direkt ausführen (braucht „Windows einrichten“). 📋 = nur kopieren. Ohne sudo-Passwort: einmal auf dem Server <code>sudo gibb-sudo</code> ausführen.</p>
     <div class="ssh-quick" id="sshQuick">
-      <button type="button" data-cmd="sudo gibb-update">⬆ sudo gibb-update</button><button type="button" data-cmd="sudo gibb-help">❓ sudo gibb-help</button><button type="button" data-cmd="sudo gibb-backup">💾 sudo gibb-backup</button><button type="button" data-cmd="sudo gibb-version">🏷 sudo gibb-version</button><button type="button" data-cmd="sudo gibb-code">🔑 sudo gibb-code</button>
+      <span><button type="button" data-run="update">⬆ gibb-update</button><button type="button" class="cp" data-cmd="sudo gibb-update" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="help">❓ gibb-help</button><button type="button" class="cp" data-cmd="sudo gibb-help" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="backup">💾 gibb-backup</button><button type="button" class="cp" data-cmd="sudo gibb-backup" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="version">🏷 gibb-version</button><button type="button" class="cp" data-cmd="sudo gibb-version" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="code">🔑 gibb-code</button><button type="button" class="cp" data-cmd="sudo gibb-code" title="Kopieren">📋</button></span>
     </div>
     <div class="msg" id="sshMsg"></div>
   </section>
@@ -2566,13 +2574,14 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   $("sshWin").onclick = () => {
     const opener = [
       "param([string]$Url)",
-      "$m = [regex]::Match($Url, '^ssh://(?:([a-z_][a-z0-9._-]{0,31})@)?([a-z0-9][a-z0-9.-]{0,252})(?::([0-9]{1,5}))?/?$', 'IgnoreCase')",
+      "$m = [regex]::Match($Url, '^ssh://(?:([a-z_][a-z0-9._-]{0,31})@)?([a-z0-9][a-z0-9.-]{0,252})(?::([0-9]{1,5}))?/?(?:\\?gibb=(update|help|backup|version|code))?$', 'IgnoreCase')",
       "if (-not $m.Success) { Write-Host 'Ungueltiger SSH-Link:' $Url; Read-Host 'Enter zum Schliessen'; exit 1 }",
       "$target = if ($m.Groups[1].Success) { $m.Groups[1].Value + '@' + $m.Groups[2].Value } else { $m.Groups[2].Value }",
       "$sshArgs = @($target)",
       "if ($m.Groups[3].Success) { $sshArgs = @('-p', $m.Groups[3].Value) + $sshArgs }",
       "$host.UI.RawUI.WindowTitle = 'GIBB Server - ' + $target",
       "Write-Host ('Verbinde mit ' + $target + ' ...')",
+      "if ($m.Groups[4].Success) { $run = 'sudo /usr/local/bin/gibb-' + $m.Groups[4].Value.ToLower() + '; exec bash -l'; Write-Host ('Fuehre aus: sudo gibb-' + $m.Groups[4].Value); $sshArgs = @('-t') + $sshArgs + @($run) }",
       "& ssh.exe @sshArgs",
       "Read-Host 'Verbindung beendet - Enter zum Schliessen'",
     ].join("\r\n");
@@ -2604,7 +2613,14 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     say("sshMsg", "Datei gibb-ssh-einrichten.cmd heruntergeladen – öffne sie einmal, danach funktioniert „Jetzt verbinden“.");
   };
   $("sshGo").addEventListener("click", (e) => { if ($("sshGo").getAttribute("href") === "#") { e.preventDefault(); say("sshMsg", "Bitte zuerst den Server eintragen.", true); } else say("sshMsg", "SSH-Programm wird geöffnet …"); });
-  $("sshQuick").addEventListener("click", (e) => { const b = e.target.closest("button[data-cmd]"); if (b) void copy(b.dataset.cmd); });
+  $("sshQuick").addEventListener("click", (e) => {
+    const cp = e.target.closest("button[data-cmd]"); if (cp) { void copy(cp.dataset.cmd); return; }
+    const run = e.target.closest("button[data-run]"); if (!run) return;
+    const base = $("sshGo").getAttribute("href");
+    if (base === "#") { say("sshMsg", "Bitte zuerst den Server eintragen.", true); return; }
+    location.href = `${base}/?gibb=${run.dataset.run}`;
+    say("sshMsg", `SSH wird geöffnet und führt „sudo gibb-${run.dataset.run}“ aus … (passiert nichts? zuerst „Windows einrichten“)`);
+  });
 }
 
 // ---------- Design der Hauptseite ----------
