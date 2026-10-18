@@ -581,6 +581,17 @@
   .oi-tag.low { background: rgba(255,120,120,.15); color: #ff8f8f; }
   .oi-tag.high { background: rgba(246,200,95,.16); color: #f6c85f; }
   .oi-now { font-size: 13.5px; }
+  .pf-grid { display: grid; grid-template-columns: minmax(220px, 300px) 1fr; gap: 20px; }
+  .pf-preview { display: grid; justify-items: center; align-content: center; gap: 6px; padding: 24px 16px; border-radius: 18px; border: 1px solid var(--pf, #35e070); text-align: center; }
+  .pf-avatar { width: 88px; height: 88px; border-radius: 22px; display: grid; place-items: center; font-size: 30px; font-weight: 800; color: #061024; background: var(--pf, #35e070) center / cover no-repeat; }
+  .pf-preview strong { font-size: 18px; } .pf-preview small { color: var(--cyan, #3ee0ff); } .pf-preview p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+  .pf-fields { display: grid; gap: 12px; }
+  .pf-fields textarea { width: 100%; resize: vertical; }
+  .pf-small { display: grid; grid-template-columns: 140px 1fr; gap: 12px; }
+  .pf-small input[type=color] { width: 100%; height: 44px; padding: 4px; }
+  .pf-pic { display: grid; gap: 4px; } .pf-pic small { color: var(--muted); }
+  @media (max-width: 760px) { .pf-grid, .pf-small { grid-template-columns: 1fr; } }
+  #profileCard[hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -1058,6 +1069,24 @@
     <div class="log" id="log"></div>
   </section>
 
+  <section class="card profile-card" id="profileCard" hidden>
+    <h2>Dein Profil <span>gleich wie auf der Hauptseite</span></h2>
+    <form class="pf-grid" id="pfForm" autocomplete="off">
+      <div class="pf-preview" id="pfPreview"><div class="pf-avatar" id="pfAvatar">?</div><strong id="pfShowName">—</strong><small id="pfShowUser"></small><p id="pfShowBio">Deine kurze Profilbeschreibung erscheint hier.</p></div>
+      <div class="pf-fields">
+        <div class="field"><label for="pfName">Anzeigename</label><input id="pfName" minlength="2" maxlength="60" required /></div>
+        <div class="field"><label for="pfUser">Benutzername <span class="muted" id="pfUserCount">0/24</span></label><input id="pfUser" minlength="3" maxlength="24" required pattern="[a-z0-9][a-z0-9._\-]{2,23}" /><small>3–24 Zeichen: Kleinbuchstaben, Ziffern, Punkt, Bindestrich, Unterstrich. Eindeutig für alle.</small></div>
+        <div class="field"><label for="pfBio">Über mich <span class="muted" id="pfBioCount">0/180</span></label><textarea id="pfBio" maxlength="180" rows="3" placeholder="Kurz und freundlich …"></textarea></div>
+        <div class="pf-small">
+          <div class="field"><label for="pfColor">Profilfarbe</label><input id="pfColor" type="color" value="#35e070" /></div>
+          <div class="field"><label>Profilbild</label><div class="pf-pic"><button type="button" id="pfReset">↺ Profilbild zurücksetzen</button><small>Neues Bild hochladen geht auf der Hauptseite.</small></div></div>
+        </div>
+        <div class="actions"><button class="primary" type="submit">Profil speichern</button></div>
+        <div class="msg" id="pfMsg"></div>
+      </div>
+    </form>
+  </section>
+
   <section class="card design-card owner-basic" id="designCard" data-perm="w:siteDesign">
     <h2>Design der Hauptseite <span>gilt sofort für alle Besucher</span></h2>
     <div class="dsg-group"><b>Farbwelt</b><div class="dsg-opts" data-dsg="siteAccent">
@@ -1086,7 +1115,7 @@
     <div class="msg" id="footerMsg"></div>
   </section>
 
-  <section class="card infos-card owner-basic" id="infosCard" data-perm="a:games">
+  <section class="card infos-card owner-basic" id="infosCard" data-perm="a:infos">
     <h2>Gewinnchancen der Spiele <span>so sind sie gerade eingestellt</span></h2>
     <p class="muted" style="margin:0 0 12px">Gilt für alle Spieler gleich. Ändern kannst du sie unter <a href="#adminCard">🛡 Verwaltung → Admin → 🎮 Spiele</a>.</p>
     <div class="odds-info" id="oddsInfo"><div class="muted">Wird geladen …</div></div>
@@ -1104,7 +1133,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#designCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
+  einstellungen: ["#profileCard", "#designCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
   infos: ["#infosCard"],
 };
 {
@@ -1164,7 +1193,7 @@ new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes
 // ---------- Unter-Navigation: lange Bereiche zeigen immer nur eine Karte ----------
 const SUBNAV = {
   verwaltung: { "#adminCard": "🛡 Admin", "#coinAdminCard": "🪙 Coins", "#bankCard": "🏦 Bank", "#statsCard": "📊 Statistik", "#announceCard": "📣 Ankündigung" },
-  einstellungen: { "#designCard": "🎨 Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen" },
+  einstellungen: { "#profileCard": "👤 Profil", "#designCard": "🎨 Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen" },
 };
 function subnavChoice(page) { try { return localStorage.getItem(`chain-sub-${page}`) || ""; } catch { return ""; } }
 function subnavApply(page, pick, { save = false } = {}) {
@@ -1615,7 +1644,7 @@ function onAuthed(me) {
   try { localStorage.setItem("gibb-auth", JSON.stringify({ token: authToken, username: me.username, role: me.role, address: me.address })); } catch {}
   document.body.classList.toggle("is-owner", me.role === "super_admin");
   document.body.classList.toggle("is-basic", me.role === "owner_basic");
-  $("whoami").hidden = false; $("whoName").textContent = me.username + (me.role === "super_admin" ? " · Owner (Full)" : me.role === "owner_basic" ? " · Owner (Basic)" : "");
+  void pfLoad(); $("whoami").hidden = false; $("whoName").textContent = me.username + (me.role === "super_admin" ? " · Owner (Full)" : me.role === "owner_basic" ? " · Owner (Basic)" : "");
   $("authGate").hidden = true;
   boot();
 }
@@ -2451,6 +2480,42 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     b.appendChild(w); setTimeout(() => w.remove(), 650);
   }, { passive: true });
 }
+
+// ---------- Eigenes Profil der Hauptseite ----------
+const pfErrors = { username_taken: "Dieser Benutzername ist bereits vergeben.", invalid_username: "Benutzername ungültig: 3–24 Zeichen, nur Kleinbuchstaben, Ziffern, Punkt, Bindestrich und Unterstrich.", invalid_display_name: "Anzeigename: 2–60 Zeichen.", invalid_bio: "Über mich: höchstens 180 Zeichen.", invalid_profile_color: "Ungültige Farbe.", no_website_account: "Dieses Konto hat kein Profil auf der Hauptseite.", not_configured: "Hauptseite nicht verbunden.", no_key: "Hauptseite nicht verbunden." };
+let pfAvatarUrl = null, pfRemove = false;
+function pfPreview() {
+  const name = $("pfName").value.trim(), color = $("pfColor").value, url = pfRemove ? null : pfAvatarUrl;
+  $("pfPreview").style.setProperty("--pf", color);
+  $("pfAvatar").style.backgroundImage = url ? `url("${encodeURI(url)}")` : "";
+  $("pfAvatar").textContent = url ? "" : (name[0] ?? "?").toUpperCase();
+  $("pfShowName").textContent = name || "Dein Name";
+  $("pfShowUser").textContent = $("pfUser").value ? "@" + $("pfUser").value : "";
+  $("pfShowBio").textContent = $("pfBio").value.trim() || "Deine kurze Profilbeschreibung erscheint hier.";
+  $("pfUserCount").textContent = `${$("pfUser").value.length}/24`; $("pfBioCount").textContent = `${$("pfBio").value.length}/180`;
+  $("pfReset").disabled = !url;
+}
+function pfFill(p) {
+  $("pfName").value = p.display_name ?? ""; $("pfUser").value = p.username ?? ""; $("pfBio").value = p.bio ?? ""; $("pfColor").value = /^#[0-9a-f]{6}$/i.test(p.profile_color ?? "") ? p.profile_color : "#35e070";
+  pfAvatarUrl = p.avatar_url || null; pfRemove = false; pfPreview();
+}
+async function pfLoad() {
+  if (!authToken) { $("profileCard").hidden = true; return; }
+  try { const { profile } = await api("/api/profile", {}); $("profileCard").hidden = false; pfFill(profile ?? {}); }
+  catch { $("profileCard").hidden = true; }
+  for (const page of Object.keys(SUBNAV)) subnavApply(page, document.querySelector(`.page[data-page="${page}"] .subnav`)?.dataset.pick || subnavChoice(page));
+  if (typeof refreshPageNav === "function") refreshPageNav();
+}
+$("pfForm").addEventListener("input", (e) => { if (e.target.id === "pfUser") e.target.value = e.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 24); pfPreview(); });
+$("pfReset").onclick = () => { pfRemove = true; pfPreview(); say("pfMsg", "Profilbild entfernt – jetzt «Profil speichern» drücken."); };
+$("pfForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  try {
+    const { profile } = await api("/api/profile/set", { profile: { display_name: $("pfName").value.trim(), username: $("pfUser").value.trim(), bio: $("pfBio").value.trim(), profile_color: $("pfColor").value.toLowerCase(), remove_avatar: pfRemove } });
+    pfFill(profile ?? {}); say("pfMsg", "Profil gespeichert – gilt auch auf der Hauptseite.");
+  } catch (err) { say("pfMsg", pfErrors[err.message] || err.message, true); }
+});
+setTimeout(() => void pfLoad(), 300);
 
 // ---------- Design der Hauptseite ----------
 function designSync(settings) {

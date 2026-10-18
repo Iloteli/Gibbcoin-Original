@@ -177,9 +177,9 @@ test("each basic account can get its own permissions", async () => {
   // Basic darf das nicht
   assert.equal((await post("/api/admin/user-permissions/set", { token: robyn.token, address: addr, permissions: ["a:bank"] })).data.error, "not_owner");
   const set = (await post("/api/admin/user-permissions/set", { token: ilja.token, address: addr, permissions: ["a:games", "nicht-echt"] })).data;
-  assert.deepEqual([set.custom, set.permissions], [true, ["a:games"]]);
+  assert.deepEqual([set.custom, set.permissions], [true, ["a:games", "a:infos"]]);
   const eigen = (await post("/api/auth/login", { username: "eigen", password: "passwort123" })).data;
-  assert.deepEqual((await post("/api/auth/me", { token: eigen.token })).data.permissions, ["a:games"]);
+  assert.deepEqual((await post("/api/auth/me", { token: eigen.token })).data.permissions, ["a:games", "a:infos"]);
   assert.deepEqual((await post("/api/auth/me", { token: robyn.token })).data.permissions, ["s:reward"], "andere behalten Standard");
   // Zurück auf Standard
   assert.equal((await post("/api/admin/user-permissions/set", { token: ilja.token, address: addr, permissions: null })).data.custom, false);

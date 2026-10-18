@@ -16,7 +16,10 @@ export const PERMISSION_CATALOG = [
     ["s:startPrice", "Startpreis Chain-Markt"], ["s:startingCash", "Startguthaben Chain-Wallets"], ["s:minOrderAmount", "Min. Ordermenge"],
   ] },
   { group: "🗂 Hauptseite: Tabs, Zahlarten & Registrieren", items: [
-    ["w:disabledTabs", "Tabs der Hauptseite ein/aus"], ["w:cardEnabled", "Karte / TWINT an/aus"], ["w:creditsEnabled", "Mit Credits kaufen an/aus"], ["w:registrationEnabled", "Registrieren an/aus"], ["w:madeBy", "Fusszeile „Made by“ bearbeiten"], ["w:siteDesign", "Design der Hauptseite"],
+    ["w:disabledTabs", "Tabs der Hauptseite ein/aus"], ["w:cardEnabled", "Karte / TWINT an/aus"], ["w:creditsEnabled", "Mit Credits kaufen an/aus"], ["w:registrationEnabled", "Registrieren an/aus"],
+  ] },
+  { group: "🎨 Hauptseite: Aussehen", items: [
+    ["w:siteDesign", "Design der Hauptseite (Farbwelt, Modus, Animationen)"], ["w:madeBy", "Fusszeile „Made by“ bearbeiten"],
   ] },
   { group: "🖥 Server-Einstellungen", items: [
     ["s:fallbackMinerEnabled", "Reserve-Miner an/aus"], ["s:fallbackDelaySeconds", "Reserve-Miner Einsprung"], ["s:browserMinerThreads", "Browser-Miner Kerne"],
@@ -26,7 +29,7 @@ export const PERMISSION_CATALOG = [
   ] },
   { group: "🛡 Verwaltung der Hauptseite", items: [
     ["a:accounts", "Konten ansehen, bannen, Passwort-Reset, Fun-Rang"], ["a:accountsCreate", "Neue Konten erstellen"], ["a:accountsDelete", "Konten löschen"],
-    ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele: an/aus, Grenzen, Einsätze, Gewinnchancen"], ["a:tools", "Tools & Support-Fälle"],
+    ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele: an/aus, Grenzen, Einsätze, Gewinnchancen einstellen"], ["a:infos", "Infos: Gewinnchancen ansehen"], ["a:tools", "Tools & Support-Fälle"],
     ["a:audit", "Protokoll ansehen"], ["a:visitors", "Besucher-Statistik"],
     ["a:stats", "Statistik-Dashboard"], ["a:announce", "Ankündigung auf der Hauptseite"], ["a:bulk", "Bonus für alle"],
   ] },
@@ -53,7 +56,8 @@ export function normalizePermissions(list) {
     if (LEGACY[id]) LEGACY[id].forEach((p) => out.add(p));
     else if (ALL_PERMISSIONS.includes(id)) out.add(id);
   }
+  if (out.has("a:games")) out.add("a:infos"); // wer Spiele einstellt, sieht auch die Übersicht
   return [...out];
 }
 
-export const DEFAULT_BASIC_PERMISSIONS = normalizePermissions(["mining", "rules", "market", "tabs", "payments", "server", "miner", "verify"]);
+export const DEFAULT_BASIC_PERMISSIONS = normalizePermissions(["mining", "rules", "market", "tabs", "payments", "server", "miner", "verify", "a:infos"]);

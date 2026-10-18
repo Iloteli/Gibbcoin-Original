@@ -207,6 +207,13 @@ const sessionOf = (body) => {
   return NO_AUTH && body?.__direct === true ? getGuest() : null;
 };
 const requireSession = (body) => { const sess = sessionOf(body); if (!sess) throw new Error("login_required"); return sess; };
+// Konto der Hauptseite zur Sitzung (Wallet sb_<id>, beim Owner auch über das Chain-Konto)
+const websiteIdOf = (sess) => {
+  const address = String(chain.users[String(sess?.username ?? "").toLowerCase()]?.address ?? sess?.address ?? "");
+  const m = /^sb_([0-9a-f-]{36})$/.exec(String(sess?.address ?? "").startsWith("sb_") ? sess.address : address);
+  if (!m) throw new Error("no_website_account");
+  return m[1];
+};
 const websiteOwnerSession = createWebsiteOwnerCheck();
 // Owner: Node-Login (token) ODER Owner der GibbCoin-Website (supabaseToken, geprüft bei der eigenen Datenbank).
 const requireOwner = async (body) => {
@@ -504,6 +511,16 @@ const routes = {
     void settingsSync.syncAccounts();
     return r;
   },
+  // Eigenes Profil der Hauptseite (gleiche Einstellungen wie dort)
+  "POST /api/profile": async (_, body) => {
+    const id = websiteIdOf(requireSession(body));
+    return { profile: await settingsSync.getProfile(id) };
+  },
+  "POST /api/profile/set": async (_, body) => {
+    const id = websiteIdOf(requireSession(body));
+    const p = body.profile ?? {};
+    return { profile: await settingsSync.updateProfile(id, { username: String(p.username ?? ""), display_name: String(p.display_name ?? ""), bio: String(p.bio ?? ""), profile_color: String(p.profile_color ?? ""), remove_avatar: p.remove_avatar === true }) };
+  },
   // Anmeldungen für die Chain-Seite selbst (nur Owner)
   "POST /api/admin/owner-levels": async (_, body) => {
     await requireOwner(body);
@@ -696,7 +713,7 @@ const routes = {
     note("settings", "Einsatzgrenzen der Spiele geändert");
     return { limits: r };
   },
-  "POST /api/games/odds": async (_, body) => { await requireAdminPermission(body, "a:games"); return { odds: await settingsSync.getGameOdds() }; },
+  "POST /api/games/odds": async (_, body) => { const sess = sessionOf(body); if (!(sess?.role === "owner_basic" && permissionsOf(sess).includes("a:infos"))) await requireAdminPermission(body, "a:games"); return { odds: await settingsSync.getGameOdds() }; },
   "POST /api/games/odds/set": async (_, body) => {
     await requireAdminPermission(body, "a:games");
     const odds = {};
@@ -739,7 +756,7 @@ const requestHandler = async (req, res) => {
   res.setHeader("referrer-policy", "no-referrer");
   res.setHeader("permissions-policy", "camera=(), microphone=(), geolocation=(), payment=()");
   res.setHeader("cross-origin-opener-policy", "same-origin");
-  res.setHeader("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
+  res.setHeader("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: https://*.supabase.co; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'");
   if (req.headers["x-forwarded-proto"] === "https") res.setHeader("strict-transport-security", "max-age=31536000");
   if (req.method === "OPTIONS") { res.writeHead(204); return res.end(); }
   try {

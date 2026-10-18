@@ -224,6 +224,9 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     return result.table === false ? rows[0] ?? null : rows;
   };
   const setAccountStatus = (userId, status, minutes, reason) => rpc("node_set_account_status", { p_user: userId, p_status: status, p_minutes: minutes ?? null, p_reason: reason ?? null });
+  // Profil der Hauptseite (nur das eigene Konto, siehe /api/profile)
+  const getProfile = async (userId) => (await rpc("node_get_profile", { p_user: userId })).profile;
+  const updateProfile = async (userId, p) => (await rpc("node_update_profile", { p_user: userId, p_username: p.username, p_display_name: p.display_name, p_bio: p.bio, p_profile_color: p.profile_color, p_remove_avatar: p.remove_avatar === true })).profile;
   const deleteAccount = (userId, pin) => rpc("node_delete_account", { p_user: userId, p_pin: pin });
   async function sendPasswordReset(userId) {
     const auth = await rpc("node_password_reset", { p_user: userId });
@@ -269,5 +272,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }
