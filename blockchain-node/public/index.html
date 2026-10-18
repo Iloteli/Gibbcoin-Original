@@ -851,6 +851,28 @@
       <div class="list" id="adAudit"></div>
     </div>
     <div class="adpanel" data-adp="nodeusers" hidden>
+      <details class="std-perms ssh-card" id="sshCard" open>
+        <summary><span><b>🖥 Server verbinden (SSH)</b> <span class="muted">Konsole öffnen und gibb-Befehle ausführen</span></span></summary>
+    <p class="muted" style="margin:0 0 12px">Öffnet dein SSH-Programm (Terminal) direkt mit dem Server. Das Passwort tippst du dort ein – es geht nie über diese Seite. Die Angaben bleiben nur in diesem Browser gespeichert.</p>
+    <div class="sgrid">
+      <div class="field"><label for="sshUser">Benutzer</label><input id="sshUser" autocomplete="off" placeholder="z. B. dein Server-Benutzer" /></div>
+      <div class="field"><label for="sshHost">Server</label><input id="sshHost" autocomplete="off" /></div>
+      <div class="field"><label for="sshPort">Port</label><input id="sshPort" type="number" min="1" max="65535" value="22" /></div>
+    </div>
+    <div class="ssh-cmd"><code id="sshCmd">ssh …</code></div>
+    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button><button type="button" id="sshWin">🪟 Windows einrichten (einmalig)</button></div>
+    <small class="muted">Passiert beim Klick auf „Jetzt verbinden“ nichts? Windows kennt ssh://-Links von Haus aus nicht. Einmal „Windows einrichten“ klicken, die Datei <b>gibb-ssh-einrichten.cmd</b> öffnen (bei der Warnung „Weitere Informationen → Trotzdem ausführen“) – danach öffnet „Jetzt verbinden“ PowerShell mit der Verbindung. Ohne Admin-Rechte, nur für dein Windows-Konto.</small>
+    <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
+    <p class="muted" style="margin:0 0 8px">Klick = SSH öffnen und den Befehl direkt ausführen (braucht „Windows einrichten“). 📋 = nur kopieren. Ohne sudo-Passwort: einmal auf dem Server <code>sudo gibb-sudo</code> ausführen.</p>
+    <div class="ssh-quick" id="sshQuick">
+      <span><button type="button" data-run="update">⬆ gibb-update</button><button type="button" class="cp" data-cmd="sudo gibb-update" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="help">❓ gibb-help</button><button type="button" class="cp" data-cmd="sudo gibb-help" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="backup">💾 gibb-backup</button><button type="button" class="cp" data-cmd="sudo gibb-backup" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="version">🏷 gibb-version</button><button type="button" class="cp" data-cmd="sudo gibb-version" title="Kopieren">📋</button></span>
+      <span><button type="button" data-run="code">🔑 gibb-code</button><button type="button" class="cp" data-cmd="sudo gibb-code" title="Kopieren">📋</button></span>
+    </div>
+    <div class="msg" id="sshMsg"></div>
+      </details>
       <p class="muted" style="margin:0 0 10px">Anmeldungen für <b>diese Chain-Seite</b> (getrennt von den Konten der Hauptseite). Jedes Chain-Konto hat ein eigenes Wallet auf der Chain.</p>
       <form class="ad-create" id="nuCreate" autocomplete="off">
         <strong>Neues Chain-Konto</strong>
@@ -892,28 +914,6 @@
     <div class="msg" id="adMsg"></div>
   </section>
 
-  <section class="card ssh-card owner-only" id="sshCard">
-    <h2>Server verbinden <span>SSH</span></h2>
-    <p class="muted" style="margin:0 0 12px">Öffnet dein SSH-Programm (Terminal) direkt mit dem Server. Das Passwort tippst du dort ein – es geht nie über diese Seite. Die Angaben bleiben nur in diesem Browser gespeichert.</p>
-    <div class="sgrid">
-      <div class="field"><label for="sshUser">Benutzer</label><input id="sshUser" autocomplete="off" placeholder="z. B. dein Server-Benutzer" /></div>
-      <div class="field"><label for="sshHost">Server</label><input id="sshHost" autocomplete="off" /></div>
-      <div class="field"><label for="sshPort">Port</label><input id="sshPort" type="number" min="1" max="65535" value="22" /></div>
-    </div>
-    <div class="ssh-cmd"><code id="sshCmd">ssh …</code></div>
-    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button><button type="button" id="sshWin">🪟 Windows einrichten (einmalig)</button></div>
-    <small class="muted">Passiert beim Klick auf „Jetzt verbinden“ nichts? Windows kennt ssh://-Links von Haus aus nicht. Einmal „Windows einrichten“ klicken, die Datei <b>gibb-ssh-einrichten.cmd</b> öffnen (bei der Warnung „Weitere Informationen → Trotzdem ausführen“) – danach öffnet „Jetzt verbinden“ PowerShell mit der Verbindung. Ohne Admin-Rechte, nur für dein Windows-Konto.</small>
-    <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
-    <p class="muted" style="margin:0 0 8px">Klick = SSH öffnen und den Befehl direkt ausführen (braucht „Windows einrichten“). 📋 = nur kopieren. Ohne sudo-Passwort: einmal auf dem Server <code>sudo gibb-sudo</code> ausführen.</p>
-    <div class="ssh-quick" id="sshQuick">
-      <span><button type="button" data-run="update">⬆ gibb-update</button><button type="button" class="cp" data-cmd="sudo gibb-update" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="help">❓ gibb-help</button><button type="button" class="cp" data-cmd="sudo gibb-help" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="backup">💾 gibb-backup</button><button type="button" class="cp" data-cmd="sudo gibb-backup" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="version">🏷 gibb-version</button><button type="button" class="cp" data-cmd="sudo gibb-version" title="Kopieren">📋</button></span>
-      <span><button type="button" data-run="code">🔑 gibb-code</button><button type="button" class="cp" data-cmd="sudo gibb-code" title="Kopieren">📋</button></span>
-    </div>
-    <div class="msg" id="sshMsg"></div>
-  </section>
 
   <section class="card notify-card owner-only" id="notifyCard">
     <h2>Benachrichtigungen <span id="ntState">Push aufs Handy</span></h2>
@@ -1180,7 +1180,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#designCard", "#chainDesignCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
+  einstellungen: ["#designCard", "#chainDesignCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard"],
   infos: ["#infosCard"],
 };
 {
@@ -1240,7 +1240,7 @@ new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes
 // ---------- Unter-Navigation: lange Bereiche zeigen immer nur eine Karte ----------
 const SUBNAV = {
   verwaltung: { "#adminCard": "🛡 Admin", "#coinAdminCard": "🪙 Coins", "#bankCard": "🏦 Bank", "#statsCard": "📊 Statistik", "#announceCard": "📣 Ankündigung" },
-  einstellungen: { "#designCard": "🎨 Hauptseite", "#chainDesignCard": "⛓ Chain-Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen", "#sshCard": "🖥 Server" },
+  einstellungen: { "#designCard": "🎨 Hauptseite", "#chainDesignCard": "⛓ Chain-Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen" },
 };
 function subnavChoice(page) { try { return localStorage.getItem(`chain-sub-${page}`) || ""; } catch { return ""; } }
 function subnavApply(page, pick, { save = false } = {}) {
