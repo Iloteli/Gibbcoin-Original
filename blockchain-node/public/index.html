@@ -593,6 +593,7 @@
   <button type="button" data-page="chain"><span aria-hidden="true">⛓</span>Blockchain</button>
   <button type="button" data-page="verwaltung" class="nav-admin"><span aria-hidden="true">🛡</span>Verwaltung</button>
   <button type="button" data-page="einstellungen" class="nav-admin"><span aria-hidden="true">⚙</span>Einstellungen</button>
+  <button type="button" data-page="infos" class="nav-admin"><span aria-hidden="true">ℹ</span>Infos</button>
 </nav>
 <main>
   <section class="card basic-info" id="basicInfo">
@@ -752,9 +753,7 @@
       <h3 class="ad-h">Einsätze pro Spiel <span class="muted" style="font-weight:500">leer = keine Grenze · Dino Run: Mindesteinsatz ist der Eintritt</span></h3>
       <div class="limits-table" id="adLimits"></div>
       <div class="actions"><button type="button" class="primary" id="adLimitsSave">Einsätze speichern</button></div>
-      <h3 class="ad-h">Gewinnchancen <span class="muted" style="font-weight:500">100 % = fair · gilt für alle gleich und wird den Spielern in den Regeln angezeigt</span></h3>
-      <div class="odds-grid" id="adOdds"></div>
-      <div class="actions"><button type="button" id="adOddsReset">Alle auf fair (100 %)</button><button type="button" class="primary" id="adOddsSave">Gewinnchancen speichern</button></div>
+      <p class="muted" style="margin:6px 0 12px">Die Gewinnchancen der Spiele findest du jetzt im Bereich <a href="#infosCard">ℹ Infos</a>.</p>
       <h3 class="ad-h">Globale Spielgrenzen</h3>
       <div class="sgrid">
         <div class="field"><label for="adMaxWager">Max. Einsatz pro Spiel</label><input id="adMaxWager" type="number" min="1" placeholder="kein Limit" /><small>GIBB · leer = kein Limit</small></div>
@@ -1027,6 +1026,14 @@
     <div class="log" id="log"></div>
   </section>
 
+  <section class="card infos-card owner-basic" id="infosCard" data-perm="a:games">
+    <h2>Gewinnchancen der Spiele <span>100 % = fair</span></h2>
+    <p class="muted" style="margin:0 0 12px">Gilt für alle Spieler gleich und wird ihnen in den Spielregeln angezeigt. Weniger als 100 % = Gewinne seltener, mehr = häufiger.</p>
+    <div class="odds-grid" id="adOdds"></div>
+    <div class="actions"><button type="button" id="adOddsReset">Alle auf fair (100 %)</button><button type="button" class="primary" id="adOddsSave">Gewinnchancen speichern</button></div>
+    <div class="msg" id="oddsMsg"></div>
+  </section>
+
 </main>
 
 <script type="module">
@@ -1039,6 +1046,7 @@ const PAGES = {
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
   einstellungen: ["#settingsCard", "#payCard", "#notifyCard"],
+  infos: ["#infosCard"],
 };
 {
   const main = document.querySelector("main");
@@ -1057,7 +1065,7 @@ const PAGES = {
   for (const el of [...main.children]) if (!el.classList.contains("page")) document.querySelector('.page[data-page="uebersicht"]').appendChild(el);
 }
 function pageVisible(page) {
-  if (page === "verwaltung" || page === "einstellungen") {
+  if (page === "verwaltung" || page === "einstellungen" || page === "infos") {
     const body = document.body.classList;
     if (!body.contains("is-owner") && !body.contains("is-basic")) return false;
     // Basic: Bereich nur zeigen, wenn mindestens eine Karte darin erlaubt ist
@@ -1070,6 +1078,7 @@ function showPage(page, { save = true } = {}) {
   document.querySelectorAll(".page").forEach((p) => { p.hidden = p.dataset.page !== page; });
   document.querySelectorAll("#pageNav button").forEach((b) => { b.classList.toggle("active", b.dataset.page === page); b.setAttribute("aria-current", b.dataset.page === page ? "page" : "false"); });
   if (save) { try { localStorage.setItem("chain-page", page); } catch { /* privat */ } }
+  if (page === "infos" && typeof oddsLoad === "function") void oddsLoad();
 }
 function refreshPageNav() {
   document.querySelectorAll("#pageNav button").forEach((b) => { b.hidden = !pageVisible(b.dataset.page); });
@@ -1497,6 +1506,7 @@ function applyPermissions(perms) {
   if (isBasic && first && document.querySelector(".stab[data-tab].active")?.classList.contains("perm-off")) first.click();
   if (stats?.settings) renderPayMethods(stats.settings);
   refreshPageNav();
+  if (document.querySelector('.page[data-page="infos"]')?.hidden === false) void oddsLoad();
 }
 const isFullView = () => document.body.classList.contains("is-owner");
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
@@ -1716,7 +1726,6 @@ async function adLoad(part) {
       adRenderUsers();
     }
     if (part === "games") {
-      void oddsLoad();
       void limitsLoad();
       const [center, dino, limits] = await Promise.all([adCall("get_game_center_state"), adCall("get_dino_admin_state"), adCall("get_global_game_limits")]);
       const settings = (Array.isArray(center) ? center[0] : center)?.settings ?? [];
@@ -2294,8 +2303,8 @@ $("adOdds").addEventListener("input", (e) => {
 $("adOddsReset").onclick = () => oddsRender({});
 $("adOddsSave").onclick = async () => {
   const odds = Object.fromEntries([...document.querySelectorAll(".odds-item")].map((el) => [el.dataset.game, Number(el.querySelector("input").value) / 100]));
-  try { oddsRender((await api("/api/games/odds/set", { odds })).odds); say("adMsg", "Gewinnchancen gespeichert – gelten ab der nächsten Runde."); }
-  catch (err) { say("adMsg", adErrors[err.message] || caErrors[err.message] || err.message, true); }
+  try { oddsRender((await api("/api/games/odds/set", { odds })).odds); say("oddsMsg", "Gewinnchancen gespeichert – gelten ab der nächsten Runde."); }
+  catch (err) { say("oddsMsg", adErrors[err.message] || caErrors[err.message] || err.message, true); }
 };
 
 // ---------- Design v5: Lichtschein folgt der Maus, Welle beim Klicken ----------

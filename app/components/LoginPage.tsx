@@ -174,7 +174,6 @@ export function LoginPage() {
           <div className="auth-coin-wrap" aria-hidden="true"><div className="auth-coin">G</div></div>
           <div className="auth-pitch"><span>Deine Schulwährung. Neu gedacht.</span><h1>Senden. Empfangen. Überblick behalten.</h1><p>Ein persönliches Wallet für den GIBB-Campus – schnell, transparent und serverseitig geschützt.</p></div>
           <div className="auth-benefits"><div><b>01</b><span><strong>Sofort startklar</strong><small>Einmalig 10 GIBB Startguthaben</small></span></div><div><b>02</b><span><strong>Jede Bewegung sichtbar</strong><small>Nachvollziehbarer Transaktionsverlauf</small></span></div><div><b>03</b><span><strong>Du entscheidest</strong><small>Persönliche Benachrichtigungen</small></span></div></div>
-          <p className="auth-security">Geschützt durch Supabase Auth, Row Level Security und serverseitige Transaktionen.</p>
         </section>
 
         <section className="auth-card" aria-labelledby="login-title">
