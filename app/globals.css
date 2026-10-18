@@ -3026,3 +3026,72 @@ html[data-theme="light"] .tour-spot { box-shadow: 0 0 0 9999px rgba(16,32,26,.55
 }
 .fair-rules .odds-note { margin-top: 6px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(246,200,95,.35); background: rgba(246,200,95,.08); }
 .auth-no-signup { margin: 0 0 18px; color: var(--muted); font-size: 13px; line-height: 1.5; }
+
+/* ===== Design v5: heller (Schiefer statt Schwarz), Lichtschein folgt der Maus, Klick-Wellen, Handy-Navigation unten ===== */
+:root:not([data-theme="light"]) {
+  --bg: #121a1f;
+  --panel: #1b2730;
+  --panel-2: #172229;
+  --line: #2a3a44;
+  --text: #eef4f0;
+  --muted: #a7b8b0;
+  --aqua: #5fd4ff;
+}
+:root:not([data-theme="light"]) body { background: var(--bg); }
+:root:not([data-theme="light"]) .app-shell { background: radial-gradient(1100px 600px at 90% -10%, rgba(126,245,163,.10), transparent 60%), radial-gradient(900px 500px at -10% 20%, rgba(95,212,255,.08), transparent 60%), var(--bg); }
+:root:not([data-theme="light"]) .header { background: rgba(18,26,31,.82); }
+:root:not([data-theme="light"]) .card,
+:root:not([data-theme="light"]) .stat-card,
+:root:not([data-theme="light"]) .home-launchpad { background: linear-gradient(160deg, #1d2a33, #18232b); border-color: var(--line); box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 16px 40px rgba(0,0,0,.22); }
+:root:not([data-theme="light"]) .premium-balance { background: radial-gradient(520px 260px at 90% 0%, rgba(126,245,163,.22), transparent 60%), linear-gradient(150deg, #1f3a2f, #172229); border-color: #2f4a3e; }
+:root:not([data-theme="light"]) .dashboard-tabs { background: rgba(27,39,48,.9); border-color: var(--line); }
+:root:not([data-theme="light"]) .input, :root:not([data-theme="light"]) select, :root:not([data-theme="light"]) textarea { background: #142028; border-color: #2c3d48; }
+:root:not([data-theme="light"]) .secondary { background: #1f2d37; border-color: #2c3d48; }
+:root:not([data-theme="light"]) .menu { background: #1b2730; }
+.coin-mark { background: linear-gradient(140deg, var(--green), var(--aqua, #5fd4ff)); color: #0d1a14; border: 0; }
+
+/* Lichtschein, der der Maus folgt (nur mit Maus) */
+html.fx-glow body::before {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background: radial-gradient(520px circle at var(--mx, 50%) var(--my, 30%), rgba(126,245,163,.10), rgba(95,212,255,.05) 40%, transparent 70%);
+  transition: background .08s linear;
+}
+html.fx-glow .app-shell, html.fx-glow .auth-page { position: relative; z-index: 1; }
+
+/* Karten heben sich, Knöpfe federn, Welle beim Klicken */
+.card, .stat-card, .home-shortcuts button { transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s; }
+@media (hover: hover) {
+  .stat-card:hover, .home-launchpad:hover, .home-price-card:hover { transform: translateY(-3px); border-color: #3b5260; box-shadow: 0 22px 48px rgba(0,0,0,.3); }
+}
+button, .primary, .secondary { transition: transform .12s ease, box-shadow .2s, background .2s, border-color .2s; }
+button:active:not(:disabled), .primary:active:not(:disabled), .secondary:active:not(:disabled) { transform: scale(.96); }
+.fx-host { position: relative; }
+.primary, .secondary, .primary-link, .secondary-link, .dashboard-tabs button, .home-shortcuts button, .price-chart-ranges button { overflow: hidden; }
+.fx-ripple { position: absolute; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(255,255,255,.35), rgba(126,245,163,.15) 45%, transparent 70%); transform: scale(0); animation: fx-ripple .6s ease-out forwards; }
+@keyframes fx-ripple { to { transform: scale(1); opacity: 0; } }
+/* Tastatur: leuchtender Fokus-Ring */
+:focus-visible { outline: 2px solid var(--green); outline-offset: 3px; box-shadow: 0 0 0 6px rgba(126,245,163,.18); border-radius: 12px; }
+
+/* Handy: Bereichs-Leiste unten wie in einer App */
+@media (max-width: 640px) {
+  .dashboard-tabs {
+    position: fixed !important; top: auto !important; bottom: 0; left: 0; right: 0; z-index: 40;
+    margin: 0 !important; border-radius: 22px 22px 0 0 !important; border-bottom: 0;
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)) !important;
+    display: flex !important; gap: 4px; overflow-x: auto; scroll-snap-type: x mandatory;
+    background: rgba(27,39,48,.96) !important; box-shadow: 0 -12px 30px rgba(0,0,0,.35);
+  }
+  .dashboard-tabs button { flex: 0 0 auto; min-width: 72px; min-height: 54px !important; flex-direction: column; gap: 2px !important; font-size: 11px !important; border-radius: 14px !important; scroll-snap-align: center; }
+  .dashboard-tabs button span { font-size: 18px !important; }
+  .main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  html[data-theme="light"] .dashboard-tabs { background: rgba(255,255,255,.97) !important; box-shadow: 0 -10px 26px rgba(16,32,26,.12); }
+  .header-inner { height: 64px; }
+  .container { width: calc(100% - 24px); }
+  .card-pad { padding: 18px; }
+  .card { border-radius: 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.fx-glow body::before { display: none; }
+  .fx-ripple { display: none; }
+  .stat-card:hover, .home-launchpad:hover, .home-price-card:hover { transform: none; }
+}

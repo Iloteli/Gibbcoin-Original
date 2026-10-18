@@ -438,6 +438,42 @@
   .page[hidden] { display: none; }
   .page > * { margin-top: 0 !important; margin-bottom: 0 !important; }
   @media (max-width: 640px) { header { position: static; } .page-nav { top: 6px; border-radius: 18px; } .page-nav button { padding: 9px 12px; font-size: 13px; } }
+  /* ===== Design v5: heller (Schiefer statt Schwarz), Lichtschein folgt der Maus, Klick-Wellen ===== */
+  :root { --bg: #121a1f; --panel: #1b2730; --panel-2: #172229; --line: #2a3a44; --text: #eef4f0; --muted: #a7b8b0; --aqua: #5fd4ff; }
+  body { background: radial-gradient(1100px 600px at 90% -10%, rgba(126,245,163,.10), transparent 60%), radial-gradient(900px 500px at -10% 20%, rgba(95,212,255,.08), transparent 60%), var(--bg) !important; }
+  header { background: rgba(18,26,31,.86) !important; }
+  .page-nav { background: rgba(27,39,48,.92) !important; }
+  .card { background: linear-gradient(160deg, #1d2a33, #18232b) !important; box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 16px 40px rgba(0,0,0,.22); }
+  input, select, textarea, .an-box textarea { background: #142028 !important; border-color: #2c3d48 !important; }
+  button { background: #1f2d37; border-color: #2c3d48; }
+  button.primary { background: #7ef5a3; }
+  .limit-row, .odds-item, .st-chart, .an-box, .up-panel, .std-perms, .wallet-row, .item { background-color: var(--panel-2); }
+  select option { background: #1b2730; }
+  html.fx-glow body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(520px circle at var(--mx, 50%) var(--my, 30%), rgba(126,245,163,.10), rgba(95,212,255,.05) 40%, transparent 70%); }
+  header, .page-nav, main { position: relative; z-index: 1; }
+  header { position: sticky; }
+  .page-nav { position: sticky; }
+  .card { transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s; }
+  @media (hover: hover) { .stats > div:hover, .odds-item:hover, .limit-row:hover { border-color: #3b5260; transform: translateY(-2px); transition: transform .2s, border-color .2s; } }
+  button { transition: transform .12s ease, background .2s, border-color .2s, box-shadow .2s; position: relative; overflow: hidden; }
+  button:active:not(:disabled) { transform: scale(.96); }
+  .fx-ripple { position: absolute; border-radius: 50%; pointer-events: none; background: radial-gradient(circle, rgba(255,255,255,.35), rgba(126,245,163,.15) 45%, transparent 70%); transform: scale(0); animation: fx-ripple .6s ease-out forwards; }
+  @keyframes fx-ripple { to { transform: scale(1); opacity: 0; } }
+  :focus-visible { outline: 2px solid #7ef5a3; outline-offset: 3px; box-shadow: 0 0 0 6px rgba(126,245,163,.18); }
+  /* Handy: Bereichs-Leiste unten wie in einer App */
+  @media (max-width: 640px) {
+    .page-nav { position: fixed !important; top: auto !important; bottom: 0; left: 0; right: 0; width: auto; margin: 0; z-index: 40; border-radius: 22px 22px 0 0 !important; border-bottom: 0; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); background: rgba(27,39,48,.97) !important; box-shadow: 0 -12px 30px rgba(0,0,0,.35); }
+    .page-nav button { flex-direction: column; gap: 2px; min-width: 68px; padding: 8px 6px; font-size: 11px; border-radius: 14px; }
+    .page-nav button span { font-size: 18px; }
+    main { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+    .card { border-radius: 18px; padding: 16px; }
+    header { padding: 10px 14px; gap: 8px; position: static !important; }
+    header h1 { font-size: 18px; }
+    header h1 small:not(.ver) { display: none; }
+    .whoami > span:first-child { display: none; }
+    header > div { gap: 8px !important; width: 100%; justify-content: space-between; }
+  }
+  @media (prefers-reduced-motion: reduce) { html.fx-glow body::before, .fx-ripple { display: none; } button:active:not(:disabled) { transform: none; } }
 </style>
 </head>
 <body>
@@ -2180,6 +2216,22 @@ $("adOddsSave").onclick = async () => {
   try { oddsRender((await api("/api/games/odds/set", { odds })).odds); say("adMsg", "Gewinnchancen gespeichert – gelten ab der nächsten Runde."); }
   catch (err) { say("adMsg", adErrors[err.message] || caErrors[err.message] || err.message, true); }
 };
+
+// ---------- Design v5: Lichtschein folgt der Maus, Welle beim Klicken ----------
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const root = document.documentElement; let frame = 0;
+  if (matchMedia("(pointer: fine)").matches) {
+    root.classList.add("fx-glow");
+    addEventListener("pointermove", (e) => { if (frame) return; frame = requestAnimationFrame(() => { frame = 0; root.style.setProperty("--mx", `${e.clientX}px`); root.style.setProperty("--my", `${e.clientY}px`); }); }, { passive: true });
+  }
+  addEventListener("pointerdown", (e) => {
+    const b = e.target.closest("button"); if (!b || b.disabled) return;
+    const r = b.getBoundingClientRect(); const size = Math.max(r.width, r.height) * 2;
+    const w = document.createElement("span"); w.className = "fx-ripple";
+    w.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - r.left - size / 2}px;top:${e.clientY - r.top - size / 2}px`;
+    b.appendChild(w); setTimeout(() => w.remove(), 650);
+  }, { passive: true });
+}
 </script>
 </body>
 </html>
