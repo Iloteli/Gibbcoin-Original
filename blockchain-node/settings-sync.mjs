@@ -147,6 +147,7 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
           chain.upsertWebsiteAccount(id, name, balance, { overwriteBalance: true });
           updated += 1;
         }
+        if (chain.setWebsiteLook?.(id, u.avatar_url, u.profile_color)) updated += 1;
       }
       let removed = 0;
       for (const address of Object.keys(chain.accounts)) {

@@ -600,6 +600,13 @@
   .acc-more textarea { width: 100%; resize: vertical; }
   .acc-more .bad { color: #ff8f8f; }
   .acc-row[data-kind] button[aria-expanded="true"] { background: var(--grad) !important; color: #061024 !important; }
+  .avatar.pic, .acc-avatar.pic { object-fit: cover; padding: 0; border: 2px solid rgba(62,224,255,.35); }
+  .acc-name { display: flex; gap: 10px; align-items: center; min-width: 0; }
+  .acc-txt { min-width: 0; }
+  .acc-avatar { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-weight: 800; font-size: 15px; background: rgba(62,224,255,.14); color: #3ee0ff; }
+  .acc-pic { margin: 0; }
+  #whoPic:empty { display: none; }
+  .who-pic { display: grid; place-items: center; font-weight: 800; object-fit: cover; width: 26px; height: 26px; border-radius: 8px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -631,7 +638,7 @@
 <header>
   <h1><svg class="brand-mark" width="30" height="30" viewBox="0 0 64 64" role="img" aria-label="GIBB Coin"><defs><linearGradient id="gm-f" x1="8" y1="4" x2="58" y2="62" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2f7bff"/><stop offset=".55" stop-color="#3ee0ff"/><stop offset="1" stop-color="#8b5cff"/></linearGradient></defs><path d="M32 3 57 17.5v29L32 61 7 46.5v-29Z" fill="url(#gm-f)"/><path d="M32 11 50 21.5v21L32 53 14 42.5v-21Z" fill="#070b16" fill-opacity=".55"/><path d="M40.5 25.5A10.5 10.5 0 1 0 42.5 34H33" fill="none" stroke="#fff" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="44.5" cy="20.5" r="2.2" fill="#f5c66b"/></svg> GIBB Coin <small>Chain</small> <small class="ver" id="appVersion" title="Installierte Version"></small></h1>
   <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
-    <span class="whoami" id="whoami" hidden><span>Konto:</span> <b id="whoName">—</b> <button id="logout" type="button">Abmelden</button></span>
+    <span class="whoami" id="whoami" hidden><span>Konto:</span> <span id="whoPic"></span><b id="whoName">—</b> <button id="logout" type="button">Abmelden</button></span>
     <div id="chainStatus" class="status"><i></i><span>Verbinde …</span></div>
   </div>
 </header>
@@ -1321,6 +1328,7 @@ async function refresh() {
     }
     setChainStatus(true, `Live · Block #${s.height ?? "?"}`);
     stats = s; accounts = acc;
+    { const mine = accounts.find((a) => a.address === myAddress); $("whoPic").innerHTML = mine && (mine.avatar || mine.color) ? avatarHtml(mine.name, mine.avatar, mine.color, "who-pic") : ""; }
     renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
@@ -1360,7 +1368,7 @@ function renderAccounts() {
     const web = a.source === "supabase";
     const deletable = kindOf(a) === "chain" && document.body.classList.contains("is-owner");
     const initial = h(String(a.name || "?").trim().charAt(0).toUpperCase() || "?");
-    return `<div class="item wallet-row${deletable ? " can-del" : ""}" data-addr="${h(a.address)}"><div class="avatar${web ? " web" : ""}">${initial}</div><div class="who"><b>${h(a.name)}${web ? '<span class="tag-web">WEBSITE</span>' : ""}</b><code title="${h(a.address)}">${h(a.address)}</code></div><div class="amt"><b>${fmt(a.balance)}</b><small>GIBB · ${fmt(a.cash)} Rp</small></div>${deletable ? `<button type="button" class="wallet-del" data-wdel title="Wallet löschen" aria-label="Wallet ${h(a.name)} löschen">🗑</button>` : ""}</div>`;
+    return `<div class="item wallet-row${deletable ? " can-del" : ""}" data-addr="${h(a.address)}">${a.avatar || a.color ? avatarHtml(a.name, a.avatar, a.color, `avatar${web ? " web" : ""}`) : `<div class="avatar${web ? " web" : ""}">${initial}</div>`}<div class="who"><b>${h(a.name)}${web ? '<span class="tag-web">WEBSITE</span>' : ""}</b><code title="${h(a.address)}">${h(a.address)}</code></div><div class="amt"><b>${fmt(a.balance)}</b><small>GIBB · ${fmt(a.cash)} Rp</small></div>${deletable ? `<button type="button" class="wallet-del" data-wdel title="Wallet löschen" aria-label="Wallet ${h(a.name)} löschen">🗑</button>` : ""}</div>`;
   }).join("") || `<div class="muted">Keine Wallets gefunden.</div>`;
   fillSelect($("orderAddress"));
 }
@@ -2223,6 +2231,12 @@ $("authSetupWrap").hidden = !new URLSearchParams(location.search).has("setup");
 
 // ---------- Alle Konten: eine Liste, gleiche Bedienung für jedes Konto ----------
 let accRows = [], accFilterVal = "all", accOpen = null;
+// Profilbild der Hauptseite (falls vorhanden und nicht ausgeblendet), sonst Anfangsbuchstabe in der Profilfarbe
+function avatarHtml(name, avatar, color, cls = "avatar") {
+  const initial = h(String(name || "?").trim().charAt(0).toUpperCase() || "?");
+  const style = color ? ` style="background:${h(color)};color:#061024"` : "";
+  return avatar ? `<img class="${cls} pic" src="${h(avatar)}" alt="" loading="lazy" referrerpolicy="no-referrer"${color ? ` style="border-color:${h(color)}"` : ""} />` : `<div class="${cls}"${style}>${initial}</div>`;
+}
 const accAgo = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "gerade eben" : m < 60 ? `vor ${m} Min.` : m < 1440 ? `vor ${Math.round(m / 60)} Std.` : `vor ${Math.round(m / 1440)} Tagen`; };
 const levelName = { user: "Normal", basic: "Basic", full: "Full" };
 async function accLoad() {
@@ -2230,10 +2244,10 @@ async function accLoad() {
   try { nodeUsers = (await api("/api/admin/node-users", {})).users ?? []; } catch (e) { nuFail(e); }
   try { owners = (await api("/api/admin/owner-levels", {})).owners ?? []; } catch { owners = []; }
   const rows = [];
-  for (const u of nodeUsers) rows.push({ kind: "chain", id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB · ${u.lastLogin ? "zuletzt " + accAgo(u.lastLogin) : "noch nie angemeldet"}${u.sessions ? ` · ${u.sessions} aktiv` : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom, user: u });
+  for (const u of nodeUsers) rows.push({ kind: "chain", avatar: u.avatar, color: u.color, avatarHidden: u.avatarHidden, id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB · ${u.lastLogin ? "zuletzt " + accAgo(u.lastLogin) : "noch nie angemeldet"}${u.sessions ? ` · ${u.sessions} aktiv` : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom, user: u });
   for (const o of owners) {
-    if (o.primary) { const me = rows.find((r) => r.owner); if (me) { me.sub += ` · Website @${o.username}`; continue; } }
-    rows.push({ kind: "web", id: o.id, name: o.display_name || o.username, sub: `Website-Owner · @${o.username}`, level: o.level, owner: o.primary, disabled: o.disabled, address: `sb_${o.id}`, custom: o.custom });
+    if (o.primary) { const me = rows.find((r) => r.owner); if (me) { me.sub += ` · Website @${o.username}`; me.avatar = me.avatar || o.avatar; me.color = me.color || o.color; continue; } }
+    rows.push({ kind: "web", avatar: o.avatar, color: o.color, avatarHidden: o.avatarHidden, username: o.username, id: o.id, name: o.display_name || o.username, sub: `Website-Owner · @${o.username}`, level: o.level, owner: o.primary, disabled: o.disabled, address: `sb_${o.id}`, custom: o.custom });
   }
   const order = (r) => (r.owner ? 0 : r.level === "full" ? 1 : r.level === "basic" ? 2 : 3);
   accRows = rows.sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name, "de"));
@@ -2246,16 +2260,21 @@ function accRender() {
   $("nuList").innerHTML = list.map((r) => {
     const levelSel = r.owner ? '<span class="ad-badge owner full-always">Full · immer</span>'
       : `<select data-acc="level">${["basic", "full"].map((l) => `<option value="${l}"${r.level === l ? " selected" : ""}>${levelName[l]}</option>`).join("")}</select>`;
-    const acts = r.owner ? (r.kind === "chain" ? `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>` : "") : [
+    const acts = r.owner ? `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>` : [
       r.level === "basic" ? `<button data-acc="perms">Rechte</button>` : `<button class="ph" tabindex="-1" aria-hidden="true">Rechte</button>`,
       `<button data-acc="toggle">${r.disabled ? "Aktivieren" : "Deaktivieren"}</button>`,
       `<button data-acc="password">${r.kind === "web" ? "Passwort-Reset" : "Neues Passwort"}</button>`,
       `<button class="danger" data-acc="delete">${r.kind === "web" ? "Entfernen" : "Löschen"}</button>`,
-      r.kind === "chain" ? `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>` : "",
+      `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>`,
     ].join("");
     const u = r.user;
-    const more = r.kind === "chain" && accOpen === r.id ? `<div class="acc-more">
+    const picSwitch = String(r.address).startsWith("sb_") ? `<label class="switch acc-pic"><input type="checkbox" data-acc="pic"${r.avatarHidden ? "" : " checked"} /><span class="knob"></span><span class="switch-text"><b>Profilbild der Hauptseite auf der Chain-Seite zeigen</b><small>${r.avatar ? "aus = nur der Anfangsbuchstabe wird gezeigt" : "dieses Konto hat zurzeit kein Profilbild"}</small></span></label>` : "";
+    const more = r.kind === "web" && accOpen === r.id ? `<div class="acc-more">
+      <div class="acc-facts"><span>Konto<b>Website-Owner</b></span><span>Benutzername<b>@${h(r.username ?? "")}</b></span><span>Stufe<b>${levelName[r.level] ?? r.level}</b></span><span>Wallet<b><code>${h(r.address)}</code></b></span></div>
+      ${picSwitch}
+    </div>` : r.kind === "chain" && accOpen === r.id ? `<div class="acc-more">
       <div class="acc-facts"><span>Erstellt<b>${u.createdAt ? new Date(u.createdAt).toLocaleDateString("de-CH") : "—"}</b></span><span>Zuletzt angemeldet<b>${u.lastLogin ? new Date(u.lastLogin).toLocaleString("de-CH") : "noch nie"}</b></span><span>Anmeldungen<b>${fmt(u.loginCount ?? 0)}</b></span><span>Aktive Sitzungen<b>${fmt(u.sessions ?? 0)}</b></span><span>Wallet<b><code>${h(u.address)}</code></b></span></div>
+      ${picSwitch}
       <div class="field"><label>Notiz <span class="muted">nur für dich sichtbar</span></label><textarea data-more="note" maxlength="200" rows="2" placeholder="z. B. Klasse, Aufgabe …">${h(u.note ?? "")}</textarea></div>
       ${r.owner ? "" : `<div class="sgrid">
         <div class="field"><label>Ablaufdatum</label><input type="date" data-more="expires" value="${u.expiresAt ? new Date(u.expiresAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}" /><small>${u.expired ? '<b class="bad">abgelaufen</b> · ' : ""}leer = läuft nie ab · ab diesem Tag keine Anmeldung</small></div>
@@ -2263,10 +2282,19 @@ function accRender() {
       </div>`}
       <div class="actions"><button class="primary" data-acc="save-more">Speichern</button>${r.owner ? "" : `<button data-acc="rename">Umbenennen</button><button data-acc="logout"${u.sessions ? "" : " disabled"}>Überall abmelden</button>`}</div>
     </div>` : "";
-    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div>${more}</div>`;
+    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name">${avatarHtml(r.name, r.avatarHidden ? null : r.avatar, r.color, "acc-avatar")}<div class="acc-txt"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div>${more}</div>`;
   }).join("") || `<div class="muted">Keine Konten gefunden.</div>`;
 }
 $("accSearch").addEventListener("input", accRender);
+$("nuList").addEventListener("change", async (e) => {
+  const box = e.target.closest('input[data-acc="pic"]'); if (!box) return;
+  const row = box.closest(".acc-row");
+  try {
+    await api("/api/admin/avatar-hidden", { address: row.dataset.addr, hidden: !box.checked });
+    say("adMsg", box.checked ? `Profilbild von ${row.dataset.name} wird wieder gezeigt.` : `Profilbild von ${row.dataset.name} ist auf der Chain-Seite ausgeblendet.`);
+  } catch (err) { box.checked = !box.checked; nuFail(err); return; }
+  await accLoad(); void refresh();
+});
 $("accFilter").addEventListener("click", (e) => {
   const b = e.target.closest("button[data-f]"); if (!b) return;
   document.querySelectorAll("#accFilter button").forEach((x) => x.classList.toggle("active", x === b));
@@ -2289,6 +2317,7 @@ $("nuList").addEventListener("click", async (e) => {
   try {
     if (act === "perms") { void upOpen(addr, name); return; }
     if (act === "more") { accOpen = accOpen === id ? null : id; accRender(); return; }
+    if (act === "pic") return;
     if (act === "save-more") {
       const box = row.querySelector(".acc-more");
       const patch = { username: id, note: box.querySelector('[data-more="note"]').value };
