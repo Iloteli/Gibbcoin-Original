@@ -131,7 +131,8 @@ const oddsBase: Partial<Record<GameKey, [number, string]>> = {
 };
 function oddsNote(game: GameKey, factor: number | undefined) {
   const base = oddsBase[game];
-  if (!base || factor === undefined || Number(factor) === 1) return "";
+  if (factor === undefined || Number(factor) === 1) return "";
+  if (!base) return Number(factor) < 1 ? `Gewinne kommen seltener vor als normal (Faktor ${Math.round(Number(factor) * 100)} %).` : `Gewinne kommen häufiger vor als normal (Faktor ${Math.round(Number(factor) * 100)} %).`;
   const p = (x: number) => `${(Math.min(x, 0.95) * 100).toLocaleString("de-CH", { maximumFractionDigits: 1 })} %`;
   return `${base[1]} ${p(base[0] * Number(factor))} statt ${p(base[0])}${game === "roulette" ? ` · Einzelzahl ${p(Number(factor) / 37)}` : ""}.`;
 }

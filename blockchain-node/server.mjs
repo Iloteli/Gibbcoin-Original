@@ -700,7 +700,7 @@ const routes = {
   "POST /api/games/odds/set": async (_, body) => {
     await requireAdminPermission(body, "a:games");
     const odds = {};
-    for (const key of ["roulette", "coin_flip", "dice_duel", "high_card", "plinko"]) {
+    for (const key of ["roulette", "coin_flip", "dice_duel", "high_card", "plinko", "slots", "baccarat", "keno", "wheel", "mines", "bingo", "crash"]) {
       if (body.odds?.[key] === undefined) continue;
       const f = Number(body.odds[key]);
       if (!Number.isFinite(f) || f < 0 || f > 3) throw new Error("invalid_odds");

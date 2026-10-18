@@ -2073,12 +2073,14 @@ const ODDS_GAMES = [
   { key: "high_card", label: "🃏 High Card", base: 6 / 13, unit: "Sieg" },
   { key: "plinko", label: "🔻 Plinko", base: 2 / 9, unit: "3-fach-Fach" },
   { key: "roulette", label: "🎡 Roulette", base: 18 / 37, unit: "Rot/Schwarz", base2: 1 / 37, unit2: "Einzelzahl" },
+  { key: "slots", label: "🎰 Slot Machine" }, { key: "baccarat", label: "♢ Baccarat" }, { key: "keno", label: "⑨ Keno" },
+  { key: "wheel", label: "◉ Glücksrad" }, { key: "mines", label: "✦ Mines" }, { key: "bingo", label: "▤ Bingo" }, { key: "crash", label: "↗ Crash" },
 ];
 const pct = (x) => `${(Math.min(x, 0.95) * 100).toLocaleString("de-CH", { maximumFractionDigits: 1 })} %`;
 function oddsRender(odds) {
   $("adOdds").innerHTML = ODDS_GAMES.map((g) => {
     const f = Number(odds?.[g.key] ?? 1);
-    return `<label class="odds-item${f < 1 ? " low" : f > 1 ? " high" : ""}" data-game="${g.key}"><div class="top"><b>${g.label}</b><span>${Math.round(f * 100)} %</span></div><input type="range" min="0" max="300" step="5" value="${Math.round(f * 100)}" aria-label="Faktor ${g.label}" /><small>${g.unit}: ${pct(g.base * f)} <span class="muted">(fair ${pct(g.base)})</span>${g.base2 ? ` · ${g.unit2}: ${pct(g.base2 * f)}` : ""}</small></label>`;
+    return `<label class="odds-item${f < 1 ? " low" : f > 1 ? " high" : ""}" data-game="${g.key}"><div class="top"><b>${g.label}</b><span>${Math.round(f * 100)} %</span></div><input type="range" min="0" max="300" step="5" value="${Math.round(f * 100)}" aria-label="Faktor ${g.label}" /><small>${g.base ? `${g.unit}: ${pct(g.base * f)} <span class="muted">(fair ${pct(g.base)})</span>${g.base2 ? ` · ${g.unit2}: ${pct(g.base2 * f)}` : ""}` : f === 1 ? "fair – wie normal" : f < 1 ? "Gewinne seltener als normal" : "Gewinne häufiger als normal"}</small></label>`;
   }).join("");
 }
 async function oddsLoad() {
