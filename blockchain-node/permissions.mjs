@@ -19,7 +19,7 @@ export const PERMISSION_CATALOG = [
     ["w:disabledTabs", "Tabs der Hauptseite ein/aus"], ["w:cardEnabled", "Karte / TWINT an/aus"], ["w:creditsEnabled", "Mit Credits kaufen an/aus"], ["w:registrationEnabled", "Registrieren an/aus"],
   ] },
   { group: "🎨 Hauptseite: Aussehen", items: [
-    ["w:siteDesign", "Design der Hauptseite (Farbwelt, Modus, Animationen)"], ["w:madeBy", "Fusszeile „Made by“ bearbeiten"],
+    ["w:siteDesign", "Design der Hauptseite (Farbwelt, Modus, Animationen)"], ["w:chainDesign", "Design der Chain-Seite (Farbwelt, Animationen)"], ["w:madeBy", "Fusszeile „Made by“ bearbeiten"],
   ] },
   { group: "🖥 Server-Einstellungen", items: [
     ["s:fallbackMinerEnabled", "Reserve-Miner an/aus"], ["s:fallbackDelaySeconds", "Reserve-Miner Einsprung"], ["s:browserMinerThreads", "Browser-Miner Kerne"],

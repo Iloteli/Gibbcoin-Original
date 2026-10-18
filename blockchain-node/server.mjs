@@ -295,7 +295,9 @@ const limitSettingsPatch = (sess, body) => {
   const patch = {};
   const website = {};
   for (const [k, v] of Object.entries(body)) if (perms.has(`s:${k}`)) patch[k] = v;
-  for (const [k, v] of Object.entries(body.website ?? {})) if (perms.has(`w:${k}`)) website[k] = v;
+  // Mehrere Felder unter einem Recht (z. B. Design)
+  const GROUPED = { siteAccent: "w:siteDesign", siteMode: "w:siteDesign", siteMotion: "w:siteDesign", siteStyle: "w:siteDesign", chainAccent: "w:chainDesign", chainMotion: "w:chainDesign" };
+  for (const [k, v] of Object.entries(body.website ?? {})) if (perms.has(GROUPED[k] ?? `w:${k}`)) website[k] = v;
   if (Object.keys(website).length) patch.website = website;
   return patch;
 };

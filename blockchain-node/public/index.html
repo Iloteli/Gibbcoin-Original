@@ -526,46 +526,47 @@
   @keyframes amb-wave { to { stroke-dashoffset: -440; } }
   @keyframes amb-spin { to { transform: rotate(360deg); } }
   header h1 { display: flex; align-items: center; gap: 10px; }
-  .brand-mark { filter: drop-shadow(0 0 10px rgba(62,224,255,.45)); }
+  .brand-mark { filter: drop-shadow(0 0 10px color-mix(in srgb, var(--cyan) 45%, transparent)); }
   header { background: rgba(10,15,26,.72) !important; border-bottom-color: var(--line) !important; }
   .page-nav { background: rgba(16,24,42,.75) !important; border-color: var(--line) !important; }
-  .page-nav button.active { background: var(--grad) !important; background-size: 200% 100% !important; color: #061024 !important; box-shadow: 0 8px 28px rgba(62,224,255,.3) !important; animation: v7-grad 6s ease infinite; }
+  .page-nav button.active { background: var(--grad) !important; background-size: 200% 100% !important; color: #061024 !important; box-shadow: 0 8px 28px color-mix(in srgb, var(--cyan) 30%, transparent) !important; animation: v7-grad 6s ease infinite; }
   .card { background: linear-gradient(160deg, rgba(28,38,64,.66), rgba(14,21,38,.72)) !important; border-color: var(--line) !important; backdrop-filter: blur(16px) saturate(140%); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 20px 50px rgba(2,6,20,.45) !important; }
-  button.primary, .primary { background: var(--grad) !important; background-size: 200% 100% !important; color: #061024 !important; border: 0 !important; box-shadow: 0 10px 28px rgba(47,123,255,.3); animation: v7-grad 6s ease infinite; }
+  button.primary, .primary { background: var(--grad) !important; background-size: 200% 100% !important; color: #061024 !important; border: 0 !important; box-shadow: 0 10px 28px color-mix(in srgb, var(--electric) 30%, transparent); animation: v7-grad 6s ease infinite; }
   button { background: rgba(22,31,52,.7); border-color: rgba(120,180,255,.28); }
-  button:hover:not(:disabled) { border-color: #3ee0ff; }
+  button:hover:not(:disabled) { border-color: var(--cyan); }
   input, select, textarea, .an-box textarea { background: rgba(10,16,30,.7) !important; border-color: rgba(120,180,255,.28) !important; transition: border-color .25s, box-shadow .25s; }
-  input:focus, select:focus, textarea:focus { border-color: #3ee0ff !important; box-shadow: 0 0 0 4px rgba(62,224,255,.14), 0 0 22px rgba(47,123,255,.22) !important; outline: none; }
+  input:focus, select:focus, textarea:focus { border-color: var(--cyan) !important; box-shadow: 0 0 0 4px color-mix(in srgb, var(--cyan) 14%, transparent), 0 0 22px color-mix(in srgb, var(--electric) 22%, transparent) !important; outline: none; }
   .stats > div strong, .odds-item .top span { color: #eef3ff; }
-  .live-pill, .status { border-color: rgba(62,224,255,.35) !important; }
-  .fx-tilt { border-color: rgba(62,224,255,.45) !important; box-shadow: 0 22px 50px rgba(2,6,20,.5), 0 0 26px rgba(47,123,255,.18) !important; }
-  .card::after, .stats > div::after { background: radial-gradient(340px circle at var(--cx) var(--cy), rgba(62,224,255,.14), rgba(139,92,255,.07) 40%, transparent 70%) !important; }
-  html.fx-glow body::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 30%), rgba(62,224,255,.12), rgba(139,92,255,.07) 40%, transparent 70%) !important; }
+  .live-pill, .status { border-color: color-mix(in srgb, var(--cyan) 35%, transparent) !important; }
+  .fx-tilt { border-color: color-mix(in srgb, var(--cyan) 45%, transparent) !important; box-shadow: 0 22px 50px rgba(2,6,20,.5), 0 0 26px color-mix(in srgb, var(--electric) 18%, transparent) !important; }
+  .card::after, .stats > div::after { background: radial-gradient(340px circle at var(--cx) var(--cy), color-mix(in srgb, var(--cyan) 14%, transparent), color-mix(in srgb, var(--violet) 7%, transparent) 40%, transparent 70%) !important; }
+  html.fx-glow body::before { background: radial-gradient(600px circle at var(--mx, 50%) var(--my, 30%), color-mix(in srgb, var(--cyan) 12%, transparent), color-mix(in srgb, var(--violet) 7%, transparent) 40%, transparent 70%) !important; }
   .wallet-filter button.active, .ca-quick button.active, #stRange button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; }
   #authGate { background: var(--bg) !important; }
-  #authGate .b1 { background: #2f7bff !important; } #authGate .b2 { background: #8b5cff !important; } #authGate .b3 { background: #3ee0ff !important; }
-  #authGate .as { background: #3ee0ff !important; box-shadow: 0 0 12px #3ee0ff !important; }
-  #authGate .box::before { background: conic-gradient(from var(--g-angle, 0deg), transparent 0 60%, #3ee0ff 75%, #8b5cff 85%, transparent 100%) !important; }
-  .gate-coin { background: radial-gradient(circle at 35% 30%, #d6f6ff, #3ee0ff 45%, #2f7bff 100%) !important; color: #061024 !important; box-shadow: 0 0 40px rgba(62,224,255,.5) !important; }
-  #authSubmit, #authGate button.primary { background: linear-gradient(110deg, #3ee0ff 35%, #e6fbff 50%, #8b5cff 65%) !important; background-size: 200% 100% !important; }
+  #authGate .b1 { background: var(--electric) !important; } #authGate .b2 { background: var(--violet) !important; } #authGate .b3 { background: var(--cyan) !important; }
+  #authGate .as { background: var(--cyan) !important; box-shadow: 0 0 12px var(--cyan) !important; }
+  #authGate .box::before { background: conic-gradient(from var(--g-angle, 0deg), transparent 0 60%, var(--cyan) 75%, var(--violet) 85%, transparent 100%) !important; }
+  .gate-coin { background: radial-gradient(circle at 35% 30%, #d6f6ff, var(--cyan) 45%, var(--electric) 100%) !important; color: #061024 !important; box-shadow: 0 0 40px color-mix(in srgb, var(--cyan) 50%, transparent) !important; }
+  #authSubmit, #authGate button.primary { background: linear-gradient(110deg, var(--cyan) 35%, #e6fbff 50%, var(--violet) 65%) !important; background-size: 200% 100% !important; }
   @keyframes v7-grad { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
-  .wallet-row .avatar:not(.web) { background: rgba(62,224,255,.12) !important; color: #3ee0ff !important; }
-  .wallet-row .avatar.web { background: rgba(139,92,255,.16) !important; color: #c4b2ff !important; }
-  .tag-web { color: #3ee0ff !important; border-color: rgba(62,224,255,.35) !important; }
+  .wallet-row .avatar:not(.web) { background: color-mix(in srgb, var(--cyan) 12%, transparent) !important; color: var(--cyan) !important; }
+  .wallet-row .avatar.web { background: color-mix(in srgb, var(--violet) 16%, transparent) !important; color: #c4b2ff !important; }
+  .tag-web { color: var(--cyan) !important; border-color: color-mix(in srgb, var(--cyan) 35%, transparent) !important; }
   @media (max-width: 640px) { .ambient-hex.h2 { display: none; } .page-nav { background: rgba(12,18,34,.94) !important; } }
   @media (prefers-reduced-motion: reduce) { .ambient-flow, .ambient-waves .wave, .ambient-hex, .page-nav button.active, button.primary, .primary { animation: none !important; } }
   .site-footer { position: relative; z-index: 1; display: grid; justify-items: center; gap: 10px; padding: 26px 16px 34px; text-align: center; }
-  .site-footer-line { display: block; width: min(320px, 60%); height: 1px; margin: 0 auto; background: linear-gradient(90deg, transparent, #3ee0ff, #8b5cff, transparent); opacity: .6; }
+  .site-footer-line { display: block; width: min(320px, 60%); height: 1px; margin: 0 auto; background: linear-gradient(90deg, transparent, var(--cyan), var(--violet), transparent); opacity: .6; }
   .site-footer p, .footer-preview p { margin: 0; font-size: 13px; font-weight: 600; letter-spacing: .04em; background: var(--grad); background-size: 200% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: v7-grad 8s ease infinite; }
   .footer-edit { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: center; }
   .footer-preview { display: grid; gap: 10px; justify-items: center; padding: 18px; border-radius: 16px; border: 1px dashed var(--line); }
   @media (max-width: 760px) { .footer-edit { grid-template-columns: 1fr; } .site-footer { padding-bottom: calc(110px + env(safe-area-inset-bottom)); } }
   .dsg-group { display: grid; gap: 8px; margin-bottom: 16px; }
   .dsg-group > b { font-size: 14px; }
+  .dsg-group[hidden] { display: none; }
   .dsg-opts { display: flex; flex-wrap: wrap; gap: 8px; }
   .dsg-opts button { display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px; border-radius: 14px; font-weight: 700; }
   .dsg-opts button i { width: 18px; height: 18px; border-radius: 50%; box-shadow: 0 0 10px rgba(255,255,255,.25); }
-  .dsg-opts button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; box-shadow: 0 8px 24px rgba(62,224,255,.3); }
+  .dsg-opts button.active { background: var(--grad) !important; color: #061024 !important; border-color: transparent !important; box-shadow: 0 8px 24px color-mix(in srgb, var(--cyan) 30%, transparent); }
   .subnav { display: flex; flex-wrap: wrap; gap: 8px; }
   .subnav[hidden], .subnav button[hidden] { display: none; }
   .subnav button { display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 999px; font-size: 13.5px; font-weight: 700; background: rgba(255,255,255,.04); border: 1px solid var(--line); color: var(--muted, #8fa39a); }
@@ -582,7 +583,7 @@
   .oi-tag.low { background: rgba(255,120,120,.15); color: #ff8f8f; }
   .oi-tag.high { background: rgba(246,200,95,.16); color: #f6c85f; }
   .oi-now { font-size: 13.5px; }
-  .site-footer p a, .footer-preview p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #3ee0ff; }
+  .site-footer p a, .footer-preview p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--cyan); }
   .acc-more { grid-column: 1 / -1; display: grid; gap: 12px; margin-top: 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.03); animation: v3-in .25s ease both; }
   .acc-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
   .acc-facts span { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
@@ -590,18 +591,28 @@
   .acc-more textarea { width: 100%; resize: vertical; }
   .acc-more .bad { color: #ff8f8f; }
   .acc-row[data-kind] button[aria-expanded="true"] { background: var(--grad) !important; color: #061024 !important; }
-  .avatar.pic, .acc-avatar.pic { object-fit: cover; padding: 0; border: 2px solid rgba(62,224,255,.35); }
+  .avatar.pic, .acc-avatar.pic { object-fit: cover; padding: 0; border: 2px solid color-mix(in srgb, var(--cyan) 35%, transparent); }
   .acc-name { display: flex; gap: 10px; align-items: center; min-width: 0; }
   .acc-txt { min-width: 0; }
-  .acc-avatar { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-weight: 800; font-size: 15px; background: rgba(62,224,255,.14); color: #3ee0ff; }
+  .acc-avatar { flex: 0 0 36px; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-weight: 800; font-size: 15px; background: color-mix(in srgb, var(--cyan) 14%, transparent); color: var(--cyan); }
   .acc-pic { margin: 0; }
   #whoPic:empty { display: none; }
   .who-pic { display: grid; place-items: center; font-weight: 800; object-fit: cover; width: 26px; height: 26px; border-radius: 8px; font-size: 12px; }
   .ssh-cmd { margin: 4px 0 12px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--line); background: rgba(0,0,0,.25); font-family: "IBM Plex Mono", monospace; overflow-x: auto; }
-  .ssh-cmd code { color: #3ee0ff; white-space: nowrap; }
+  .ssh-cmd code { color: var(--cyan); white-space: nowrap; }
   a.btn-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-weight: 700; text-decoration: none; }
   .ssh-quick { display: flex; flex-wrap: wrap; gap: 8px; }
   .ssh-quick button { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+  /* Farbwelten und Animationen der Chain-Seite (Einstellungen → Chain-Design) */
+  html[data-accent="emerald"] { --electric: #14b88a; --cyan: #5ff5b8; --violet: #2ad1c9; --green: #5ff5b8; --grad: linear-gradient(120deg, #0fa37a, #5ff5b8 45%, #2ad1c9); }
+  html[data-accent="violet"] { --electric: #7a4dff; --cyan: #c08bff; --violet: #ff6bd5; --green: #c08bff; --grad: linear-gradient(120deg, #6a3dff, #c08bff 45%, #ff6bd5); }
+  html[data-accent="gold"] { --electric: #e08a1e; --cyan: #ffd27a; --violet: #ff8f5a; --green: #ffd27a; --grad: linear-gradient(120deg, #d9821a, #ffd27a 45%, #ff8f5a); }
+  html[data-accent="emerald"] .ambient { filter: hue-rotate(-60deg) saturate(1.1); }
+  html[data-accent="violet"] .ambient { filter: hue-rotate(40deg); }
+  html[data-accent="gold"] .ambient { filter: hue-rotate(170deg) saturate(.9); }
+  html[data-motion="reduced"] .ambient *, html[data-motion="reduced"] .ambient { animation: none !important; }
+  html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation: none !important; transition: none !important; }
+  html[data-motion="off"] .ambient-waves, html[data-motion="off"] .ambient-dot { display: none !important; }
 </style>
 </head>
 <body>
@@ -1103,7 +1114,7 @@
       <button type="button" data-v="original"><i style="background:linear-gradient(145deg,#75f59a,#2ed164)"></i>Original</button>
       <button type="button" data-v="new"><i style="background:linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)"></i>Neu</button>
     </div></div>
-    <div class="dsg-group"><b>Farbwelt</b> <small class="muted">nur im neuen Design</small><div class="dsg-opts" data-dsg="siteAccent">
+    <div class="dsg-group"><b>Farbwelt</b><div class="dsg-opts" data-dsg="siteAccent">
       <button type="button" data-v="neon"><i style="background:linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)"></i>Neon Blau</button>
       <button type="button" data-v="emerald"><i style="background:linear-gradient(120deg,#0fa37a,#5ff5b8,#2ad1c9)"></i>Smaragd</button>
       <button type="button" data-v="violet"><i style="background:linear-gradient(120deg,#6a3dff,#c08bff,#ff6bd5)"></i>Violett</button>
@@ -1116,6 +1127,20 @@
       <button type="button" data-v="full">✨ Voll</button><button type="button" data-v="reduced">🌊 Ruhig</button><button type="button" data-v="off">⏸ Aus</button>
     </div></div>
     <div class="msg" id="designMsg"></div>
+  </section>
+
+  <section class="card design-card owner-basic" id="chainDesignCard" data-perm="w:chainDesign">
+    <h2>Design der Chain-Seite <span>gilt für alle, die diese Seite öffnen</span></h2>
+    <div class="dsg-group"><b>Farbwelt</b><div class="dsg-opts" data-dsg="chainAccent">
+      <button type="button" data-v="neon"><i style="background:linear-gradient(120deg,#2f7bff,#3ee0ff,#8b5cff)"></i>Neon Blau</button>
+      <button type="button" data-v="emerald"><i style="background:linear-gradient(120deg,#0fa37a,#5ff5b8,#2ad1c9)"></i>Smaragd</button>
+      <button type="button" data-v="violet"><i style="background:linear-gradient(120deg,#6a3dff,#c08bff,#ff6bd5)"></i>Violett</button>
+      <button type="button" data-v="gold"><i style="background:linear-gradient(120deg,#d9821a,#ffd27a,#ff8f5a)"></i>Gold</button>
+    </div></div>
+    <div class="dsg-group"><b>Animationen</b><div class="dsg-opts" data-dsg="chainMotion">
+      <button type="button" data-v="full">✨ Voll</button><button type="button" data-v="reduced">🌊 Ruhig</button><button type="button" data-v="off">⏸ Aus</button>
+    </div></div>
+    <div class="msg" id="chainDesignMsg"></div>
   </section>
 
   <section class="card footer-card owner-basic" id="footerCard" data-perm="w:madeBy">
@@ -1147,7 +1172,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#designCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
+  einstellungen: ["#designCard", "#chainDesignCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
   infos: ["#infosCard"],
 };
 {
@@ -1207,7 +1232,7 @@ new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes
 // ---------- Unter-Navigation: lange Bereiche zeigen immer nur eine Karte ----------
 const SUBNAV = {
   verwaltung: { "#adminCard": "🛡 Admin", "#coinAdminCard": "🪙 Coins", "#bankCard": "🏦 Bank", "#statsCard": "📊 Statistik", "#announceCard": "📣 Ankündigung" },
-  einstellungen: { "#designCard": "🎨 Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen", "#sshCard": "🖥 Server" },
+  einstellungen: { "#designCard": "🎨 Hauptseite", "#chainDesignCard": "⛓ Chain-Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen", "#sshCard": "🖥 Server" },
 };
 function subnavChoice(page) { try { return localStorage.getItem(`chain-sub-${page}`) || ""; } catch { return ""; } }
 function subnavApply(page, pick, { save = false } = {}) {
@@ -1324,7 +1349,7 @@ async function refresh() {
     setChainStatus(true, `Live · Block #${s.height ?? "?"}`);
     stats = s; accounts = acc;
     { const mine = accounts.find((a) => a.address === myAddress); $("whoPic").innerHTML = mine && (mine.avatar || mine.color) ? avatarHtml(mine.name, mine.avatar, mine.color, "who-pic") : ""; }
-    renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
+    chainDesignApply(s.settings); renderStats(s); renderAccounts(); renderBlocks(blocks); renderMempool(mempool); renderRecent(s.recentBlocks); renderMiner(); renderLocal(s.localMiner); renderLog(s.log);
     const market = await api("/api/market?address=" + encodeURIComponent($("orderAddress").value || "")); renderMarket(market, s);
     if (!settingsDirty) renderSettings(s.settings);
     renderPayMethods(s.settings);
@@ -2543,9 +2568,28 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
 // ---------- Design der Hauptseite ----------
 function designSync(settings) {
   const w = settings?.website ?? {};
-  const cur = { siteAccent: w.siteAccent ?? "neon", siteMode: w.siteMode ?? "dark", siteMotion: w.siteMotion ?? "full", siteStyle: w.siteStyle ?? "new" };
+  const cur = { chainAccent: w.chainAccent ?? "neon", chainMotion: w.chainMotion ?? "full", siteAccent: w.siteAccent ?? "neon", siteMode: w.siteMode ?? "dark", siteMotion: w.siteMotion ?? "full", siteStyle: w.siteStyle ?? "new" };
+  // Im Original-Design gibt es keine Farbwelt/Modus/Animationen → diese Einstellungen ausblenden
+  document.querySelectorAll('#designCard .dsg-opts:not([data-dsg="siteStyle"])').forEach((g) => { g.closest(".dsg-group").hidden = cur.siteStyle === "original"; });
   document.querySelectorAll(".dsg-opts").forEach((g) => g.querySelectorAll("button").forEach((b) => { b.classList.toggle("active", b.dataset.v === cur[g.dataset.dsg]); b.setAttribute("aria-pressed", String(b.dataset.v === cur[g.dataset.dsg])); }));
 }
+// Design der Chain-Seite auf <html> anwenden (für alle Besucher, kommt mit den Statistiken)
+function chainDesignApply(settings) {
+  const w = settings?.website ?? {};
+  document.documentElement.dataset.accent = ["emerald", "violet", "gold"].includes(w.chainAccent) ? w.chainAccent : "neon";
+  document.documentElement.dataset.motion = ["reduced", "off"].includes(w.chainMotion) ? w.chainMotion : "full";
+}
+$("chainDesignCard").addEventListener("click", async (e) => {
+  const b = e.target.closest(".dsg-opts button"); if (!b) return;
+  const key = b.closest(".dsg-opts").dataset.dsg;
+  b.closest(".dsg-opts").querySelectorAll("button").forEach((x) => x.classList.toggle("active", x === b));
+  try {
+    const r = await api("/api/settings", { website: { [key]: b.dataset.v } });
+    if (stats) stats.settings = r;
+    designSync(r); chainDesignApply(r);
+    say("chainDesignMsg", "Übernommen – gilt sofort auf der Chain-Seite.");
+  } catch (err) { say("chainDesignMsg", err.message, true); }
+});
 $("designCard").addEventListener("click", async (e) => {
   const b = e.target.closest(".dsg-opts button"); if (!b) return;
   const key = b.closest(".dsg-opts").dataset.dsg;
@@ -2557,7 +2601,7 @@ $("designCard").addEventListener("click", async (e) => {
     say("designMsg", r.websitePush?.ok === false ? `Gespeichert – Hauptseite noch nicht aktualisiert (${r.websitePush?.error ?? "?"}).` : "Übernommen – die Hauptseite zeigt es beim nächsten Laden (spätestens nach 2 Minuten).", r.websitePush?.ok === false);
   } catch (err) { say("designMsg", err.message, true); }
 });
-setInterval(() => { if (stats?.settings) designSync(stats.settings); }, 3000);
+setInterval(() => { if (stats?.settings) { designSync(stats.settings); chainDesignApply(stats.settings); } }, 3000);
 
 // ---------- Fusszeile "Made by" ----------
 const FOOTER_DEFAULT = "Made by Ilja";
