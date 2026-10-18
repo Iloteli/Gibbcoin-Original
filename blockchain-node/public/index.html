@@ -592,6 +592,7 @@
   .pf-pic { display: grid; gap: 4px; } .pf-pic small { color: var(--muted); }
   @media (max-width: 760px) { .pf-grid, .pf-small { grid-template-columns: 1fr; } }
   #profileCard[hidden] { display: none !important; }
+  .site-footer p a, .footer-preview p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #3ee0ff; }
 </style>
 </head>
 <body>
@@ -2543,8 +2544,17 @@ setInterval(() => { if (stats?.settings) designSync(stats.settings); }, 3000);
 // ---------- Fusszeile "Made by" ----------
 const FOOTER_DEFAULT = "Made by Ilja";
 let footerLoaded = false;
+// Links im Text (https://… oder www.…) anklickbar machen – ohne innerHTML
+function footerFill(el, text) {
+  el.replaceChildren(...String(text).split(/(https?:\/\/[^\s]+|www\.[^\s]+)/g).map((part, i) => {
+    if (i % 2 === 0) return document.createTextNode(part);
+    const a = document.createElement("a");
+    a.href = part.startsWith("http") ? part : `https://${part}`; a.target = "_blank"; a.rel = "noopener noreferrer nofollow"; a.textContent = part;
+    return a;
+  }));
+}
 function footerShow(text) {
-  $("siteFooterText").textContent = text;
+  footerFill($("siteFooterText"), text);
   $("siteFooterText").closest(".site-footer").hidden = !text.trim();
 }
 function footerSync(settings) {
@@ -2555,7 +2565,7 @@ function footerSync(settings) {
 }
 function footerPreview() {
   const v = $("footerInput").value;
-  $("footerPreview").textContent = v.trim() || "(Fusszeile ausgeblendet)";
+  if (v.trim()) footerFill($("footerPreview"), v); else $("footerPreview").textContent = "(Fusszeile ausgeblendet)";
   $("footerCount").textContent = String(v.length);
 }
 $("footerInput").addEventListener("input", footerPreview);

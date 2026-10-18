@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import { getSupabase } from "../lib/supabase";
 
+// Links im Text (https://… oder www.…) werden anklickbar
+const LINK = /(https?:\/\/[^\s]+|www\.[^\s]+)/g;
+function withLinks(text: string) {
+  return text.split(LINK).map((part, i) => {
+    if (i % 2 === 0) return part;
+    const href = part.startsWith("http") ? part : `https://${part}`;
+    return <a key={i} href={href} target="_blank" rel="noopener noreferrer nofollow">{part}</a>;
+  });
+}
+
 // "Made by"-Fusszeile; der Text wird auf der Chain-Seite unter Einstellungen bearbeitet.
 export function SiteFooter() {
   const [text, setText] = useState("Made by Ilja");
@@ -20,7 +30,7 @@ export function SiteFooter() {
   return (
     <footer className="site-footer">
       <span className="site-footer-line" aria-hidden="true" />
-      <p>{text}</p>
+      <p>{withLinks(text)}</p>
     </footer>
   );
 }
