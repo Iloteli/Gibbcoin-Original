@@ -14,6 +14,7 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
   const [color, setColor] = useState(profile.profile_color ?? "#35e070");
   const [avatarUrl, setAvatarUrl] = useState(profile.avatar_url ?? "");
   const [contacts, setContacts] = useState(0);
+  const [avatarBlocked, setAvatarBlocked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -22,6 +23,8 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
     const supabase = getSupabase();
     if (!supabase) return;
     void supabase.rpc("list_contacts").then(({ data }) => setContacts(Array.isArray(data) ? data.length : 0));
+    // Vom Owner gesperrt? Dann kein Hochladen (fehlt die Funktion noch, ist nichts gesperrt)
+    void supabase.rpc("get_my_avatar_blocked").then(({ data }) => setAvatarBlocked(data === true));
   }, []);
 
   async function uploadAvatar(file?: File) {
@@ -82,7 +85,7 @@ export function ProfileEditor({ userId, profile, onChanged }: Props) {
         <div className="field"><label htmlFor="profile-name">Anzeigename</label><input id="profile-name" className="input" minLength={2} maxLength={60} required value={displayName} onChange={(event) => setDisplayName(event.target.value)} /></div>
         <div className="field"><label htmlFor="profile-username">Benutzername <span>{username.length}/24</span></label><input id="profile-username" className="input" minLength={3} maxLength={24} required pattern="[a-z0-9][a-z0-9._\-]{2,23}" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, "").slice(0, 24))} placeholder="z.B. ilja.p" /><small className="field-hint">3–24 Zeichen: Kleinbuchstaben, Ziffern, Punkt, Bindestrich, Unterstrich. Eindeutig für alle.</small></div>
         <div className="field"><label htmlFor="profile-bio">Über mich <span>{bio.length}/180</span></label><textarea id="profile-bio" className="input" maxLength={180} rows={3} value={bio} onChange={(event) => setBio(event.target.value)} placeholder="Kurz und freundlich …" /></div>
-        <div className="profile-small-fields"><div className="field"><label htmlFor="profile-color">Profilfarbe</label><input id="profile-color" className="input color-input" type="color" value={color} onChange={(event) => setColor(event.target.value)} /></div><div className="field"><label htmlFor="profile-avatar">Profilbild</label><input id="profile-avatar" className="input" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => void uploadAvatar(event.target.files?.[0])} />{avatarUrl && <button type="button" className="avatar-reset" disabled={busy} onClick={() => { setAvatarUrl(""); setError(""); setMessage("Profilbild entfernt. Speichere jetzt dein Profil."); }}>↺ Profilbild zurücksetzen</button>}</div></div>
+        <div className="profile-small-fields"><div className="field"><label htmlFor="profile-color">Profilfarbe</label><input id="profile-color" className="input color-input" type="color" value={color} onChange={(event) => setColor(event.target.value)} /></div><div className="field"><label htmlFor="profile-avatar">Profilbild</label>{avatarBlocked ? <p className="field-hint">Profilbilder sind für dein Konto deaktiviert.</p> : <input id="profile-avatar" className="input" type="file" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(event) => void uploadAvatar(event.target.files?.[0])} />}{avatarUrl && !avatarBlocked && <button type="button" className="avatar-reset" disabled={busy} onClick={() => { setAvatarUrl(""); setError(""); setMessage("Profilbild entfernt. Speichere jetzt dein Profil."); }}>↺ Profilbild zurücksetzen</button>}</div></div>
         <button className="primary" type="submit" disabled={busy}>{busy ? "Speichert …" : "Profil speichern"}</button>
         {message && <p className="message success-message" role="status">{message}</p>}{error && <p className="message error" role="alert">{error}</p>}
       </div>

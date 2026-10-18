@@ -101,7 +101,6 @@ export class Blockchain {
     this.lastPrice = null;
     this.ownerLevels = {}; // Supabase-ID eines Website-Owners -> "basic" | "full"
     this.ownerDisabled = {}; // Supabase-ID eines Website-Owners -> true = darf sich auf der Chain-Seite nicht anmelden
-    this.avatarHidden = {}; // Adresse -> true: Profilbild der Hauptseite auf der Chain-Seite ausblenden
     this.userPermissions = {}; // Adresse eines Basic-Kontos -> eigene Rechte (sonst gelten die Basic-Standardrechte)
     this.load();
   }
@@ -122,7 +121,6 @@ export class Blockchain {
       this.lastPrice = raw.lastPrice ?? null;
       this.ownerLevels = raw.ownerLevels ?? {};
       this.userPermissions = raw.userPermissions ?? {};
-      this.avatarHidden = raw.avatarHidden ?? {};
       this.ownerDisabled = raw.ownerDisabled ?? {};
     }
     // Bestehende Konten fair mit Startguthaben und Sperr-Feldern nachrüsten.
@@ -175,7 +173,7 @@ export class Blockchain {
     if (!this.file) return;
     mkdirSync(dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice, ownerLevels: this.ownerLevels, userPermissions: this.userPermissions, ownerDisabled: this.ownerDisabled, avatarHidden: this.avatarHidden }, null, 2));
+    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice, ownerLevels: this.ownerLevels, userPermissions: this.userPermissions, ownerDisabled: this.ownerDisabled }, null, 2));
     renameSync(tmp, this.file);
   }
 
@@ -496,22 +494,17 @@ export class Blockchain {
   // Auto-Registrierung (alle paar Sekunden) darf das Guthaben NICHT überschreiben,
   // sonst würden gerade gefundene Mining-Belohnungen sofort wieder gelöscht.
   // Profilbild und Profilfarbe eines Website-Kontos übernehmen (nur öffentliche Supabase-Avatare)
-  setWebsiteLook(supabaseId, avatarUrl, color) {
+  setWebsiteLook(supabaseId, avatarUrl, color, blocked) {
     const acc = this.accounts[`sb_${supabaseId}`];
     if (!acc) return false;
     const avatar = /^https:\/\/[a-z0-9-]+\.supabase\.co\/storage\/v1\/object\/public\/avatars\/[A-Za-z0-9._/-]+$/.test(String(avatarUrl ?? "")) ? String(avatarUrl) : null;
     const col = /^#[0-9a-f]{6}$/i.test(String(color ?? "")) ? String(color).toLowerCase() : null;
-    if ((acc.avatar ?? null) === avatar && (acc.color ?? null) === col) return false;
+    const isBlocked = blocked === undefined ? acc.avatarBlocked === true : blocked === true;
+    if ((acc.avatar ?? null) === avatar && (acc.color ?? null) === col && (acc.avatarBlocked === true) === isBlocked) return false;
     acc.avatar = avatar; acc.color = col;
+    if (isBlocked) acc.avatarBlocked = true; else delete acc.avatarBlocked;
     this.save();
     return true;
-  }
-
-  setAvatarHidden(address, hidden) {
-    if (!this.accounts[address]) throw new Error("account_not_found");
-    if (hidden) this.avatarHidden[address] = true; else delete this.avatarHidden[address];
-    this.save();
-    return { address, hidden: Boolean(hidden) };
   }
 
   upsertWebsiteAccount(supabaseId, name, balance, { overwriteBalance = false } = {}) {

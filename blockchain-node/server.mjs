@@ -417,7 +417,7 @@ const routes = {
   },
   "GET /api/mempool": () => chain.mempool,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- supabaseId bewusst weglassen
-  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, { supabaseId: _sid, avatar, ...a }]) => ({ address, ...a, avatar: chain.avatarHidden[address] ? null : avatar ?? null, hasAvatar: Boolean(avatar), avatarHidden: chain.avatarHidden[address] === true, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
+  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, { supabaseId: _sid, avatar, ...a }]) => ({ address, ...a, avatar: avatar ?? null, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
   "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
   "POST /api/order": (_, body) => {
     const sess = requireSession(body);
@@ -529,7 +529,7 @@ const routes = {
   "POST /api/admin/owner-levels": async (_, body) => {
     await requireOwner(body);
     const users = await settingsSync.listWebsiteUsers();
-    return { owners: users.filter((u) => u.role === "super_admin").map((u) => ({ id: u.id, username: u.username, display_name: u.display_name, primary: u.is_primary === true, disabled: chain.ownerDisabled[u.id] === true, custom: Array.isArray(chain.userPermissions[`sb_${u.id}`]), avatar: chain.accounts[`sb_${u.id}`]?.avatar ?? null, color: chain.accounts[`sb_${u.id}`]?.color ?? null, avatarHidden: chain.avatarHidden[`sb_${u.id}`] === true, level: u.is_primary === true || chain.ownerLevels[u.id] === "full" ? "full" : "basic" })) };
+    return { owners: users.filter((u) => u.role === "super_admin").map((u) => ({ id: u.id, username: u.username, display_name: u.display_name, primary: u.is_primary === true, disabled: chain.ownerDisabled[u.id] === true, custom: Array.isArray(chain.userPermissions[`sb_${u.id}`]), avatar: chain.accounts[`sb_${u.id}`]?.avatar ?? null, color: chain.accounts[`sb_${u.id}`]?.color ?? null, avatarBlocked: u.avatar_blocked === true, level: u.is_primary === true || chain.ownerLevels[u.id] === "full" ? "full" : "basic" })) };
   },
   // Website-Owner auf der Chain-Seite sperren/freigeben (Website-Konto bleibt unverändert)
   "POST /api/admin/owner-disable": async (_, body) => {
@@ -598,7 +598,7 @@ const routes = {
     await requireOwner(body);
     const active = {};
     for (const sess of sessions.values()) if (sess.expires > Date.now()) { const n = String(sess.username ?? "").toLowerCase(); active[n] = (active[n] ?? 0) + 1; }
-    return { users: chain.listUsers().map((u) => ({ ...u, custom: Array.isArray(chain.userPermissions[u.address]), sessions: active[u.key] ?? 0, avatar: chain.accounts[u.address]?.avatar ?? null, color: chain.accounts[u.address]?.color ?? null, avatarHidden: chain.avatarHidden[u.address] === true })) };
+    return { users: chain.listUsers().map((u) => ({ ...u, custom: Array.isArray(chain.userPermissions[u.address]), sessions: active[u.key] ?? 0, avatar: chain.accounts[u.address]?.avatar ?? null, color: chain.accounts[u.address]?.color ?? null, avatarBlocked: chain.accounts[u.address]?.avatarBlocked === true })) };
   },
   "POST /api/admin/node-users/meta": async (_, body) => {
     await requireOwner(body);
@@ -617,11 +617,17 @@ const routes = {
     note("auth", `Chain-Konto ${r.from} heisst jetzt ${r.username}`);
     return r;
   },
-  "POST /api/admin/avatar-hidden": async (_, body) => {
+  // Profilbild auf der Hauptseite für einen Benutzer sperren/erlauben
+  "POST /api/admin/avatar-block": async (_, body) => {
     await requireAdminPermission(body, "a:accounts");
-    const r = chain.setAvatarHidden(String(body.address ?? ""), body.hidden === true);
-    note("auth", `Profilbild ${r.hidden ? "ausgeblendet" : "wieder sichtbar"}: ${chain.accounts[r.address]?.name ?? r.address}`);
-    return r;
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("user_not_found");
+    const blocked = body.blocked === true;
+    await settingsSync.setAvatarBlocked(id, blocked);
+    const acc = chain.accounts[`sb_${id}`];
+    if (acc) chain.setWebsiteLook(id, blocked ? null : acc.avatar, acc.color, blocked);
+    note("auth", `Profilbild ${blocked ? "gesperrt" : "wieder erlaubt"}: ${acc?.name ?? id}`);
+    return { ok: true, blocked };
   },
   // Profilbild eines Benutzers auf der Hauptseite entfernen (z. B. unpassendes Bild)
   "POST /api/admin/avatar-reset": async (_, body) => {

@@ -1837,7 +1837,7 @@ function adRenderUsers() {
         <select data-act="fun"><option value=""${!u.visual_role ? " selected" : ""}>Kein Fun-Rang</option><option value="demo_admin"${u.visual_role === "demo_admin" ? " selected" : ""}>Fun: Admin</option><option value="demo_owner"${u.visual_role === "demo_owner" ? " selected" : ""}>Fun: Owner</option></select>
         ${isFullView() ? `<button data-act="verify">${adVerified.has(String(u.user_id).toLowerCase()) ? "QR-Verifizierung entfernen" : "Für QR-Rechnung verifizieren"}</button>` : ""}
         <button data-act="reset">Passwort-Reset</button>
-        ${(() => { const a = accounts.find((x) => x.address === `sb_${String(u.user_id).toLowerCase()}`); if (!a) return ""; return `<button data-act="pic-toggle" data-hidden="${a.avatarHidden ? "1" : "0"}" title="Profilbild auf der Chain-Seite">${a.avatarHidden ? "🖼 Bild auf Chain: aus" : "🖼 Bild auf Chain: an"}</button>${a.hasAvatar ? `<button data-act="pic-reset">Profilbild zurücksetzen</button>` : ""}`; })()}
+        ${(() => { const a = accounts.find((x) => x.address === `sb_${String(u.user_id).toLowerCase()}`); if (!a) return ""; return `<button data-act="pic-toggle" data-blocked="${a.avatarBlocked ? "1" : "0"}" class="${a.avatarBlocked ? "danger" : ""}" title="Profilbild auf der Hauptseite">${a.avatarBlocked ? "🚫 Profilbild gesperrt" : "🖼 Profilbild erlaubt"}</button>${a.avatar ? `<button data-act="pic-reset">Profilbild zurücksetzen</button>` : ""}`; })()}
         ${canUse("a:accountsDelete") ? `<button class="danger" data-act="delete">Löschen</button>` : ""}
       </div></div>`;
   }).join("") || `<div class="muted">Keine Benutzer gefunden.</div>`;
@@ -1870,9 +1870,10 @@ $("adUsers").addEventListener("click", async (e) => {
   const row = btn.closest(".ad-user"); const id = row.dataset.id; const name = row.dataset.name;
   try {
     if (btn.dataset.act === "pic-toggle") {
-      const hide = btn.dataset.hidden !== "1";
-      await api("/api/admin/avatar-hidden", { address: `sb_${String(id).toLowerCase()}`, hidden: hide });
-      say("adMsg", hide ? `Profilbild von ${name} ist auf der Chain-Seite ausgeblendet.` : `Profilbild von ${name} wird auf der Chain-Seite wieder gezeigt.`);
+      const block = btn.dataset.blocked !== "1";
+      if (block && !confirm(`Profilbild für ${name} sperren? Das jetzige Bild wird auf der Hauptseite entfernt und ${name} kann kein neues hochladen.`)) return;
+      await api("/api/admin/avatar-block", { userId: id, blocked: block });
+      say("adMsg", block ? `${name} kann auf der Hauptseite kein Profilbild mehr haben.` : `${name} darf wieder ein Profilbild hochladen.`);
       await refresh(); adRenderUsers(); return;
     }
     if (btn.dataset.act === "pic-reset") {
@@ -2281,10 +2282,10 @@ async function accLoad() {
   try { nodeUsers = (await api("/api/admin/node-users", {})).users ?? []; } catch (e) { nuFail(e); }
   try { owners = (await api("/api/admin/owner-levels", {})).owners ?? []; } catch { owners = []; }
   const rows = [];
-  for (const u of nodeUsers) rows.push({ kind: "chain", avatar: u.avatar, color: u.color, avatarHidden: u.avatarHidden, id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB · ${u.lastLogin ? "zuletzt " + accAgo(u.lastLogin) : "noch nie angemeldet"}${u.sessions ? ` · ${u.sessions} aktiv` : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom, user: u });
+  for (const u of nodeUsers) rows.push({ kind: "chain", avatar: u.avatar, color: u.color, avatarBlocked: u.avatarBlocked, id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB · ${u.lastLogin ? "zuletzt " + accAgo(u.lastLogin) : "noch nie angemeldet"}${u.sessions ? ` · ${u.sessions} aktiv` : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom, user: u });
   for (const o of owners) {
     if (o.primary) { const me = rows.find((r) => r.owner); if (me) { me.sub += ` · Website @${o.username}`; me.avatar = me.avatar || o.avatar; me.color = me.color || o.color; continue; } }
-    rows.push({ kind: "web", avatar: o.avatar, color: o.color, avatarHidden: o.avatarHidden, username: o.username, id: o.id, name: o.display_name || o.username, sub: `Website-Owner · @${o.username}`, level: o.level, owner: o.primary, disabled: o.disabled, address: `sb_${o.id}`, custom: o.custom });
+    rows.push({ kind: "web", avatar: o.avatar, color: o.color, avatarBlocked: o.avatarBlocked, username: o.username, id: o.id, name: o.display_name || o.username, sub: `Website-Owner · @${o.username}`, level: o.level, owner: o.primary, disabled: o.disabled, address: `sb_${o.id}`, custom: o.custom });
   }
   const order = (r) => (r.owner ? 0 : r.level === "full" ? 1 : r.level === "basic" ? 2 : 3);
   accRows = rows.sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name, "de"));
@@ -2305,7 +2306,7 @@ function accRender() {
       `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>`,
     ].join("");
     const u = r.user;
-    const picSwitch = String(r.address).startsWith("sb_") ? `<label class="switch acc-pic"><input type="checkbox" data-acc="pic"${r.avatarHidden ? "" : " checked"} /><span class="knob"></span><span class="switch-text"><b>Profilbild der Hauptseite auf der Chain-Seite zeigen</b><small>${r.avatar ? "aus = nur der Anfangsbuchstabe wird gezeigt" : "dieses Konto hat zurzeit kein Profilbild"}</small></span></label>` : "";
+    const picSwitch = String(r.address).startsWith("sb_") ? `<label class="switch acc-pic"><input type="checkbox" data-acc="pic"${r.avatarBlocked ? "" : " checked"} /><span class="knob"></span><span class="switch-text"><b>Profilbild auf der Hauptseite erlaubt</b><small>aus = Bild wird entfernt und es kann kein neues hochgeladen werden</small></span></label>` : "";
     const more = r.kind === "web" && accOpen === r.id ? `<div class="acc-more">
       <div class="acc-facts"><span>Konto<b>Website-Owner</b></span><span>Benutzername<b>@${h(r.username ?? "")}</b></span><span>Stufe<b>${levelName[r.level] ?? r.level}</b></span><span>Wallet<b><code>${h(r.address)}</code></b></span></div>
       ${picSwitch}
@@ -2319,7 +2320,7 @@ function accRender() {
       </div>`}
       <div class="actions"><button class="primary" data-acc="save-more">Speichern</button>${r.owner ? "" : `<button data-acc="rename">Umbenennen</button><button data-acc="logout"${u.sessions ? "" : " disabled"}>Überall abmelden</button>`}</div>
     </div>` : "";
-    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name">${avatarHtml(r.name, r.avatarHidden ? null : r.avatar, r.color, "acc-avatar")}<div class="acc-txt"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div>${more}</div>`;
+    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name">${avatarHtml(r.name, r.avatar, r.color, "acc-avatar")}<div class="acc-txt"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div>${more}</div>`;
   }).join("") || `<div class="muted">Keine Konten gefunden.</div>`;
 }
 $("accSearch").addEventListener("input", accRender);
@@ -2327,8 +2328,9 @@ $("nuList").addEventListener("change", async (e) => {
   const box = e.target.closest('input[data-acc="pic"]'); if (!box) return;
   const row = box.closest(".acc-row");
   try {
-    await api("/api/admin/avatar-hidden", { address: row.dataset.addr, hidden: !box.checked });
-    say("adMsg", box.checked ? `Profilbild von ${row.dataset.name} wird wieder gezeigt.` : `Profilbild von ${row.dataset.name} ist auf der Chain-Seite ausgeblendet.`);
+    if (!box.checked && !confirm(`Profilbild für ${row.dataset.name} sperren? Das Bild wird auf der Hauptseite entfernt.`)) { box.checked = true; return; }
+    await api("/api/admin/avatar-block", { userId: row.dataset.addr.replace(/^sb_/, ""), blocked: !box.checked });
+    say("adMsg", box.checked ? `${row.dataset.name} darf wieder ein Profilbild haben.` : `${row.dataset.name} kann auf der Hauptseite kein Profilbild mehr haben.`);
   } catch (err) { box.checked = !box.checked; nuFail(err); return; }
   await accLoad(); void refresh();
 });
