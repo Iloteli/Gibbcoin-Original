@@ -196,6 +196,7 @@
   .ad-users { max-height: 520px; margin-top: 10px; }
   .ad-user { grid-template-columns: minmax(0, 1fr) !important; cursor: default !important; gap: 8px !important; }
   .ad-user .top { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .ad-who { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .ad-user .badges { display: flex; gap: 6px; flex-wrap: wrap; }
   .ad-badge { font-size: 10px; border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; color: var(--muted); }
   .ad-badge.owner { color: var(--amber); border-color: rgba(246,200,95,.4); }
@@ -1805,7 +1806,7 @@ function adRenderUsers() {
   $("adUsers").innerHTML = list.map((u) => {
     const locked = u.wallet_status === "locked";
     return `<div class="item ad-user" data-id="${h(u.user_id)}" data-name="${h(u.display_name || u.username)}">
-      <div class="top"><div><b>${h(u.display_name || u.username)}</b> <small class="muted">@${h(u.username)} · ${fmt(u.balance)} GIBB</small></div>
+      <div class="top"><div class="ad-who">${(() => { const a = accounts.find((x) => x.address === `sb_${String(u.user_id).toLowerCase()}`); return avatarHtml(u.display_name || u.username, a?.avatar, a?.color, "acc-avatar"); })()}<b>${h(u.display_name || u.username)}</b> <small class="muted">@${h(u.username)} · ${fmt(u.balance)} GIBB</small></div>
       <div class="badges"><span class="ad-badge ${u.role === "super_admin" ? "owner" : u.role === "admin" ? "admin" : ""}">${roleLabel(u.role)}</span>${locked ? `<span class="ad-badge locked" title="${h(u.lock_reason || "")}">gebannt${u.locked_until ? " bis " + new Date(u.locked_until).toLocaleString("de-CH") : ""}</span>` : ""}${u.visual_role ? `<span class="ad-badge">Fun-Rang</span>` : ""}${adVerified.has(String(u.user_id).toLowerCase()) ? `<span class="ad-badge admin">✓ QR verifiziert</span>` : ""}</div></div>
       <div class="acts">
         ${isFullView() ? `<select data-act="role"><option value="user"${u.role === "user" ? " selected" : ""}>Benutzer</option><option value="admin"${u.role === "admin" ? " selected" : ""}>Admin</option><option value="super_admin"${u.role === "super_admin" ? " selected" : ""}>Owner</option></select>` : ""}
@@ -1813,6 +1814,7 @@ function adRenderUsers() {
         <select data-act="fun"><option value=""${!u.visual_role ? " selected" : ""}>Kein Fun-Rang</option><option value="demo_admin"${u.visual_role === "demo_admin" ? " selected" : ""}>Fun: Admin</option><option value="demo_owner"${u.visual_role === "demo_owner" ? " selected" : ""}>Fun: Owner</option></select>
         ${isFullView() ? `<button data-act="verify">${adVerified.has(String(u.user_id).toLowerCase()) ? "QR-Verifizierung entfernen" : "Für QR-Rechnung verifizieren"}</button>` : ""}
         <button data-act="reset">Passwort-Reset</button>
+        ${(() => { const a = accounts.find((x) => x.address === `sb_${String(u.user_id).toLowerCase()}`); if (!a) return ""; return `<button data-act="pic-toggle" data-hidden="${a.avatarHidden ? "1" : "0"}" title="Profilbild auf der Chain-Seite">${a.avatarHidden ? "🖼 Bild auf Chain: aus" : "🖼 Bild auf Chain: an"}</button>${a.hasAvatar ? `<button data-act="pic-reset">Profilbild zurücksetzen</button>` : ""}`; })()}
         ${canUse("a:accountsDelete") ? `<button class="danger" data-act="delete">Löschen</button>` : ""}
       </div></div>`;
   }).join("") || `<div class="muted">Keine Benutzer gefunden.</div>`;
@@ -1844,6 +1846,18 @@ $("adUsers").addEventListener("click", async (e) => {
   const btn = e.target.closest("button[data-act]"); if (!btn) return;
   const row = btn.closest(".ad-user"); const id = row.dataset.id; const name = row.dataset.name;
   try {
+    if (btn.dataset.act === "pic-toggle") {
+      const hide = btn.dataset.hidden !== "1";
+      await api("/api/admin/avatar-hidden", { address: `sb_${String(id).toLowerCase()}`, hidden: hide });
+      say("adMsg", hide ? `Profilbild von ${name} ist auf der Chain-Seite ausgeblendet.` : `Profilbild von ${name} wird auf der Chain-Seite wieder gezeigt.`);
+      await refresh(); adRenderUsers(); return;
+    }
+    if (btn.dataset.act === "pic-reset") {
+      if (!confirm(`Profilbild von ${name} entfernen? Es verschwindet auch auf der Hauptseite. Die Person kann danach ein neues hochladen.`)) return;
+      await api("/api/admin/avatar-reset", { userId: id });
+      say("adMsg", `Profilbild von ${name} wurde zurückgesetzt.`);
+      await refresh(); adRenderUsers(); return;
+    }
     if (btn.dataset.act === "unban") { await api("/api/admin/status", { userId: id, name, status: "active" }); say("adMsg", `${name} wurde entbannt.`); }
     if (btn.dataset.act === "verify") {
       const on = !adVerified.has(String(id).toLowerCase());

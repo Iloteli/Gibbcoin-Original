@@ -417,7 +417,7 @@ const routes = {
   },
   "GET /api/mempool": () => chain.mempool,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars -- supabaseId bewusst weglassen
-  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, { supabaseId: _sid, avatar, ...a }]) => ({ address, ...a, avatar: chain.avatarHidden[address] ? null : avatar ?? null, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
+  "GET /api/accounts": () => Object.entries(chain.accounts).map(([address, { supabaseId: _sid, avatar, ...a }]) => ({ address, ...a, avatar: chain.avatarHidden[address] ? null : avatar ?? null, hasAvatar: Boolean(avatar), avatarHidden: chain.avatarHidden[address] === true, available: chain.availableBalance(address), availableCash: chain.availableCash(address) })).sort((x, y) => y.balance - x.balance),
   "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
   "POST /api/order": (_, body) => {
     const sess = requireSession(body);
@@ -618,10 +618,21 @@ const routes = {
     return r;
   },
   "POST /api/admin/avatar-hidden": async (_, body) => {
-    await requireOwner(body);
+    await requireAdminPermission(body, "a:accounts");
     const r = chain.setAvatarHidden(String(body.address ?? ""), body.hidden === true);
     note("auth", `Profilbild ${r.hidden ? "ausgeblendet" : "wieder sichtbar"}: ${chain.accounts[r.address]?.name ?? r.address}`);
     return r;
+  },
+  // Profilbild eines Benutzers auf der Hauptseite entfernen (z. B. unpassendes Bild)
+  "POST /api/admin/avatar-reset": async (_, body) => {
+    await requireAdminPermission(body, "a:accounts");
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("user_not_found");
+    const p = await settingsSync.getProfile(id);
+    const profile = await settingsSync.updateProfile(id, { username: p.username, display_name: p.display_name, bio: p.bio ?? "", profile_color: p.profile_color ?? "#35e070", remove_avatar: true });
+    chain.setWebsiteLook(id, profile?.avatar_url, profile?.profile_color);
+    note("auth", `Profilbild von @${p.username} zurückgesetzt`);
+    return { ok: true };
   },
   "POST /api/admin/node-users/logout": async (_, body) => {
     await requireOwner(body);
