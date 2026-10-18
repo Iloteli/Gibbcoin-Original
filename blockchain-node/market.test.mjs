@@ -94,3 +94,17 @@ test("upsertWebsiteAccount legt Website-Konten an und aktualisiert Guthaben", ()
   assert.equal(c.accounts["sb_abc-123"].balance, 999);
   assert.throws(() => c.upsertWebsiteAccount("", "X", 1), /invalid_supabase_id/);
 });
+
+test("eigene Wallets lassen sich löschen, geschützte nicht", () => {
+  const { c, a, b } = seed();
+  assert.throws(() => c.deleteWallet(a), /wallet_not_empty/, "Guthaben schützt vor versehentlichem Löschen");
+  assert.equal(c.deleteWallet(a, { force: true }).lost, 100);
+  assert.equal(c.accounts[a], undefined);
+  assert.equal(c.deleteWallet(b).ok, true);
+  c.upsertWebsiteAccount("11111111-1111-4111-8111-111111111111", "web", 5);
+  assert.throws(() => c.deleteWallet("sb_11111111-1111-4111-8111-111111111111"), /wallet_is_website/);
+  const u = c.registerUser("lea", "passwort123");
+  assert.throws(() => c.deleteWallet(u.address), /wallet_has_login/);
+  assert.throws(() => c.deleteWallet("Gunbekannt"), /unknown_wallet/);
+  assert.equal(c.verify().valid, true, "Kette bleibt gültig");
+});

@@ -414,6 +414,23 @@ export class Blockchain {
     return { address, ...this.accounts[address] };
   }
 
+  // Eigenes Chain-Wallet löschen. Nicht erlaubt: Website-Wallets (kommen von der Hauptseite),
+  // der Reserve-Miner, Wallets mit Anmeldung und Wallets mit offenen Aufträgen oder wartenden Transaktionen.
+  // Guthaben geht verloren – deshalb nur mit force, wenn noch GIBB darauf sind.
+  deleteWallet(address, { force = false } = {}) {
+    const account = this.accounts[address];
+    if (!account) throw new Error("unknown_wallet");
+    if (account.source === "supabase" || String(address).startsWith("sb_")) throw new Error("wallet_is_website");
+    if (account.source === "server" || address === "srv_fallback") throw new Error("wallet_is_server");
+    if (Object.values(this.users).some((u) => u.address === address)) throw new Error("wallet_has_login");
+    if (this.orders.some((o) => o.address === address)) throw new Error("wallet_has_orders");
+    if (this.mempool.some((tx) => tx.from === address || tx.to === address)) throw new Error("wallet_has_pending");
+    if ((account.balance ?? 0) > 0 && !force) throw new Error("wallet_not_empty");
+    delete this.accounts[address];
+    this.save();
+    return { ok: true, address, name: account.name, lost: account.balance ?? 0 };
+  }
+
   // Gelöschtes Website-Konto entfernen (nur sb_-Konten). Alte Blöcke bleiben gültig, weil
   // Website-Konten bei der Prüfung nicht nachgerechnet werden. Offene Aufträge und
   // unbestätigte Transaktionen dieses Kontos fallen weg.

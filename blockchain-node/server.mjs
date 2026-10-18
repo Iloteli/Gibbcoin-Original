@@ -412,6 +412,12 @@ const routes = {
   },
   "GET /api/verify": () => chain.verify(),
   "POST /api/wallets": async (_, body) => { await requireOwner(body); return chain.createWallet(body.name); },
+  "POST /api/wallets/delete": async (_, body) => {
+    await requireOwner(body);
+    const r = chain.deleteWallet(String(body.address ?? ""), { force: body.force === true });
+    note("wallet", `Wallet ${String(r.name).slice(0, 40)} gelöscht${r.lost ? ` (${r.lost} GIBB verfallen)` : ""}`);
+    return r;
+  },
   "POST /api/transactions": (_, body) => {
     const sess = requireSession(body); // Senden nur angemeldet und nur vom eigenen Konto
     forbidBasicTransfers(sess);

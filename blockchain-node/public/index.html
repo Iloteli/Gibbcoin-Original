@@ -380,6 +380,25 @@
   .acc-row .tag-custom { color: #7ef5a3; border-color: rgba(126,245,163,.35); }
   .acc-row .full-always { justify-self: start; }
   @media (max-width: 900px) { .acc-head { display: none; } .acc-row { grid-template-columns: 1fr; } .acc-row .acc-acts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .wallet-filter { display: flex; gap: 6px; flex-wrap: wrap; margin: -2px 0 10px; }
+  .wallet-filter button { padding: 6px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; color: var(--muted); background: transparent; }
+  .wallet-filter button i { font-style: normal; margin-left: 4px; opacity: .7; font-family: "IBM Plex Mono", monospace; font-size: 11px; }
+  .wallet-filter button.active { background: #7ef5a3; color: #06210f; border-color: #7ef5a3; }
+  .wallet-row.can-del { grid-template-columns: 40px minmax(0, 1fr) auto 34px !important; }
+  .wallet-del { width: 34px; height: 34px; padding: 0; border-radius: 10px; font-size: 14px; opacity: 0; transition: opacity .15s, border-color .15s; }
+  .wallet-row:hover .wallet-del, .wallet-del:focus-visible { opacity: 1; }
+  .wallet-del:hover { border-color: rgba(255,120,120,.6); background: rgba(255,120,120,.08); }
+  @media (hover: none) { .wallet-del { opacity: .8; } }
+  .wallet-row.removing { animation: row-out .25s ease-in forwards; }
+  /* Scrollbereiche: dunkle, schmale Leisten statt der hellen Standard-Leiste */
+  .list, .accounts { scrollbar-width: thin; scrollbar-color: #2a3a33 transparent; }
+  .list::-webkit-scrollbar, .accounts::-webkit-scrollbar { width: 8px; }
+  .list::-webkit-scrollbar-track, .accounts::-webkit-scrollbar-track { background: transparent; }
+  .list::-webkit-scrollbar-thumb, .accounts::-webkit-scrollbar-thumb { background: #2a3a33; border-radius: 999px; }
+  .list::-webkit-scrollbar-thumb:hover, .accounts::-webkit-scrollbar-thumb:hover { background: #3c5248; }
+  .list::-webkit-scrollbar-button, .accounts::-webkit-scrollbar-button { display: none; }
+  /* Nach dem ersten Laden keine Einblend-Animation mehr bei Aktualisierungen */
+  .no-anim > * { animation: none !important; }
 </style>
 </head>
 <body>
@@ -452,6 +471,7 @@
     <section class="card wallets-card">
       <h2>Wallets <span id="walletCount"></span></h2>
       <input id="walletSearch" class="search" placeholder="Name oder Adresse suchen" autocomplete="off" />
+      <div class="wallet-filter" id="walletFilter"><button type="button" data-wf="all" class="active">Alle <i></i></button><button type="button" data-wf="web">Website <i></i></button><button type="button" data-wf="chain">Chain <i></i></button><button type="button" data-wf="server">Server <i></i></button></div>
       <div class="list accounts" id="accounts"></div>
       <div class="owner-only"><div class="add-wallet">
         <input id="walletName" placeholder="Neues Wallet, z. B. Lea" />
@@ -839,6 +859,26 @@
 <script type="module">
 import { blockHash, meetsDifficulty, merkleRoot, minerWorkerSource } from "/blockchain-core.js";
 const $ = (id) => document.getElementById(id);
+// Listen, die sich alle paar Sekunden aktualisieren, nur neu zeichnen, wenn sich etwas geändert hat.
+// So bleibt die Scroll-Position erhalten und nichts blinkt beim Aktualisieren.
+{
+  const native = Object.getOwnPropertyDescriptor(Element.prototype, "innerHTML");
+  for (const id of ["accounts", "mempool", "blocks", "recent", "trades", "myOrders", "asks", "bids", "log", "bankOrders", "caUsers", "found"]) {
+    const el = document.getElementById(id);
+    if (!el) continue;
+    Object.defineProperty(el, "innerHTML", {
+      get() { return native.get.call(this); },
+      set(html) {
+        if (this.__lastHtml === html) return;
+        const top = this.scrollTop;
+        native.set.call(this, html);
+        this.__lastHtml = html;
+        this.scrollTop = top;
+        if (this.__rendered) this.classList.add("no-anim"); else this.__rendered = true;
+      },
+    });
+  }
+}
 let authToken = (() => { try { return JSON.parse(localStorage.getItem("gibb-auth") || "null")?.token || null; } catch { return null; } })();
 let myAddress = null;
 const api = async (path, body) => {
@@ -925,13 +965,20 @@ function renderStats(s) {
   $("mempoolCount").textContent = `${s.mempool} wartend`;
   $("walletCount").textContent = `${s.accounts} Konten`;
 }
+let walletFilter = "all";
 function renderAccounts() {
   const q = ($("walletSearch")?.value ?? "").trim().toLowerCase();
-  const list = accounts.filter((a) => !q || String(a.name).toLowerCase().includes(q) || String(a.address).toLowerCase().includes(q));
+  const kindOf = (a) => (a.source === "supabase" ? "web" : a.source === "server" || a.address === "srv_fallback" ? "server" : "chain");
+  const list = accounts.filter((a) => (!q || String(a.name).toLowerCase().includes(q) || String(a.address).toLowerCase().includes(q)) && (walletFilter === "all" || kindOf(a) === walletFilter))
+    .sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0) || String(a.name).localeCompare(String(b.name), "de"));
+  const counts = { all: accounts.length, web: 0, chain: 0, server: 0 };
+  accounts.forEach((a) => { counts[kindOf(a)] += 1; });
+  document.querySelectorAll("#walletFilter button").forEach((b) => { b.querySelector("i").textContent = counts[b.dataset.wf]; });
   $("accounts").innerHTML = list.map((a) => {
     const web = a.source === "supabase";
+    const deletable = kindOf(a) === "chain" && document.body.classList.contains("is-owner");
     const initial = h(String(a.name || "?").trim().charAt(0).toUpperCase() || "?");
-    return `<div class="item wallet-row"><div class="avatar${web ? " web" : ""}">${initial}</div><div class="who"><b>${h(a.name)}${web ? '<span class="tag-web">WEBSITE</span>' : ""}</b><code title="${h(a.address)}">${h(a.address)}</code></div><div class="amt"><b>${fmt(a.balance)}</b><small>GIBB · ${fmt(a.cash)} Rp</small></div></div>`;
+    return `<div class="item wallet-row${deletable ? " can-del" : ""}" data-addr="${h(a.address)}"><div class="avatar${web ? " web" : ""}">${initial}</div><div class="who"><b>${h(a.name)}${web ? '<span class="tag-web">WEBSITE</span>' : ""}</b><code title="${h(a.address)}">${h(a.address)}</code></div><div class="amt"><b>${fmt(a.balance)}</b><small>GIBB · ${fmt(a.cash)} Rp</small></div>${deletable ? `<button type="button" class="wallet-del" data-wdel title="Wallet löschen" aria-label="Wallet ${h(a.name)} löschen">🗑</button>` : ""}</div>`;
   }).join("") || `<div class="muted">Keine Wallets gefunden.</div>`;
   fillSelect($("orderAddress"));
 }
@@ -1916,6 +1963,29 @@ $("nuList").addEventListener("click", async (e) => {
 async function nuLoad() { await accLoad(); }
 async function olLoad() { /* in accLoad enthalten */ }
 void nuLoadOld; void olLoadOld;
+
+// ---------- Wallets: Filter und Löschen ----------
+$("walletFilter").addEventListener("click", (e) => {
+  const b = e.target.closest("button[data-wf]"); if (!b) return;
+  document.querySelectorAll("#walletFilter button").forEach((x) => x.classList.toggle("active", x === b));
+  walletFilter = b.dataset.wf; renderAccounts();
+});
+const walletErrors = { wallet_has_login: "Zu diesem Wallet gehört ein Chain-Konto – lösche zuerst das Konto unter Admin → Chain-Konten.", wallet_has_orders: "Das Wallet hat offene Marktaufträge – storniere sie zuerst.", wallet_has_pending: "Es wartet noch eine Transaktion dieses Wallets im Mempool – kurz warten, bis sie in einem Block ist.", wallet_is_website: "Website-Wallets kommen von der Hauptseite und können hier nicht gelöscht werden.", wallet_is_server: "Das Server-Wallet wird für den Reserve-Miner gebraucht.", unknown_wallet: "Wallet nicht gefunden." };
+$("accounts").addEventListener("click", async (e) => {
+  const btn = e.target.closest("button[data-wdel]"); if (!btn) return;
+  e.stopPropagation();
+  const row = btn.closest(".wallet-row"); const acc = accounts.find((a) => a.address === row.dataset.addr); if (!acc) return;
+  const bal = acc.balance ?? 0;
+  if (!confirm(bal > 0 ? `Wallet „${acc.name}“ löschen?
+
+Achtung: Darauf liegen noch ${fmt(bal)} GIBB – diese gehen verloren. Sende sie vorher weg, wenn du sie behalten willst.` : `Wallet „${acc.name}“ löschen?`)) return;
+  try {
+    const r = await api("/api/wallets/delete", { address: acc.address, force: bal > 0 });
+    row.classList.add("removing");
+    say("walletMsg", `Wallet ${r.name} gelöscht${r.lost ? ` – ${fmt(r.lost)} GIBB sind verfallen` : ""}.`);
+    setTimeout(() => void refresh(), 250);
+  } catch (err) { say("walletMsg", walletErrors[err.message] || err.message, true); }
+});
 </script>
 </body>
 </html>
