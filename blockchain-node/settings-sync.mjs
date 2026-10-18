@@ -129,11 +129,17 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   // Website-Konten 1:1 übernehmen: Name und Guthaben von der Hauptseite, neue Konten anlegen,
   // gelöschte Konten entfernen. Die Hauptseite ist für Website-Konten führend.
   let syncing = false;
+  // Benutzernamen der Hauptseite (für eindeutige Namen über beide Websites)
+  let websiteNames = new Set();
+  const isWebsiteUsername = (name) => websiteNames.has(String(name ?? "").trim().toLowerCase());
+  const pushReservedNames = () => rpc("node_set_reserved_usernames", { p_names: Object.keys(chain.users ?? {}) }).catch(() => null);
   async function syncAccounts() {
     if (!enabled || syncing) return { ok: false, removed: 0, updated: 0 };
     syncing = true;
     try {
       const users = await listWebsiteUsers();
+      websiteNames = new Set(users.map((u) => String(u.username ?? "").toLowerCase()).filter(Boolean));
+      void pushReservedNames();
       const ids = new Set();
       let updated = 0;
       for (const u of users) {
@@ -277,5 +283,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { isWebsiteUsername, pushReservedNames, ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }

@@ -316,6 +316,7 @@ const routes = {
     const ipKey = `ip:${body.__ip}`;
     if (loginBlocked(ipKey)) throw new Error("too_many_attempts");
     let u;
+    if (settingsSync.isWebsiteUsername?.(body.username)) throw new Error("username_taken");
     try { u = chain.registerUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { if (error.message === "owner_name_reserved") loginFailed(ipKey); throw error; }
     const token = newSession(u);
@@ -601,7 +602,9 @@ const routes = {
   },
   "POST /api/admin/node-users/rename": async (_, body) => {
     await requireOwner(body);
+    if (settingsSync.isWebsiteUsername?.(body.newName)) throw new Error("username_taken");
     const r = chain.renameUser(String(body.username ?? ""), String(body.newName ?? ""));
+    void settingsSync.pushReservedNames?.();
     dropSessionsOf(r.from);
     note("auth", `Chain-Konto ${r.from} heisst jetzt ${r.username}`);
     return r;
@@ -647,7 +650,9 @@ const routes = {
   },
   "POST /api/admin/node-users/create": async (_, body) => {
     await requireOwner(body);
+    if (settingsSync.isWebsiteUsername?.(body.username)) throw new Error("username_taken");
     const u = chain.registerUser(String(body.username ?? ""), String(body.password ?? ""));
+    void settingsSync.pushReservedNames?.();
     note("auth", `Chain-Konto ${u.username} angelegt`);
     return u;
   },
@@ -675,6 +680,7 @@ const routes = {
   "POST /api/admin/node-users/delete": async (_, body) => {
     await requireOwner(body);
     const r = chain.deleteUser(String(body.username ?? ""));
+    void settingsSync.pushReservedNames?.();
     dropSessionsOf(r.username);
     note("auth", `Chain-Konto ${r.username} gelöscht`);
     return r;
