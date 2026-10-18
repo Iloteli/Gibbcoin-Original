@@ -3691,6 +3691,9 @@ html[data-style="original"] { --electric: #2ed164; --cyan: #75f59a; --violet: #3
 html[data-style="original"][data-theme="light"] { --electric: #138a43; --cyan: #1a9e52; --violet: #138a43; --grad: linear-gradient(120deg, #138a43, #1fb35d 50%, #138a43); }
 html[data-style="original"] .profile-meta span { color: var(--cyan) !important; }
 html[data-style="original"] .notification-bell b { color: #06110a !important; }
+/* Effekte des neuen Designs (Klick-Welle, Neigen) im Original aus – sonst blähen sie Knöpfe auf */
+html[data-style="original"] .fx-ripple { display: none !important; }
+html[data-style="original"] .fx-tilt { transform: none !important; }
 .brand-original { display: none; }
 html[data-style="original"] .brand-original { display: grid; }
 html[data-style="original"] .brand-mark, html[data-style="original"] .ambient, html[data-style="original"] .auth-fx, html[data-style="original"] .auth-spark, html[data-style="original"] .auth-blob, html[data-style="original"] .auth-coin-wrap, html[data-style="original"] .acct-hero-new { display: none !important; }
