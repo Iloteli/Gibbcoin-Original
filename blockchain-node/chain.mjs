@@ -346,6 +346,7 @@ export class Blockchain {
     if (got.length !== want.length || !timingSafeEqual(got, want)) throw new Error("invalid_login");
     if (u.role !== "super_admin") {
       if (u.disabled) throw new Error("account_disabled");
+      if (u.expiresAt && u.expiresAt <= Date.now()) throw new Error("account_expired");
       if (this.settings.chainLoginsEnabled === false) throw new Error("chain_logins_disabled");
     }
     // Bestehendes Konto mit dem Owner-Namen: Owner erst nach Bestätigung mit dem Einrichtungscode.
@@ -354,6 +355,8 @@ export class Blockchain {
       this.ensureOwner();
       this.save();
     }
+    u.lastLogin = Date.now(); u.loginCount = (u.loginCount ?? 0) + 1;
+    this.save();
     return { address: u.address, username: u.username, role: u.role, level: u.role === "super_admin" ? "full" : (u.level === "full" ? "full" : "basic") };
   }
 
@@ -362,6 +365,7 @@ export class Blockchain {
     return Object.entries(this.users).map(([key, u]) => ({
       key, username: u.username, role: u.role, address: u.address, createdAt: u.createdAt ?? null, disabled: Boolean(u.disabled), level: u.role === "super_admin" ? "full" : (u.level === "full" ? "full" : "basic"),
       balance: this.accounts[u.address]?.balance ?? 0,
+      note: u.note ?? "", expiresAt: u.expiresAt ?? null, expired: Boolean(u.expiresAt && u.expiresAt <= Date.now()), lastLogin: u.lastLogin ?? null, loginCount: u.loginCount ?? 0,
     })).sort((a, b) => a.key.localeCompare(b.key));
   }
 
@@ -395,6 +399,40 @@ export class Blockchain {
     u.disabled = Boolean(disabled);
     this.save();
     return { username: u.username, disabled: u.disabled };
+  }
+
+  // Notiz und Ablaufdatum eines Chain-Kontos (Ablauf = Anmeldung danach gesperrt)
+  setUserMeta(username, { note, expiresAt } = {}) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("user_not_found");
+    if (note !== undefined) u.note = Array.from(String(note ?? ""), (ch) => (ch.charCodeAt(0) < 32 || ch.charCodeAt(0) === 127 ? " " : ch)).join("").trim().slice(0, 200);
+    if (expiresAt !== undefined) {
+      if (u.role === "super_admin") throw new Error("account_is_protected");
+      const t = expiresAt === null || expiresAt === "" ? null : Number(expiresAt);
+      if (t !== null && (!Number.isFinite(t) || t < 0)) throw new Error("invalid_expiry");
+      u.expiresAt = t;
+    }
+    this.save();
+    return { username: u.username, note: u.note ?? "", expiresAt: u.expiresAt ?? null };
+  }
+
+  // Benutzername ändern: Wallet, Guthaben und Rechte bleiben
+  renameUser(username, nextName) {
+    const key = String(username ?? "").trim().toLowerCase();
+    const u = this.users[key];
+    if (!u) throw new Error("user_not_found");
+    if (u.role === "super_admin" || key === this.ownerKey) throw new Error("account_is_protected");
+    const nextKey = String(nextName ?? "").trim().toLowerCase();
+    if (nextKey.length < 3 || nextKey.length > 40 || !/^[a-z0-9_.-]+$/.test(nextKey)) throw new Error("invalid_username");
+    if (nextKey === this.ownerKey) throw new Error("owner_name_reserved");
+    if (nextKey !== key && this.users[nextKey]) throw new Error("username_taken");
+    delete this.users[key];
+    u.username = String(nextName).trim().slice(0, 40);
+    this.users[nextKey] = u;
+    if (this.accounts[u.address] && !this.accounts[u.address].source) this.accounts[u.address].name = u.username;
+    this.save();
+    return { from: key, username: u.username, address: u.address };
   }
 
   deleteUser(username) {

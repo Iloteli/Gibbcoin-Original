@@ -364,12 +364,12 @@
   html, body { overflow-x: clip; }
   .acc-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
   .acc-tools input { flex: 1 1 200px; }
-  .acc-head { display: grid; grid-template-columns: minmax(0, 1fr) 130px 480px; gap: 12px; padding: 0 14px 6px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-  .acc-row { display: grid !important; grid-template-columns: minmax(0, 1fr) 130px 480px; cursor: default; gap: 12px; align-items: center; }
+  .acc-head { display: grid; grid-template-columns: minmax(0, 1fr) 130px 590px; gap: 12px; padding: 0 14px 6px; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+  .acc-row { display: grid !important; grid-template-columns: minmax(0, 1fr) 130px 590px; cursor: default; gap: 12px; align-items: center; }
   .acc-row .acc-name b { font-size: 15px; }
   .acc-row .acc-name small { display: block; margin-top: 3px; }
   .acc-row .acc-level select { width: 100%; }
-  .acc-row .acc-acts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+  .acc-row .acc-acts { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
   .acc-row .acc-acts button { padding: 9px 8px; font-size: 13px; white-space: nowrap; }
   .acc-row .acc-acts .ph { visibility: hidden; }
   .acc-row.off { opacity: .6; }
@@ -593,6 +593,13 @@
   @media (max-width: 760px) { .pf-grid, .pf-small { grid-template-columns: 1fr; } }
   #profileCard[hidden] { display: none !important; }
   .site-footer p a, .footer-preview p a { color: inherit; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: #3ee0ff; }
+  .acc-more { grid-column: 1 / -1; display: grid; gap: 12px; margin-top: 10px; padding: 14px; border-radius: 14px; border: 1px solid var(--line); background: rgba(255,255,255,.03); animation: v3-in .25s ease both; }
+  .acc-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+  .acc-facts span { display: grid; gap: 2px; font-size: 12px; color: var(--muted); }
+  .acc-facts b { color: var(--text); font-size: 13.5px; overflow-wrap: anywhere; }
+  .acc-more textarea { width: 100%; resize: vertical; }
+  .acc-more .bad { color: #ff8f8f; }
+  .acc-row[data-kind] button[aria-expanded="true"] { background: var(--grad) !important; color: #061024 !important; }
 </style>
 </head>
 <body>
@@ -840,7 +847,7 @@
       <h3 class="ad-h">Alle Konten <span class="muted" style="font-weight:500">Chain-Konten und Owner der Hauptseite (melden sich mit Website-E-Mail an)</span></h3>
       <div class="acc-tools">
         <input id="accSearch" placeholder="Konto suchen" autocomplete="off" />
-        <div class="ca-quick" id="accFilter"><button type="button" data-f="all" class="active">Alle</button><button type="button" data-f="full">Full</button><button type="button" data-f="basic">Basic</button><button type="button" data-f="off">Deaktiviert</button></div>
+        <div class="ca-quick" id="accFilter"><button type="button" data-f="all" class="active">Alle</button><button type="button" data-f="full">Full</button><button type="button" data-f="basic">Basic</button><button type="button" data-f="off">Deaktiviert / abgelaufen</button><button type="button" data-f="never">Nie angemeldet</button></div>
       </div>
       <div class="acc-head" aria-hidden="true"><span>Konto</span><span>Stufe</span><span>Aktionen</span></div>
       <div class="acc-list">
@@ -1951,14 +1958,8 @@ $("adCreate").addEventListener("submit", async (e) => {
 
 // ---------- Chain-Konten (Anmeldungen für diese Seite) ----------
 const genPass = () => { const chars = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"; return Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => chars[b % chars.length]).join(""); };
-const nuErrors = { basic_no_transfers: "Basic-Konten können keine Coins bewegen.", account_disabled: "Dieses Konto ist deaktiviert.", chain_logins_disabled: "Anmeldungen sind gerade nur für den Owner möglich.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", username_taken: "Dieser Benutzername ist schon vergeben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert.", user_not_found: "Konto nicht gefunden.", account_is_protected: "Das Owner-Konto ist geschützt." };
+const nuErrors = { basic_no_transfers: "Basic-Konten können keine Coins bewegen.", account_disabled: "Dieses Konto ist deaktiviert.", chain_logins_disabled: "Anmeldungen sind gerade nur für den Owner möglich.", invalid_username: "Benutzername: 3–40 Zeichen, nur a–z, 0–9, . _ -", weak_password: "Das Passwort braucht mindestens 8 Zeichen.", username_taken: "Dieser Benutzername ist schon vergeben.", owner_name_reserved: "Dieser Name ist für den Owner reserviert.", user_not_found: "Konto nicht gefunden.", account_is_protected: "Das Owner-Konto ist geschützt.", account_expired: "Dieses Konto ist abgelaufen.", invalid_expiry: "Ungültiges Ablaufdatum." };
 const nuFail = (e) => say("adMsg", nuErrors[e.message] || adErrors[e.message] || e.message, true);
-async function nuLoadOld() {
-  try {
-    const users = (await api("/api/admin/node-users", {})).users ?? [];
-    $("nuList").innerHTML = users.map((u) => `<div class="item bank-order" data-user="${h(u.key)}"><div><b>${h(u.username)}</b><span class="acc-type">Chain-Konto</span>${u.role === "super_admin" ? ' <span class="ad-badge owner">Owner</span>' : ""}${u.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}<br><small class="muted">${fmt(u.balance)} GIBB · ${u.createdAt ? "seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}</small></div><div class="acts">${u.role === "super_admin" ? '<span class="ad-badge owner">Full · immer</span>' : `<select data-nu-level><option value="user"${u.level === "user" ? " selected" : ""}>Normal</option><option value="basic"${u.level === "basic" ? " selected" : ""}>Basic</option><option value="full"${u.level === "full" ? " selected" : ""}>Full</option></select>${u.level === "basic" ? `<button data-nu="perms" data-addr="${h(u.address)}">Rechte</button>` : ""}<button data-nu="toggle">${u.disabled ? "Aktivieren" : "Deaktivieren"}</button><button data-nu="password">Neues Passwort</button><button class="danger" data-nu="delete">Löschen</button>`}</div></div>`).join("") || `<div class="muted">Noch keine Chain-Konten.</div>`;
-  } catch (e) { nuFail(e); }
-}
 $("nuGen").addEventListener("click", (e) => { e.preventDefault(); $("nuPass").value = genPass(); });
 $("nuCreate").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -1968,37 +1969,6 @@ $("nuCreate").addEventListener("submit", async (e) => {
     $("nuName").value = ""; $("nuPass").value = "";
     await nuLoad(); await refresh();
   } catch (err) { nuFail(err); }
-});
-$("nuList").addEventListener("change", async (e) => {
-  const sel = e.target.closest("select[data-nu-level]"); if (!sel) return;
-  const user = sel.closest("[data-user]").dataset.user;
-  if (sel.value === "full" && !confirm(`${user} auf Full setzen? Dann hat das Konto alle Rechte wie du (ohne Server-Code, den braucht nur Ilja).`)) { await nuLoad(); return; }
-  try { await api("/api/admin/node-users/level", { username: user, level: sel.value }); say("adMsg", `${user} ist jetzt ${({ user: "Normal", basic: "Basic", full: "Full" })[sel.value]} (muss sich neu anmelden).`); }
-  catch (err) { nuFail(err); }
-  await nuLoad();
-});
-$("nuList").addEventListener("click", async (e) => {
-  const btn = e.target.closest("button[data-nu]"); if (!btn) return;
-  const user = btn.closest("[data-user]").dataset.user;
-  try {
-    if (btn.dataset.nu === "password") {
-      const pw = prompt(`Neues Passwort für ${user} (mind. 8 Zeichen):`, genPass());
-      if (!pw) return;
-      await api("/api/admin/node-users/password", { username: user, password: pw });
-      say("adMsg", `Neues Passwort für ${user} gesetzt: ${pw} – der Person mitteilen. Bestehende Anmeldungen wurden beendet.`);
-    }
-    if (btn.dataset.nu === "toggle") {
-      const disable = btn.textContent === "Deaktivieren";
-      await api("/api/admin/node-users/disable", { username: user, disabled: disable });
-      say("adMsg", disable ? `${user} ist deaktiviert und wurde abgemeldet.` : `${user} ist wieder aktiv.`);
-    }
-    if (btn.dataset.nu === "delete") {
-      if (!confirm(`Chain-Konto ${user} löschen? Die Anmeldung wird entfernt, das Wallet bleibt in der Kette.`)) return;
-      await api("/api/admin/node-users/delete", { username: user });
-      say("adMsg", `Chain-Konto ${user} gelöscht.`);
-    }
-  } catch (err) { nuFail(err); }
-  await nuLoad();
 });
 
 // ---------- Zahlarten (sofort schalten) ----------
@@ -2031,20 +2001,6 @@ $("payMethods").addEventListener("click", async (e) => {
 });
 
 // ---------- Owner der Hauptseite: Basic / Full ----------
-async function olLoadOld() {
-  try {
-    const owners = (await api("/api/admin/owner-levels", {})).owners ?? [];
-    $("olList").innerHTML = owners.map((o) => `<div class="item bank-order" data-owner="${h(o.id)}" data-name="${h(o.username || o.display_name)}"><div><b>${h(o.display_name || o.username)}</b><span class="acc-type">Website-Owner</span> <small class="muted">@${h(o.username)}</small><br><span class="ad-badge ${o.level === "full" ? "owner" : ""}">${o.level === "full" ? "Full" : "Basic"}</span></div><div class="acts">${o.primary ? '<span class="ad-badge owner">Full · immer</span>' : `${o.level !== "full" ? `<button data-operm="sb_${h(o.id)}">Rechte</button>` : ""}<button data-level="${o.level === "full" ? "basic" : "full"}" class="${o.level === "full" ? "danger" : "primary"}">${o.level === "full" ? "Auf Basic zurückstufen" : "Auf Full upgraden"}</button>`}</div></div>`).join("") || `<div class="muted">Keine Owner auf der Hauptseite.</div>`;
-  } catch (e) { $("olList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
-}
-$("olList").addEventListener("click", async (e) => {
-  const btn = e.target.closest("button[data-level]"); if (!btn) return;
-  const row = btn.closest("[data-owner]"); const level = btn.dataset.level;
-  if (!confirm(level === "full" ? `${row.dataset.name} auf Full upgraden? Dann hat das Konto alle Rechte wie du.` : `${row.dataset.name} auf Basic zurückstufen?`)) return;
-  try { await api("/api/admin/owner-level", { userId: row.dataset.owner, name: row.dataset.name, level }); say("adMsg", `${row.dataset.name} ist jetzt ${level === "full" ? "Full" : "Basic"} (muss sich neu anmelden).`); }
-  catch (err) { say("adMsg", adErrors[err.message] || err.message, true); }
-  await olLoad();
-});
 
 // ---------- Rechte für Basic (sofort gespeichert) ----------
 const permList = [
@@ -2132,8 +2088,6 @@ $("upPerms").addEventListener("click", (e) => {
 });
 $("upClose").onclick = () => { $("upPanel").hidden = true; };
 $("upPreview").onclick = () => startBasicPreview([...document.querySelectorAll("[data-uperm]")].filter((el) => el.checked).map((el) => el.dataset.uperm), upWho);
-$("nuList").addEventListener("click", (e) => { const b = e.target.closest('button[data-nu="perms"]'); if (b) void upOpen(b.dataset.addr, b.closest("[data-user]").dataset.user); });
-$("olList").addEventListener("click", (e) => { const b = e.target.closest("button[data-operm]"); if (b) void upOpen(b.dataset.operm, b.closest("[data-owner]").dataset.name); });
 
 // ---------- Design v3: Bedienung ----------
 $("walletSearch").addEventListener("input", renderAccounts);
@@ -2268,14 +2222,15 @@ $("buSend").onclick = async () => {
 $("authSetupWrap").hidden = !new URLSearchParams(location.search).has("setup");
 
 // ---------- Alle Konten: eine Liste, gleiche Bedienung für jedes Konto ----------
-let accRows = [], accFilterVal = "all";
+let accRows = [], accFilterVal = "all", accOpen = null;
+const accAgo = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "gerade eben" : m < 60 ? `vor ${m} Min.` : m < 1440 ? `vor ${Math.round(m / 60)} Std.` : `vor ${Math.round(m / 1440)} Tagen`; };
 const levelName = { user: "Normal", basic: "Basic", full: "Full" };
 async function accLoad() {
   let nodeUsers = [], owners = [];
   try { nodeUsers = (await api("/api/admin/node-users", {})).users ?? []; } catch (e) { nuFail(e); }
   try { owners = (await api("/api/admin/owner-levels", {})).owners ?? []; } catch { owners = []; }
   const rows = [];
-  for (const u of nodeUsers) rows.push({ kind: "chain", id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB${u.createdAt ? " · seit " + new Date(u.createdAt).toLocaleDateString("de-CH") : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom });
+  for (const u of nodeUsers) rows.push({ kind: "chain", id: u.key, name: u.username, sub: `Chain-Konto · ${fmt(u.balance)} GIBB · ${u.lastLogin ? "zuletzt " + accAgo(u.lastLogin) : "noch nie angemeldet"}${u.sessions ? ` · ${u.sessions} aktiv` : ""}`, level: u.level, owner: u.role === "super_admin", disabled: u.disabled, address: u.address, custom: u.custom, user: u });
   for (const o of owners) {
     if (o.primary) { const me = rows.find((r) => r.owner); if (me) { me.sub += ` · Website @${o.username}`; continue; } }
     rows.push({ kind: "web", id: o.id, name: o.display_name || o.username, sub: `Website-Owner · @${o.username}`, level: o.level, owner: o.primary, disabled: o.disabled, address: `sb_${o.id}`, custom: o.custom });
@@ -2286,18 +2241,29 @@ async function accLoad() {
 }
 function accRender() {
   const q = $("accSearch").value.trim().toLowerCase();
-  const list = accRows.filter((r) => (!q || `${r.name} ${r.sub}`.toLowerCase().includes(q)) && (accFilterVal === "all" || (accFilterVal === "off" ? r.disabled : r.level === accFilterVal && !r.disabled)));
+  const list = accRows.filter((r) => (!q || `${r.name} ${r.sub} ${r.user?.note ?? ""}`.toLowerCase().includes(q)) && (accFilterVal === "all" || (accFilterVal === "off" ? r.disabled || r.user?.expired : accFilterVal === "never" ? r.kind === "chain" && !r.user?.lastLogin : r.level === accFilterVal && !r.disabled)));
   $("olList").innerHTML = "";
   $("nuList").innerHTML = list.map((r) => {
     const levelSel = r.owner ? '<span class="ad-badge owner full-always">Full · immer</span>'
       : `<select data-acc="level">${["basic", "full"].map((l) => `<option value="${l}"${r.level === l ? " selected" : ""}>${levelName[l]}</option>`).join("")}</select>`;
-    const acts = r.owner ? "" : [
+    const acts = r.owner ? (r.kind === "chain" ? `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>` : "") : [
       r.level === "basic" ? `<button data-acc="perms">Rechte</button>` : `<button class="ph" tabindex="-1" aria-hidden="true">Rechte</button>`,
       `<button data-acc="toggle">${r.disabled ? "Aktivieren" : "Deaktivieren"}</button>`,
       `<button data-acc="password">${r.kind === "web" ? "Passwort-Reset" : "Neues Passwort"}</button>`,
       `<button class="danger" data-acc="delete">${r.kind === "web" ? "Entfernen" : "Löschen"}</button>`,
+      r.kind === "chain" ? `<button data-acc="more" aria-expanded="${accOpen === r.id}">⚙ Mehr</button>` : "",
     ].join("");
-    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div></div>`;
+    const u = r.user;
+    const more = r.kind === "chain" && accOpen === r.id ? `<div class="acc-more">
+      <div class="acc-facts"><span>Erstellt<b>${u.createdAt ? new Date(u.createdAt).toLocaleDateString("de-CH") : "—"}</b></span><span>Zuletzt angemeldet<b>${u.lastLogin ? new Date(u.lastLogin).toLocaleString("de-CH") : "noch nie"}</b></span><span>Anmeldungen<b>${fmt(u.loginCount ?? 0)}</b></span><span>Aktive Sitzungen<b>${fmt(u.sessions ?? 0)}</b></span><span>Wallet<b><code>${h(u.address)}</code></b></span></div>
+      <div class="field"><label>Notiz <span class="muted">nur für dich sichtbar</span></label><textarea data-more="note" maxlength="200" rows="2" placeholder="z. B. Klasse, Aufgabe …">${h(u.note ?? "")}</textarea></div>
+      ${r.owner ? "" : `<div class="sgrid">
+        <div class="field"><label>Ablaufdatum</label><input type="date" data-more="expires" value="${u.expiresAt ? new Date(u.expiresAt - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10) : ""}" /><small>${u.expired ? '<b class="bad">abgelaufen</b> · ' : ""}leer = läuft nie ab · ab diesem Tag keine Anmeldung</small></div>
+        <div class="field"><label>Umbenennen</label><input data-more="rename" value="${h(u.username)}" pattern="[a-z0-9._\-]{3,40}" maxlength="40" /><small>Wallet, Guthaben und Rechte bleiben</small></div>
+      </div>`}
+      <div class="actions"><button class="primary" data-acc="save-more">Speichern</button>${r.owner ? "" : `<button data-acc="rename">Umbenennen</button><button data-acc="logout"${u.sessions ? "" : " disabled"}>Überall abmelden</button>`}</div>
+    </div>` : "";
+    return `<div class="item acc-row${r.disabled ? " off" : ""}" data-kind="${r.kind}" data-id="${h(r.id)}" data-name="${h(r.name)}" data-addr="${h(r.address)}"><div class="acc-name"><b>${h(r.name)}</b>${r.owner ? ' <span class="ad-badge owner">Owner</span>' : ""}${r.disabled ? ' <span class="ad-badge locked">deaktiviert</span>' : ""}${r.custom ? ' <span class="ad-badge tag-custom">eigene Rechte</span>' : ""}<small class="muted">${h(r.sub)}</small></div><div class="acc-level">${levelSel}</div><div class="acc-acts">${acts}</div>${more}</div>`;
   }).join("") || `<div class="muted">Keine Konten gefunden.</div>`;
 }
 $("accSearch").addEventListener("input", accRender);
@@ -2322,6 +2288,26 @@ $("nuList").addEventListener("click", async (e) => {
   const row = btn.closest(".acc-row"); const { kind, id, name, addr } = row.dataset; const act = btn.dataset.acc;
   try {
     if (act === "perms") { void upOpen(addr, name); return; }
+    if (act === "more") { accOpen = accOpen === id ? null : id; accRender(); return; }
+    if (act === "save-more") {
+      const box = row.querySelector(".acc-more");
+      const patch = { username: id, note: box.querySelector('[data-more="note"]').value };
+      const exp = box.querySelector('[data-more="expires"]');
+      if (exp) patch.expiresAt = exp.value ? new Date(exp.value + "T00:00:00").getTime() : null;
+      await api("/api/admin/node-users/meta", patch);
+      say("adMsg", `Einstellungen für ${name} gespeichert.`);
+    }
+    if (act === "rename") {
+      const next = row.querySelector('[data-more="rename"]').value.trim().toLowerCase();
+      if (!next || next === id) return;
+      if (!confirm(`${name} in „${next}“ umbenennen? Die Person meldet sich danach mit dem neuen Namen an.`)) return;
+      await api("/api/admin/node-users/rename", { username: id, newName: next });
+      accOpen = next; say("adMsg", `${name} heisst jetzt ${next}.`);
+    }
+    if (act === "logout") {
+      await api("/api/admin/node-users/logout", { username: id });
+      say("adMsg", `${name} wurde überall abgemeldet.`);
+    }
     if (act === "toggle") {
       const disable = btn.textContent === "Deaktivieren";
       if (kind === "web") await api("/api/admin/owner-disable", { userId: id, name, disabled: disable });
@@ -2355,7 +2341,6 @@ $("nuList").addEventListener("click", async (e) => {
 });
 async function nuLoad() { await accLoad(); }
 async function olLoad() { /* in accLoad enthalten */ }
-void nuLoadOld; void olLoadOld;
 
 // ---------- Wallets: Filter und Löschen ----------
 $("walletFilter").addEventListener("click", (e) => {

@@ -198,7 +198,9 @@ const getGuest = () => {
 };
 const sessionOf = (body) => {
   const sess = body && typeof body.token === "string" ? sessions.get(tokenKey(body.token)) : null;
-  const blocked = sess && sess.role !== "super_admin" && sess.role !== "owner_basic" && (chain.settings.chainLoginsEnabled === false || chain.users[String(sess.username ?? "").toLowerCase()]?.disabled);
+  const nodeUser = sess ? chain.users[String(sess.username ?? "").toLowerCase()] : null;
+  const expired = Boolean(nodeUser && nodeUser.role !== "super_admin" && nodeUser.expiresAt && nodeUser.expiresAt <= Date.now());
+  const blocked = sess && (expired || (sess.role !== "super_admin" && sess.role !== "owner_basic" && (chain.settings.chainLoginsEnabled === false || nodeUser?.disabled)));
   if (sess && !blocked && sess.expires > Date.now() && !((sess.role === "super_admin" || sess.role === "owner_basic") && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
     sess.lastSeen = Date.now();
     return sess;
@@ -590,7 +592,37 @@ const routes = {
     const own = chain.userPermissions[address];
     return { address, custom: Array.isArray(own), permissions: normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions) };
   },
-  "POST /api/admin/node-users": async (_, body) => { await requireOwner(body); return { users: chain.listUsers().map((u) => ({ ...u, custom: Array.isArray(chain.userPermissions[u.address]) })) }; },
+  "POST /api/admin/node-users": async (_, body) => {
+    await requireOwner(body);
+    const active = {};
+    for (const sess of sessions.values()) if (sess.expires > Date.now()) { const n = String(sess.username ?? "").toLowerCase(); active[n] = (active[n] ?? 0) + 1; }
+    return { users: chain.listUsers().map((u) => ({ ...u, custom: Array.isArray(chain.userPermissions[u.address]), sessions: active[u.key] ?? 0 })) };
+  },
+  "POST /api/admin/node-users/meta": async (_, body) => {
+    await requireOwner(body);
+    const patch = {};
+    if (body.note !== undefined) patch.note = body.note;
+    if (body.expiresAt !== undefined) patch.expiresAt = body.expiresAt;
+    const r = chain.setUserMeta(String(body.username ?? ""), patch);
+    if (r.expiresAt && r.expiresAt <= Date.now()) dropSessionsOf(r.username);
+    note("auth", `Chain-Konto ${r.username}: Einstellungen geändert`);
+    return r;
+  },
+  "POST /api/admin/node-users/rename": async (_, body) => {
+    await requireOwner(body);
+    const r = chain.renameUser(String(body.username ?? ""), String(body.newName ?? ""));
+    dropSessionsOf(r.from);
+    note("auth", `Chain-Konto ${r.from} heisst jetzt ${r.username}`);
+    return r;
+  },
+  "POST /api/admin/node-users/logout": async (_, body) => {
+    await requireOwner(body);
+    const name = String(body.username ?? "").trim().toLowerCase();
+    if (!chain.users[name]) throw new Error("user_not_found");
+    dropSessionsOf(name);
+    note("auth", `Chain-Konto ${name}: überall abgemeldet`);
+    return { ok: true };
+  },
   "POST /api/admin/node-users/create": async (_, body) => {
     await requireOwner(body);
     const u = chain.registerUser(String(body.username ?? ""), String(body.password ?? ""));
