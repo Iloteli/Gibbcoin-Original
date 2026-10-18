@@ -483,11 +483,40 @@
   .fx-tilt::after { opacity: 1; }
   .fx-ripple { background: radial-gradient(circle, rgba(255,255,255,.55), rgba(126,245,163,.25) 40%, transparent 70%) !important; }
   @media (prefers-reduced-motion: reduce) { .fx-tilt { transform: none !important; } .card::after { display: none; } }
+  /* Anmeldung: bewegter Hintergrund, 3D-Münze, Leuchtrand */
+  #authGate { overflow: hidden; background: #121a1f !important; }
+  #authGate .auth-fx { position: absolute; inset: 0; pointer-events: none; }
+  #authGate .ab { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; }
+  #authGate .b1 { width: 480px; height: 480px; left: -140px; top: -160px; background: #2f9e6a; animation: g-drift1 14s ease-in-out infinite; }
+  #authGate .b2 { width: 440px; height: 440px; right: -140px; bottom: -180px; background: #2a7fa6; animation: g-drift2 16s ease-in-out infinite; }
+  #authGate .b3 { width: 280px; height: 280px; left: 45%; top: 55%; background: #7ef5a3; opacity: .22; animation: g-drift1 12s ease-in-out infinite reverse; }
+  #authGate .as { position: absolute; bottom: -20px; width: 6px; height: 6px; border-radius: 50%; background: #7ef5a3; box-shadow: 0 0 12px #7ef5a3; animation: g-rise 7s linear infinite; }
+  #authGate .box { position: relative; isolation: isolate; background: rgba(27,39,48,.92) !important; backdrop-filter: blur(10px); border-color: #2c3d48 !important; }
+  #authGate .box::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; pointer-events: none; background: conic-gradient(from var(--g-angle, 0deg), transparent 0 60%, #7ef5a3 75%, #5fd4ff 85%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: g-ring 5s linear infinite; }
+  @property --g-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+  #authGate .box > * { animation: g-enter .6s cubic-bezier(.2,.8,.2,1) both; }
+  #authGate .box > *:nth-child(2) { animation-delay: .1s; } #authGate .box > *:nth-child(3) { animation-delay: .2s; } #authGate .box > *:nth-child(n+4) { animation-delay: .3s; }
+  .gate-coin-wrap { width: 72px; height: 72px; margin: 0 auto 12px; perspective: 600px; animation: g-float 4s ease-in-out infinite; }
+  .gate-coin { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 34px; color: #0d2a1c; background: radial-gradient(circle at 35% 30%, #c8ffdc, #7ef5a3 45%, #2f9e6a 100%); box-shadow: 0 0 40px rgba(126,245,163,.45), inset 0 -6px 12px rgba(0,0,0,.25); animation: g-spin 6s linear infinite; }
+  #authGate .box h2 { text-align: center; }
+  #authGate #authIntro { text-align: center; }
+  #authSubmit, #authGate button.primary { background: linear-gradient(110deg, #7ef5a3 40%, #d4ffe3 50%, #7ef5a3 60%) !important; background-size: 200% 100% !important; animation: g-shine 3s linear infinite; }
+  @keyframes g-drift1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(120px, 80px) scale(1.15); } }
+  @keyframes g-drift2 { 0%, 100% { transform: translate(0, 0) scale(1.1); } 50% { transform: translate(-140px, -60px) scale(.9); } }
+  @keyframes g-rise { 0% { transform: translateY(0) scale(1); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-110vh) scale(.4); opacity: 0; } }
+  @keyframes g-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+  @keyframes g-spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+  @keyframes g-ring { to { --g-angle: 360deg; } }
+  @keyframes g-enter { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  @keyframes g-shine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { #authGate .ab, #authGate .as, .gate-coin, .gate-coin-wrap, #authGate .box::before, #authGate .box > *, #authSubmit { animation: none !important; } #authGate .as { display: none; } }
 </style>
 </head>
 <body>
 <div id="authGate">
+  <div class="auth-fx" aria-hidden="true"><i class="ab b1"></i><i class="ab b2"></i><i class="ab b3"></i><span class="as" style="left:8%"></span><span class="as" style="left:22%;animation-delay:1.4s"></span><span class="as" style="left:37%;animation-delay:2.8s"></span><span class="as" style="left:52%;animation-delay:.7s"></span><span class="as" style="left:66%;animation-delay:3.5s"></span><span class="as" style="left:80%;animation-delay:2.1s"></span><span class="as" style="left:93%;animation-delay:4.2s"></span></div>
   <div class="box">
+    <div class="gate-coin-wrap" aria-hidden="true"><div class="gate-coin">G</div></div>
     <h2>GIBB Chain</h2>
     <p id="authIntro">Melde dich mit deinem Konto an.</p>
     <div class="tabs"><button id="tabLogin" class="active" type="button">Anmelden</button><button id="tabReg" type="button" hidden>Registrieren</button></div>

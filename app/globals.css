@@ -3119,3 +3119,47 @@ html.fx-glow body::before { background: radial-gradient(640px circle at var(--mx
 
 html[data-theme="light"] .card:not(.balance-card)::after, html[data-theme="light"] .stat-card::after { background: radial-gradient(360px circle at var(--cx) var(--cy), rgba(21,163,74,.10), transparent 70%); }
 @media (prefers-reduced-motion: reduce) { .fx-tilt { transform: none !important; } .card:not(.balance-card)::after, .stat-card::after { display: none; } }
+
+/* ===== Anmeldeseite: Bewegter Hintergrund, 3D-Münze, Leuchtrand, gestaffeltes Einblenden ===== */
+.auth-page { position: relative; overflow: hidden; }
+.auth-fx { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.auth-layout { position: relative; z-index: 1; }
+.auth-blob { position: absolute; border-radius: 50%; filter: blur(70px); opacity: .5; }
+.auth-blob.b1 { width: 520px; height: 520px; left: -140px; top: -160px; background: #2f9e6a; animation: auth-drift1 14s ease-in-out infinite; }
+.auth-blob.b2 { width: 460px; height: 460px; right: -140px; bottom: -180px; background: #2a7fa6; animation: auth-drift2 16s ease-in-out infinite; }
+.auth-blob.b3 { width: 300px; height: 300px; left: 45%; top: 55%; background: #7ef5a3; opacity: .22; animation: auth-drift3 12s ease-in-out infinite; }
+.auth-spark { position: absolute; bottom: -20px; width: 6px; height: 6px; border-radius: 50%; background: #7ef5a3; box-shadow: 0 0 12px #7ef5a3; animation: auth-rise 7s linear infinite; }
+.auth-coin-wrap { width: 96px; height: 96px; margin: 18px 0 6px; perspective: 600px; animation: auth-float 4s ease-in-out infinite; }
+.auth-coin { width: 96px; height: 96px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: 44px; color: #0d2a1c; background: radial-gradient(circle at 35% 30%, #c8ffdc, #7ef5a3 45%, #2f9e6a 100%); box-shadow: 0 0 50px rgba(126,245,163,.45), inset 0 -8px 16px rgba(0,0,0,.25); animation: auth-spin 6s linear infinite; transform-style: preserve-3d; }
+/* Umlaufender Leuchtrand um die Anmeldebox */
+.auth-layout { isolation: isolate; }
+.auth-layout::before { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 2px; z-index: 3; pointer-events: none; background: conic-gradient(from var(--auth-angle, 0deg), transparent 0 60%, #7ef5a3 75%, #5fd4ff 85%, transparent 100%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; animation: auth-ring 5s linear infinite; }
+@property --auth-angle { syntax: "<angle>"; inherits: false; initial-value: 0deg; }
+/* Inhalte blenden nacheinander ein */
+.auth-pitch > *, .auth-card > * { animation: auth-enter .7s cubic-bezier(.2,.8,.2,1) both; }
+.auth-pitch > *:nth-child(2), .auth-card > *:nth-child(2) { animation-delay: .12s; }
+.auth-pitch > *:nth-child(3), .auth-card > *:nth-child(3) { animation-delay: .24s; }
+.auth-card > *:nth-child(4) { animation-delay: .36s; }
+.auth-card > *:nth-child(n+5) { animation-delay: .48s; }
+/* Glanz, der über den Anmelde-Knopf läuft */
+.auth-submit { background: linear-gradient(110deg, var(--green) 40%, #d4ffe3 50%, var(--green) 60%) !important; background-size: 200% 100% !important; animation: auth-shine 3s linear infinite; }
+@keyframes auth-drift1 { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(120px, 80px) scale(1.15); } }
+@keyframes auth-drift2 { 0%, 100% { transform: translate(0, 0) scale(1.1); } 50% { transform: translate(-140px, -60px) scale(.9); } }
+@keyframes auth-drift3 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(60px, -120px); } }
+@keyframes auth-rise { 0% { transform: translateY(0) scale(1); opacity: 0; } 15% { opacity: 1; } 100% { transform: translateY(-110vh) scale(.4); opacity: 0; } }
+@keyframes auth-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
+@keyframes auth-spin { from { transform: rotateY(0deg); } to { transform: rotateY(360deg); } }
+@keyframes auth-ring { to { --auth-angle: 360deg; } }
+@keyframes auth-enter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes auth-shine { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+html[data-theme="light"] .auth-blob { opacity: .25; }
+html[data-theme="light"] .auth-spark { background: #15a34a; box-shadow: 0 0 10px rgba(21,163,74,.6); }
+@media (max-width: 760px) { .auth-coin-wrap { width: 72px; height: 72px; margin-top: 4px; } .auth-coin { width: 72px; height: 72px; font-size: 34px; } .auth-blob { filter: blur(50px); } }
+@media (prefers-reduced-motion: reduce) {
+  .auth-blob, .auth-spark, .auth-coin, .auth-coin-wrap, .auth-layout::before, .auth-submit, .auth-pitch > *, .auth-card > * { animation: none !important; }
+  .auth-spark { display: none; }
+}
+/* Anmeldebox im helleren Schiefer-Ton (passend zu Design v5) */
+:root:not([data-theme="light"]) .auth-layout { background: rgba(27,39,48,.88); border-color: #2c3d48; backdrop-filter: blur(12px); }
+:root:not([data-theme="light"]) .auth-showcase { background: radial-gradient(circle at 70% 25%, rgba(126,245,163,.16), transparent 40%), linear-gradient(150deg, rgba(31,58,47,.9), rgba(23,34,41,.9)); }
+:root:not([data-theme="light"]) .auth-card { background: rgba(23,34,41,.85); }

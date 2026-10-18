@@ -161,10 +161,16 @@ export function LoginPage() {
 
   return (
     <main className="auth-page">
+      {/* Bewegter Hintergrund: Farbwolken und aufsteigende Funken (nur Dekoration) */}
+      <div className="auth-fx" aria-hidden="true">
+        <i className="auth-blob b1" /><i className="auth-blob b2" /><i className="auth-blob b3" />
+        {[8, 18, 31, 44, 58, 72, 86, 95].map((left, i) => <span key={left} className="auth-spark" style={{ left: `${left}%`, animationDelay: `${(i * 0.7) % 5}s` }} />)}
+      </div>
       <div className="auth-theme"><ThemeToggle /></div>
       <div className="auth-layout">
         <section className="auth-showcase" aria-label="GIBB Coin Vorteile">
           <div className="auth-brand"><span className="coin-mark auth-logo" aria-hidden="true">G</span><span><strong>GIBB Coin</strong><small>Wallet</small></span></div>
+          <div className="auth-coin-wrap" aria-hidden="true"><div className="auth-coin">G</div></div>
           <div className="auth-pitch"><span>Deine Schulwährung. Neu gedacht.</span><h1>Senden. Empfangen. Überblick behalten.</h1><p>Ein persönliches Wallet für den GIBB-Campus – schnell, transparent und serverseitig geschützt.</p></div>
           <div className="auth-benefits"><div><b>01</b><span><strong>Sofort startklar</strong><small>Einmalig 10 GIBB Startguthaben</small></span></div><div><b>02</b><span><strong>Jede Bewegung sichtbar</strong><small>Nachvollziehbarer Transaktionsverlauf</small></span></div><div><b>03</b><span><strong>Du entscheidest</strong><small>Persönliche Benachrichtigungen</small></span></div></div>
           <p className="auth-security">Geschützt durch Supabase Auth, Row Level Security und serverseitige Transaktionen.</p>
