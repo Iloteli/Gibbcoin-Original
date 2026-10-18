@@ -327,6 +327,12 @@ const routes = {
     const ipKey = `ip:${body.__ip}`;
     if (loginBlocked(nameKey, ipKey)) throw new Error("too_many_attempts");
     if (String(body.username ?? "").includes("@")) return loginWebsiteOwner(body, nameKey, ipKey);
+    // Kein Chain-Konto mit diesem Namen? Dann Benutzername eines Owners der Hauptseite (z. B. "iloteli")
+    const plainName = String(body.username ?? "").trim().toLowerCase();
+    if (!chain.users[plainName] && settingsSync.enabled && /^[a-z0-9][a-z0-9._-]{2,23}$/.test(plainName)) {
+      const email = await settingsSync.ownerLoginEmail(plainName);
+      if (email) return loginWebsiteOwner({ ...body, username: email }, nameKey, ipKey);
+    }
     let u;
     try { u = chain.verifyUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { loginFailed(nameKey, ipKey); throw error; }

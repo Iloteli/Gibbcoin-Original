@@ -228,6 +228,8 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   // Profil der Hauptseite (nur das eigene Konto, siehe /api/profile)
   const getProfile = async (userId) => (await rpc("node_get_profile", { p_user: userId })).profile;
   const updateProfile = async (userId, p) => (await rpc("node_update_profile", { p_user: userId, p_username: p.username, p_display_name: p.display_name, p_bio: p.bio, p_profile_color: p.profile_color, p_remove_avatar: p.remove_avatar === true })).profile;
+  // E-Mail eines Owners der Hauptseite zu seinem Benutzernamen (für die Anmeldung mit Benutzername)
+  const ownerLoginEmail = async (username) => { try { return (await rpc("node_owner_login_email", { p_username: username })).email ?? null; } catch { return null; } };
   const deleteSupportCase = (caseId, pin) => rpc("node_delete_support_case", { p_case: caseId, p_pin: pin });
   const setAvatarBlocked = (userId, blocked) => rpc("node_set_avatar_blocked", { p_user: userId, p_blocked: blocked === true });
   const deleteAccount = (userId, pin) => rpc("node_delete_account", { p_user: userId, p_pin: pin });
@@ -275,5 +277,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }
