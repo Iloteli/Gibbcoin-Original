@@ -49,7 +49,8 @@ export function OwnerChainCode() {
     return () => window.clearTimeout(timer);
   }, [validUntil, offset, load]);
 
-  if (state && "error" in state && state.error === "not_owner") return null;
+  // Nur Full-Owner sehen die Karte
+  if (state && "error" in state && ["not_owner", "not_full", "account_disabled"].includes(state.error)) return null;
 
   const copy = async (code: string) => {
     try { await navigator.clipboard.writeText(code); setCopied(true); window.setTimeout(() => setCopied(false), 1500); } catch { /* nicht erlaubt */ }

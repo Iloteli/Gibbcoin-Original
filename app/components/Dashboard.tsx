@@ -200,9 +200,24 @@ export function Dashboard({ user }: Props) {
   const hiddenTabs = seesHiddenTabs ? [] : disabledTabs;
   const visibleViews = dashboardViews.filter((view) => !hiddenTabs.includes(view.key));
   if (activeView !== "home" && activeView !== "admin" && hiddenTabs.includes(activeView)) setActiveView("home");
-  // Adminpanel nur für Admins und Owner
-  if (activeView === "admin" && profile && profile.role === "user") setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
+  // Adminpanel (Anmelde-Code für die Chain-Seite) nur für Owner mit Full – der Chain-Server entscheidet
+  const [chainFull, setChainFull] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (profile?.role !== "super_admin") return;
+    let alive = true;
+    void getSupabase()?.auth.getSession().then(async ({ data }) => {
+      const token = data.session?.access_token;
+      if (!token) return;
+      try {
+        const res = await fetch(`${preferredNodeUrl()}/api/owner-code`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ supabaseToken: token }) });
+        if (alive) setChainFull(res.ok);
+      } catch { if (alive) setChainFull(false); }
+    });
+    return () => { alive = false; };
+  }, [profile?.role]);
+  const showAdminPanel = profile?.role === "super_admin" && chainFull === true;
+  if (activeView === "admin" && profile && (profile.role !== "super_admin" || chainFull === false)) setActiveView("home");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [minAmount, setMinAmount] = useState("");
@@ -610,7 +625,7 @@ export function Dashboard({ user }: Props) {
                 {avatar ? <Image className="avatar" src={avatar} alt="" width={40} height={40} unoptimized referrerPolicy="no-referrer" style={{ borderColor: profile?.profile_color }} /> : <span className="avatar" style={{ background: profile?.profile_color }}>{displayName[0]}</span>}
                 <span className="profile-meta"><strong>{displayName}</strong><span>{formattedBalance} GIBB</span></span><span aria-hidden="true">⌄</span>
               </button>
-              {menuOpen && <nav className="menu" aria-label="Benutzermenü"><button type="button" onClick={() => openView("home", "wallet")}>Mein Wallet</button><button type="button" onClick={() => openView("games", "game-center")}>Game Center</button><button type="button" onClick={() => openView("send", "requests")}>Anfragen & Kontakte</button><button type="button" onClick={() => openView("send", "qr-code")}>Mein QR-Code</button><button type="button" onClick={() => openView("community", "group-wallets")}>Gruppen-Wallets</button><button type="button" onClick={() => openView("community", "reports")}>Sicherheit & Meldungen</button><button type="button" onClick={() => openView("activity", "transactions")}>Transaktionen</button><button type="button" onClick={() => openView("activity", "notifications")}>Benachrichtigungen</button>{profile?.role !== "user" && <><button type="button" onClick={() => openView("admin", "security")}>2FA-Sicherheit</button><button type="button" onClick={() => openView("admin", "admin-panel")}>Adminpanel</button></>}<button type="button" onClick={() => openView("account", "profile")}>Profil</button><button type="button" onClick={() => { setMenuOpen(false); openView("home"); window.setTimeout(() => window.dispatchEvent(new Event("gibb:start-tour")), 400); }}>Rundgang starten</button><button className="danger" type="button" onClick={logout}>Abmelden</button></nav>}
+              {menuOpen && <nav className="menu" aria-label="Benutzermenü"><button type="button" onClick={() => openView("home", "wallet")}>Mein Wallet</button><button type="button" onClick={() => openView("games", "game-center")}>Game Center</button><button type="button" onClick={() => openView("send", "requests")}>Anfragen & Kontakte</button><button type="button" onClick={() => openView("send", "qr-code")}>Mein QR-Code</button><button type="button" onClick={() => openView("community", "group-wallets")}>Gruppen-Wallets</button><button type="button" onClick={() => openView("community", "reports")}>Sicherheit & Meldungen</button><button type="button" onClick={() => openView("activity", "transactions")}>Transaktionen</button><button type="button" onClick={() => openView("activity", "notifications")}>Benachrichtigungen</button>{showAdminPanel && <><button type="button" onClick={() => openView("admin", "security")}>2FA-Sicherheit</button><button type="button" onClick={() => openView("admin", "admin-panel")}>Adminpanel</button></>}<button type="button" onClick={() => openView("account", "profile")}>Profil</button><button type="button" onClick={() => { setMenuOpen(false); openView("home"); window.setTimeout(() => window.dispatchEvent(new Event("gibb:start-tour")), 400); }}>Rundgang starten</button><button className="danger" type="button" onClick={logout}>Abmelden</button></nav>}
             </div>
           </div>
         </div>
@@ -742,10 +757,9 @@ export function Dashboard({ user }: Props) {
         {!offlineMode && <TransferApprovalCenter />}
         </div>
 
-        <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Adminpanel" id="admin-panel">
-        <div className="view-heading"><span>NUR FÜR ADMINS</span><h1>Adminpanel</h1><p>Die Verwaltung (Konten, Coins, Spiele, Einstellungen) läuft auf der Chain-Seite. Hier holst du den Anmelde-Code dafür.</p></div>
-        {activeView === "admin" && profile?.role === "super_admin" && <div id="security">{offlineMode ? <section className="card card-pad"><p className="field-hint">Im Offline-Modus gibt es keinen Code – zuerst „Neu verbinden“.</p></section> : <OwnerChainCode />}</div>}
-        {activeView === "admin" && profile?.role === "admin" && <section className="card card-pad" id="security"><p className="field-hint">Den Anmelde-Code für die Chain-Seite gibt es nur für Owner mit Full-Zugang.</p></section>}
+        <div className="dashboard-view" hidden={activeView !== "admin" || !showAdminPanel} aria-label="Adminpanel" id="admin-panel">
+        <div className="view-heading"><span>NUR FÜR FULL-OWNER</span><h1>Adminpanel</h1><p>Die Verwaltung (Konten, Coins, Spiele, Einstellungen) läuft auf der Chain-Seite. Hier holst du den Anmelde-Code dafür.</p></div>
+        {activeView === "admin" && showAdminPanel && <div id="security">{offlineMode ? <section className="card card-pad"><p className="field-hint">Im Offline-Modus gibt es keinen Code – zuerst „Neu verbinden“.</p></section> : <OwnerChainCode />}</div>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
