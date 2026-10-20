@@ -608,7 +608,7 @@
   a.btn-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-weight: 700; text-decoration: none; }
   .ssh-quick { display: flex; flex-wrap: wrap; gap: 8px; }
   .ssh-pass { margin: 0 0 10px; }
-  .pay-warn { border-color: rgba(255,190,80,.5) !important; }
+  .pay-warn { display: grid; gap: 4px; grid-column: 1 / -1; padding: 12px 14px; border: 1px solid rgba(255,190,80,.5); border-radius: 12px; }
   .pay-warn b { color: #ffc56b; }
   .ssh-keys { display: grid; gap: 6px; margin-bottom: 10px; }
   .ssh-keys > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; }
@@ -629,6 +629,26 @@
   html[data-motion="reduced"] .ambient *, html[data-motion="reduced"] .ambient { animation: none !important; }
   html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation: none !important; transition: none !important; }
   html[data-motion="off"] .ambient-waves, html[data-motion="off"] .ambient-dot { display: none !important; }
+  /* ===== Übersichtlich: ein Menü pro Bereich, keine Reiter in den Karten, alle Schalter an einem Ort ===== */
+  body .moved-off.moved-off.moved-off { display: none !important; }
+  #adminCard > .stabs, #settingsCard > .stabs { display: none !important; }
+  #adminCard[data-sub="audit"] .ad-pin, #adminCard[data-sub="visitors"] .ad-pin, #adminCard[data-sub="nodeusers"] .ad-pin { display: none; }
+  .switches:empty, .spanel[data-panel="tabs"] { display: none !important; }
+  .qgroup { margin-top: 18px; }
+  .qgroup[hidden] { display: none; }
+  .qgroup > .ad-h { margin: 0 0 8px; }
+  .qgroup .switches { margin-top: 0; }
+  .subnav .sn-group { display: none; }
+  .subnav .sn-group[hidden] { display: none !important; }
+  @media (min-width: 1000px) {
+    .page.has-side { grid-template-columns: 250px minmax(0, 1fr); align-items: start; }
+    .page.has-side > :not(.subnav) { grid-column: 2; }
+    .page.has-side > .subnav { grid-column: 1; grid-row: 1 / span 40; position: sticky; top: 140px; display: flex; flex-direction: column; flex-wrap: nowrap; gap: 3px; padding: 10px; border: 1px solid var(--line); border-radius: 18px; background: var(--panel-2, rgba(255,255,255,.03)); max-height: calc(100vh - 160px); overflow-y: auto; }
+    .page.has-side > .subnav button { width: 100%; justify-content: flex-start; border-radius: 12px; border-color: transparent; background: transparent; padding: 9px 12px; text-align: left; }
+    .page.has-side > .subnav button:hover { background: rgba(255,255,255,.05); }
+    .page.has-side > .subnav .sn-group { display: block; padding: 12px 12px 4px; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+    .page.has-side > .subnav .sn-group:first-child { padding-top: 4px; }
+  }
   /* ===== Handy: alles passt ohne seitliches Scrollen, kompakter, gut tippbar ===== */
   @media (max-width: 640px) {
     /* Bereichs-Leiste unten: alle Bereiche gleich breit nebeneinander, kurze Namen */
@@ -995,7 +1015,7 @@
   <section class="card pay-card owner-basic" id="payCard">
     <h2>Zahlarten & Registrieren <span>Hauptseite</span></h2>
     <p class="muted" style="margin:0 0 12px">Ein Klick schaltet die Kaufart sofort für alle ein oder aus.</p>
-    <div class="pay-methods" id="payMethods"></div>
+    <div class="switches" id="payMethods"></div>
     <div class="msg" id="payMsg"></div>
   </section>
 
@@ -1074,6 +1094,17 @@
         <div class="msg" id="caMsg"></div>
       </div>
     </div>
+  </section>
+
+  <section class="card quick-card owner-basic" id="quickCard">
+    <h2>Alle Schalter <span>wirken sofort · kein Speichern nötig</span></h2>
+    <p class="muted" style="margin:0">Jeder Schalter gilt sofort für alle – auf der Chain-Seite und auf der Hauptseite.</p>
+    <div class="qgroup" data-q="mining"><h3 class="ad-h">⛏ Mining</h3><div class="switches"></div></div>
+    <div class="qgroup" data-q="market"><h3 class="ad-h">📈 Markt</h3><div class="switches"></div></div>
+    <div class="qgroup" data-q="pay"><h3 class="ad-h">💳 Zahlarten &amp; Registrieren</h3></div>
+    <div class="qgroup" data-q="tabs"><h3 class="ad-h">🗂 Tabs der Hauptseite</h3><div class="switches"></div></div>
+    <div class="qgroup" data-q="chain"><h3 class="ad-h">🔐 Chain-Seite</h3><div class="switches"></div></div>
+    <div class="msg" id="quickMsg"></div>
   </section>
 
   <section class="card settings-card owner-basic" id="settingsCard">
@@ -1241,7 +1272,7 @@ const PAGES = {
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
   verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
-  einstellungen: ["#designCard", "#chainDesignCard", "#settingsCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
+  einstellungen: ["#quickCard", "#settingsCard", "#designCard", "#chainDesignCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
   infos: ["#infosCard"],
 };
 {
@@ -1298,34 +1329,131 @@ $("pageNav").addEventListener("click", (e) => { const b = e.target.closest("butt
 }
 new MutationObserver(() => refreshPageNav()).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 { let start = "uebersicht"; try { start = localStorage.getItem("chain-page") || start; } catch { /* privat */ } showPage(start, { save: false }); refreshPageNav(); }
-// ---------- Unter-Navigation: lange Bereiche zeigen immer nur eine Karte ----------
+// ---------- Alle Schalter an einem Ort (wirken sofort) ----------
+{
+  const put = (group, items) => {
+    const box = document.querySelector(`#quickCard .qgroup[data-q="${group}"] .switches`);
+    for (const item of items) { const el = typeof item === "string" ? $(item)?.closest(".switch") : item; if (el) box.appendChild(el); }
+  };
+  put("mining", ["wMining", "wRealTx", "sAuto", "sFallback"]);
+  put("market", ["sMarket", "wBuy", "wSell"]);
+  put("tabs", [...document.querySelectorAll(".tab-switch")].map((el) => el.closest(".switch")));
+  put("chain", ["sChainLogins"]);
+  // Banküberweisung gibt es schon bei den Zahlarten; die Zahlarten-Karte zieht hierher um
+  $("wBank").closest(".switch").classList.add("moved-off");
+  document.querySelector('#quickCard .qgroup[data-q="pay"]').append($("payMethods"), $("payMsg"));
+  $("payCard").classList.add("moved-off");
+}
+// Gruppen ohne sichtbaren Schalter ausblenden (z. B. bei Basic ohne Recht)
+function quickGroupsUpdate() {
+  let any = false;
+  document.querySelectorAll("#quickCard .qgroup").forEach((g) => {
+    const visible = [...g.querySelectorAll(".switch")].some((el) => getComputedStyle(el).display !== "none");
+    g.hidden = !visible; any ||= visible;
+  });
+  $("quickCard").classList.toggle("perm-off", document.body.classList.contains("is-basic") && !any);
+}
+const QUICK_KEYS = { sAuto: "autoAdjust", sMarket: "marketEnabled", sFallback: "fallbackMinerEnabled", sChainLogins: "chainLoginsEnabled", wMining: "w:miningEnabled", wRealTx: "w:requireRealTx", wBuy: "w:buyEnabled", wSell: "w:sellEnabled" };
+$("quickCard").addEventListener("change", async (e) => {
+  const box = e.target;
+  if (!box.matches('input[type="checkbox"]') || box.dataset.pay) return;
+  let patch;
+  if (box.classList.contains("tab-switch")) patch = { website: { disabledTabs: [...document.querySelectorAll(".tab-switch")].filter((el) => !el.checked).map((el) => el.dataset.tab) } };
+  else {
+    const key = QUICK_KEYS[box.id]; if (!key) return;
+    patch = key.startsWith("w:") ? { website: { [key.slice(2)]: box.checked } } : { [key]: box.checked };
+  }
+  const label = box.closest(".switch")?.querySelector("b")?.textContent ?? "Schalter";
+  box.disabled = true;
+  try {
+    const r = await api("/api/settings", patch);
+    if (stats) stats.settings = r;
+    const late = r.websitePush?.ok === false && r.websitePush?.error !== "not_configured";
+    say("quickMsg", `${label}: ${box.checked ? "an" : "aus"}${late ? ` – Hauptseite noch nicht aktualisiert (${r.websitePush.error})` : ""}`, late);
+    renderPayMethods(r);
+  } catch (err) { box.checked = !box.checked; say("quickMsg", errors[err.message] || err.message, true); }
+  finally { box.disabled = false; }
+});
+
+// ---------- Menü links: jeder Punkt direkt, ohne Reiter in den Karten ----------
+// Eintrag: [Karte] oder [Karte|Reiter in der Karte, Name]; ein Eintrag mit nur einem Text ist eine Überschrift.
 const SUBNAV = {
-  verwaltung: { "#adminCard": "🛡 Admin", "#coinAdminCard": "🪙 Coins", "#bankCard": "🏦 Bank", "#statsCard": "📊 Statistik", "#announceCard": "📣 Ankündigung" },
-  einstellungen: { "#designCard": "🎨 Hauptseite", "#chainDesignCard": "⛓ Chain-Design", "#settingsCard": "⚙ Allgemein", "#payCard": "💳 Zahlarten", "#footerCard": "✍ Fusszeile", "#notifyCard": "🔔 Benachrichtigungen", "#sshCard": "🖥 Server" },
+  verwaltung: [
+    ["Hauptseite"],
+    ["#adminCard|users", "👥 Konten"], ["#coinAdminCard", "🪙 Coins geben/abziehen"], ["#bankCard", "🏦 Banküberweisungen"],
+    ["#adminCard|games", "🎮 Spiele"], ["#adminCard|tools", "🛠 Tools & Support"], ["#announceCard", "📣 Ankündigung & Bonus"],
+    ["Auswertung"],
+    ["#statsCard", "📊 Statistik"], ["#adminCard|visitors", "📈 Besucher"], ["#adminCard|audit", "📜 Protokoll"],
+    ["Chain-Seite"],
+    ["#adminCard|nodeusers", "🔐 Chain-Konten & Rechte"],
+  ],
+  einstellungen: [
+    ["#quickCard", "⚡ Alle Schalter"],
+    ["Werte einstellen"],
+    ["#settingsCard|chain", "⛏ Mining"], ["#settingsCard|site", "📏 Mining-Regeln"], ["#settingsCard|market", "📈 Markt & Coinwert"], ["#settingsCard|server", "🖥 Server-Miner"],
+    ["Aussehen"],
+    ["#designCard", "🎨 Design Hauptseite"], ["#chainDesignCard", "⛓ Design Chain-Seite"], ["#footerCard", "✍ Fusszeile"],
+    ["Server & Meldungen"],
+    ["#notifyCard", "🔔 Benachrichtigungen"], ["#sshCard", "🖥 Server verbinden (SSH)"],
+  ],
 };
+const INNER = { "#adminCard": ".adtab[data-ad=\"$\"]", "#settingsCard": ".stab[data-tab=\"$\"]" };
+const subParts = (key) => { const [card, inner] = key.split("|"); return { card, inner }; };
 function subnavChoice(page) { try { return localStorage.getItem(`chain-sub-${page}`) || ""; } catch { return ""; } }
 function subnavApply(page, pick, { save = false } = {}) {
   const box = document.querySelector(`.page[data-page="${page}"]`); const bar = box?.querySelector(".subnav"); if (!bar) return;
-  for (const sel of Object.keys(SUBNAV[page])) box.querySelector(sel)?.classList.remove("sub-off");
-  const allowed = Object.keys(SUBNAV[page]).filter((sel) => { const el = box.querySelector(sel); return el && getComputedStyle(el).display !== "none"; });
+  const entries = SUBNAV[page].filter((e) => e.length === 2);
+  const cards = [...new Set(entries.map(([k]) => subParts(k).card))];
+  for (const sel of cards) box.querySelector(sel)?.classList.remove("sub-off");
+  const isBasic = document.body.classList.contains("is-basic");
+  const allowed = entries.map(([k]) => k).filter((k) => {
+    const { card, inner } = subParts(k);
+    const el = box.querySelector(card);
+    if (!el || getComputedStyle(el).display === "none") return false;
+    if (!inner) return true;
+    const tab = el.querySelector(INNER[card].replace("$", inner));
+    return Boolean(tab) && !tab.classList.contains("perm-off") && !(isBasic && tab.classList.contains("full-only"));
+  });
+  // Alte Auswahl (nur Karte oder "Alle") auf den ersten passenden Punkt abbilden
+  if (!allowed.includes(pick)) pick = allowed.find((k) => subParts(k).card === subParts(String(pick)).card) ?? allowed[0] ?? "";
   bar.hidden = allowed.length < 2;
-  if (pick !== "all" && !allowed.includes(pick)) pick = allowed[0] ?? "all";
-  if (bar.hidden) pick = "all";
-  for (const sel of allowed) box.querySelector(sel)?.classList.toggle("sub-off", pick !== "all" && sel !== pick);
-  bar.querySelectorAll("button").forEach((b) => { b.hidden = b.dataset.sub !== "all" && !allowed.includes(b.dataset.sub); b.classList.toggle("active", b.dataset.sub === pick); b.setAttribute("aria-pressed", String(b.dataset.sub === pick)); });
+  const { card: pickCard, inner } = subParts(pick);
+  for (const sel of cards) box.querySelector(sel)?.classList.toggle("sub-off", Boolean(pick) && sel !== pickCard);
+  const cardEl = pickCard ? box.querySelector(pickCard) : null;
+  if (cardEl && inner) {
+    const tab = cardEl.querySelector(INNER[pickCard].replace("$", inner));
+    if (tab && !tab.classList.contains("active")) tab.click();
+    cardEl.dataset.sub = inner;
+  }
+  // Titel der Karte = gewählter Menüpunkt (bei Karten mit mehreren Bereichen)
+  if (cardEl && inner) { const t = cardEl.querySelector("h2")?.firstChild; if (t?.nodeType === 3) t.nodeValue = `${SUBNAV[page].find(([k]) => k === pick)?.[1].replace(/^\S+\s/, "") ?? ""} `; }
+  bar.querySelectorAll("button[data-sub]").forEach((b) => { b.hidden = !allowed.includes(b.dataset.sub); b.classList.toggle("active", b.dataset.sub === pick); b.setAttribute("aria-pressed", String(b.dataset.sub === pick)); });
+  bar.querySelectorAll(".sn-group").forEach((g) => {
+    let n = g.nextElementSibling, any = false;
+    while (n && !n.classList.contains("sn-group")) { any ||= !n.hidden; n = n.nextElementSibling; }
+    g.hidden = !any;
+  });
   bar.dataset.pick = pick;
   if (save) { try { localStorage.setItem(`chain-sub-${page}`, pick); } catch { /* privat */ } }
 }
-for (const [page, cards] of Object.entries(SUBNAV)) {
+for (const [page, items] of Object.entries(SUBNAV)) {
   const box = document.querySelector(`.page[data-page="${page}"]`); if (!box) continue;
-  const bar = document.createElement("div"); bar.className = "subnav"; bar.setAttribute("role", "toolbar"); bar.setAttribute("aria-label", "Karte wählen");
-  bar.innerHTML = Object.entries(cards).map(([sel, label]) => `<button type="button" data-sub="${sel}">${label}</button>`).join("") + `<button type="button" data-sub="all">☰ Alle</button>`;
+  box.classList.add("has-side");
+  const bar = document.createElement("nav"); bar.className = "subnav"; bar.setAttribute("aria-label", "Menü");
+  bar.innerHTML = items.map((e) => e.length === 1 ? `<span class="sn-group">${e[0]}</span>` : `<button type="button" data-sub="${e[0]}">${e[1]}</button>`).join("");
   box.prepend(bar);
-  bar.addEventListener("click", (e) => { const b = e.target.closest("button[data-sub]"); if (b) subnavApply(page, b.dataset.sub, { save: true }); });
+  bar.addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-sub]"); if (!b) return;
+    subnavApply(page, b.dataset.sub, { save: true });
+    if (window.scrollY > 200) window.scrollTo({ top: 0, behavior: "smooth" });
+  });
   subnavApply(page, subnavChoice(page));
 }
 // Rechte/Rolle ändern sich nach dem Login → Auswahl neu prüfen
-new MutationObserver(() => { for (const page of Object.keys(SUBNAV)) subnavApply(page, document.querySelector(`.page[data-page="${page}"] .subnav`)?.dataset.pick || subnavChoice(page)); }).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+function refreshSubnavs() { quickGroupsUpdate(); for (const page of Object.keys(SUBNAV)) subnavApply(page, document.querySelector(`.page[data-page="${page}"] .subnav`)?.dataset.pick || subnavChoice(page)); }
+new MutationObserver(refreshSubnavs).observe(document.body, { attributes: true, attributeFilter: ["class"] });
+// … und nachdem die Rechte des Kontos angewendet wurden (kommen erst nach dem Login)
+{ const base = applyPermissions; applyPermissions = function (...args) { const r = base.apply(this, args); refreshSubnavs(); refreshPageNav(); return r; }; }
 // Sprung zu einer versteckten Karte (z. B. Link) öffnet sie
 {
   const jump = Element.prototype.scrollIntoView;
@@ -1679,7 +1807,7 @@ document.querySelectorAll(".stab[data-tab]").forEach((b) => b.addEventListener("
 const markDirty = (dirty) => { settingsDirty = dirty; $("dirtyHint").hidden = !dirty; $("discardSettings").hidden = !dirty; $("settingsCard").classList.toggle("is-dirty", dirty); };
 $("settingsCard").addEventListener("input", (e) => { if (e.target.matches("input")) { markDirty(true); say("settingsMsg", ""); } });
 $("discardSettings").onclick = async () => { markDirty(false); $("wPrice").value = ""; await refresh(); };
-$("saveSettings").onclick = async () => { try { const r = await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, chainLoginsEnabled: $("sChainLogins").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value, websitePrice: $("wPrice").value, website: { cooldownSeconds: $("wCooldown").value, halvingBlocks: $("wHalving").value, maxBlocksPerDay: $("wMaxPerDay").value, miningEnabled: $("wMining").checked, requireRealTx: $("wRealTx").checked, marketStepPercent: $("wStep").value, minPrice: $("wMinPrice").value, maxPrice: $("wMaxPrice").value, maxTrade: $("wMaxTrade").value, dailySellLimit: $("wSellLimit").value, buyEnabled: $("wBuy").checked, sellEnabled: $("wSell").checked, bankEnabled: $("wBank").checked, disabledTabs: [...document.querySelectorAll(".tab-switch")].filter((el) => !el.checked).map((el) => el.dataset.tab), bankIban: $("wBankIban").value, bankHolder: $("wBankHolder").value, bankStreet: $("wBankStreet").value, bankZip: $("wBankZip").value, bankCity: $("wBankCity").value } }); markDirty(false); $("wPrice").value = ""; say("settingsMsg", r.websitePush?.ok ? "Gespeichert und an die Hauptseite übertragen." : r.websitePush?.error === "not_configured" ? "Gespeichert." : `Gespeichert – Hauptseite nicht aktualisiert (${r.websitePush?.error ?? "?"}).`); await refresh(); } catch (e) { fail("settingsMsg", e); } };
+$("saveSettings").onclick = async () => { try { const r = await api("/api/settings", { reward: $("sReward").value, targetSeconds: $("sTarget").value, difficultyBits: $("sBits").value, maxTxPerBlock: $("sMaxTx").value, minBits: $("sMin").value, maxBits: $("sMax").value, autoAdjust: $("sAuto").checked, startPrice: $("sStartPrice").value, startingCash: $("sStartCash").value, tradingFeePercent: $("sFee").value, minOrderAmount: $("sMinOrder").value, marketEnabled: $("sMarket").checked, fallbackMinerEnabled: $("sFallback").checked, chainLoginsEnabled: $("sChainLogins").checked, fallbackDelaySeconds: $("sFallbackDelay").value, browserMinerThreads: $("sBrowserThreads").value, websitePrice: $("wPrice").value, website: { cooldownSeconds: $("wCooldown").value, halvingBlocks: $("wHalving").value, maxBlocksPerDay: $("wMaxPerDay").value, miningEnabled: $("wMining").checked, requireRealTx: $("wRealTx").checked, marketStepPercent: $("wStep").value, minPrice: $("wMinPrice").value, maxPrice: $("wMaxPrice").value, maxTrade: $("wMaxTrade").value, dailySellLimit: $("wSellLimit").value, buyEnabled: $("wBuy").checked, sellEnabled: $("wSell").checked, disabledTabs: [...document.querySelectorAll(".tab-switch")].filter((el) => !el.checked).map((el) => el.dataset.tab), bankIban: $("wBankIban").value, bankHolder: $("wBankHolder").value, bankStreet: $("wBankStreet").value, bankZip: $("wBankZip").value, bankCity: $("wBankCity").value } }); markDirty(false); $("wPrice").value = ""; say("settingsMsg", r.websitePush?.ok ? "Gespeichert und an die Hauptseite übertragen." : r.websitePush?.error === "not_configured" ? "Gespeichert." : `Gespeichert – Hauptseite nicht aktualisiert (${r.websitePush?.error ?? "?"}).`); await refresh(); } catch (e) { fail("settingsMsg", e); } };
 
 // ---------- Anmeldung (lokal) ----------
 let booted = false;
@@ -2107,22 +2235,21 @@ function renderPayMethods(settings) {
   // Kaufen ist an, aber keine Zahlart: dann gibt es auf der Hauptseite keinen Kaufen-Knopf
   const isOn = (key) => { const m = payMethods.find((x) => x.key === key); return w[key] === undefined ? m.def : w[key] === true; };
   const noWay = w.buyEnabled === true && !isOn("cardEnabled") && !isOn("creditsEnabled") && !(isOn("bankEnabled") && String(w.bankIban ?? "").trim());
-  const warn = noWay ? `<div class="pay-method pay-warn"><b>⚠ Kaufen ist eingeschaltet, aber keine Zahlart</b><small>Auf der Hauptseite fehlen deshalb die Kaufen-Knöpfe. Schalte mindestens eine Zahlart ein${isOn("bankEnabled") ? " (Banküberweisung braucht noch eine IBAN)" : ""}.</small></div>` : "";
-  $("payMethods").innerHTML = warn + shown.map((m) => {
-    const on = w[m.key] === undefined ? m.def : w[m.key] === true;
-    return `<div class="pay-method"><b>${m.label}</b><span class="state ${on ? "on" : "off"}">${on ? "● Aktiv" : "○ Deaktiviert"}</span><small>${m.hint}</small><button type="button" class="${on ? "danger" : "primary"}" data-pay="${m.key}" data-on="${on ? "1" : "0"}">${on ? "Deaktivieren" : "Aktivieren"}</button></div>`;
-  }).join("");
+  const warn = noWay ? `<div class="pay-warn"><b>⚠ Kaufen ist eingeschaltet, aber keine Zahlart</b><small>Auf der Hauptseite fehlen deshalb die Kaufen-Knöpfe. Schalte mindestens eine Zahlart ein${isOn("bankEnabled") ? " (Banküberweisung braucht noch eine IBAN unter Markt & Coinwert)" : ""}.</small></div>` : "";
+  $("payMethods").innerHTML = warn + shown.map((m) => `<label class="switch"><input type="checkbox" data-pay="${m.key}"${isOn(m.key) ? " checked" : ""} /><span class="knob"></span><span class="switch-text"><b>${m.label}</b><small>${m.hint}</small></span></label>`).join("");
+  quickGroupsUpdate();
 }
-$("payMethods").addEventListener("click", async (e) => {
-  const btn = e.target.closest("button[data-pay]"); if (!btn) return;
-  const next = btn.dataset.on !== "1";
-  btn.disabled = true;
+$("payMethods").addEventListener("change", async (e) => {
+  const box = e.target.closest("input[data-pay]"); if (!box) return;
+  box.disabled = true;
   try {
-    const r = await api("/api/settings", { website: { [btn.dataset.pay]: next } });
-    say("payMsg", r.websitePush?.ok ? `${next ? "Aktiviert" : "Deaktiviert"} – gilt jetzt auf der Hauptseite.` : `Gespeichert – Hauptseite noch nicht aktualisiert (${r.websitePush?.error ?? "?"}).`, !r.websitePush?.ok);
+    const r = await api("/api/settings", { website: { [box.dataset.pay]: box.checked } });
+    const label = box.closest(".switch")?.querySelector("b")?.textContent ?? "Zahlart";
+    say("payMsg", r.websitePush?.ok === false && r.websitePush?.error !== "not_configured" ? `${label}: ${box.checked ? "an" : "aus"} – Hauptseite noch nicht aktualisiert (${r.websitePush?.error ?? "?"}).` : `${label}: ${box.checked ? "an" : "aus"} – gilt jetzt auf der Hauptseite.`, r.websitePush?.ok === false && r.websitePush?.error !== "not_configured");
     renderPayMethods(r);
     await refresh();
-  } catch (err) { say("payMsg", errors[err.message] || err.message, true); btn.disabled = false; }
+  } catch (err) { box.checked = !box.checked; say("payMsg", errors[err.message] || err.message, true); }
+  finally { box.disabled = false; }
 });
 
 // ---------- Owner der Hauptseite: Basic / Full ----------
