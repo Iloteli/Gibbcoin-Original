@@ -602,6 +602,14 @@
   .ssh-cmd code { color: var(--cyan); white-space: nowrap; }
   a.btn-link { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-weight: 700; text-decoration: none; }
   .ssh-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ssh-pass { margin: 0 0 10px; }
+  .pay-warn { border-color: rgba(255,190,80,.5) !important; }
+  .pay-warn b { color: #ffc56b; }
+  .ssh-keys { display: grid; gap: 6px; margin-bottom: 10px; }
+  .ssh-keys > div { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; }
+  .ssh-keys code { font-size: 12px; color: var(--muted); }
+  .ssh-keys .off { color: var(--muted); font-size: 12px; }
+  .ssh-keys button { margin-left: auto; }
   .ssh-quick > span { display: inline-flex; }
   .ssh-quick button { font-family: "IBM Plex Mono", monospace; font-size: 13px; }
   .ssh-quick button[data-run] { border-top-right-radius: 0; border-bottom-right-radius: 0; }
@@ -894,14 +902,15 @@
 
   <section class="card ssh-card owner-basic" id="sshCard" data-perm="a:ssh">
     <h2>Server verbinden <span>SSH</span></h2>
-    <p class="muted" style="margin:0 0 12px">Öffnet dein SSH-Programm (Terminal) direkt mit dem Server. Das Passwort tippst du dort ein – es geht nie über diese Seite. Die Angaben bleiben nur in diesem Browser gespeichert.</p>
+    <p class="muted" style="margin:0 0 12px">Öffnet dein SSH-Programm (Terminal) direkt mit dem Server. Das Passwort tippst du dort ein – es geht nie über diese Seite. Benutzer und Server gibt der Owner für alle vor.</p>
     <div class="sgrid">
       <div class="field"><label for="sshUser">Benutzer</label><input id="sshUser" autocomplete="off" placeholder="z. B. dein Server-Benutzer" /></div>
       <div class="field"><label for="sshHost">Server</label><input id="sshHost" autocomplete="off" /></div>
       <div class="field"><label for="sshPort">Port</label><input id="sshPort" type="number" min="1" max="65535" value="22" /></div>
     </div>
     <div class="ssh-cmd"><code id="sshCmd">ssh …</code></div>
-    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button><button type="button" id="sshWin">🪟 Windows einrichten (einmalig)</button></div>
+    <p class="muted ssh-pass" id="sshPassHint"></p>
+    <div class="actions"><a class="primary btn-link" id="sshGo" href="#">🖥 Jetzt verbinden</a><button type="button" id="sshCopy">Befehl kopieren</button><button type="button" id="sshWin">🪟 Windows einrichten (einmalig)</button><button type="button" class="owner-only" id="sshSaveDefault" title="Benutzer, Server und Port für alle Konten vorgeben">💾 Für alle vorgeben</button></div>
     <small class="muted">Passiert beim Klick auf „Jetzt verbinden“ nichts? Windows kennt ssh://-Links von Haus aus nicht. Einmal „Windows einrichten“ klicken, die Datei <b>gibb-ssh-einrichten.cmd</b> öffnen (bei der Warnung „Weitere Informationen → Trotzdem ausführen“) – danach öffnet „Jetzt verbinden“ PowerShell mit der Verbindung. Ohne Admin-Rechte, nur für dein Windows-Konto.</small>
     <h3 class="ad-h" style="margin-top:16px">Befehle auf dem Server</h3>
     <p class="muted" style="margin:0 0 8px">Klick = SSH öffnen und den Befehl direkt ausführen (braucht „Windows einrichten“). 📋 = nur kopieren. Ohne sudo-Passwort: einmal auf dem Server <code>sudo gibb-sudo</code> ausführen.</p>
@@ -911,6 +920,17 @@
       <span data-perm="a:sshBackup"><button type="button" data-run="backup">💾 gibb-backup</button><button type="button" class="cp" data-cmd="sudo gibb-backup" title="Kopieren">📋</button></span>
       <span data-perm="a:sshVersion"><button type="button" data-run="version">🏷 gibb-version</button><button type="button" class="cp" data-cmd="sudo gibb-version" title="Kopieren">📋</button></span>
       <span data-perm="a:sshCode"><button type="button" data-run="code">🔑 gibb-code</button><button type="button" class="cp" data-cmd="sudo gibb-code" title="Kopieren">📋</button></span>
+    </div>
+    <h3 class="ad-h" style="margin-top:16px">🔑 Ohne Passwort verbinden</h3>
+    <p class="muted" style="margin:0 0 8px">1. „Windows einrichten“ ausführen – das erstellt deinen persönlichen SSH-Schlüssel und kopiert ihn in die Zwischenablage. 2. Unten einfügen und speichern. 3. Der Owner klickt einmal „Schlüssel freischalten“. Danach fragt der Server nicht mehr nach dem Passwort.</p>
+    <div class="field"><label for="sshKey">Mein öffentlicher Schlüssel</label><input id="sshKey" autocomplete="off" spellcheck="false" placeholder="ssh-ed25519 AAAA… gibb-PC" /></div>
+    <div class="actions"><button type="button" class="primary" id="sshKeySave">Schlüssel speichern</button><button type="button" id="sshKeyDel">Meinen Schlüssel entfernen</button></div>
+    <small class="muted" id="sshKeyState"></small>
+    <div class="owner-only">
+      <h3 class="ad-h" style="margin-top:16px">Schlüssel der Konten</h3>
+      <div class="ssh-keys" id="sshKeyList"></div>
+      <div class="actions"><button type="button" class="primary" id="sshKeysApply">🔑 Schlüssel auf dem Server freischalten</button></div>
+      <small class="muted">Öffnet SSH mit dem Server-Benutzer oben und führt <code>gibb-ssh-keys</code> aus (ohne sudo). Nötig nach jedem neuen oder entfernten Schlüssel und wenn du einem Konto die SSH-Karte wegnimmst.</small>
     </div>
     <div class="msg" id="sshMsg"></div>
   </section>
@@ -1685,7 +1705,7 @@ function applyPermissions(perms) {
 const isFullView = () => document.body.classList.contains("is-owner");
 const canUse = (perm) => document.body.classList.contains("is-owner") || (document.body.classList.contains("is-basic") && myPermissions.includes(perm));
 function onAuthed(me) {
-  setTimeout(async () => { try { const info = await api("/api/auth/me", {}); myPermissionsFull = info.permissions ?? []; applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); }, 0);
+  setTimeout(async () => { try { const info = await api("/api/auth/me", {}); myPermissionsFull = info.permissions ?? []; applyPermissions(info.permissions); } catch {} void caLoad(); void bankLoad(); void window.sshLoad?.(); }, 0);
   setTimeout(() => { void adLoad("users"); void ntLoad(); }, 0);
   setTimeout(() => { void stLoad(); void anLoad(); }, 300);
   myAddress = me.address;
@@ -2039,9 +2059,13 @@ const payMethods = [
 function renderPayMethods(settings) {
   const w = settings?.website ?? {};
   const basic = document.body.classList.contains("is-basic");
-  const shown = payMethods.filter((m) => !basic || (m.key !== "bankEnabled" && myPermissions.includes(`w:${m.key}`)));
+  const shown = payMethods.filter((m) => !basic || myPermissions.includes(`w:${m.key}`));
   $("payCard").classList.toggle("perm-off", basic && shown.length === 0);
-  $("payMethods").innerHTML = shown.map((m) => {
+  // Kaufen ist an, aber keine Zahlart: dann gibt es auf der Hauptseite keinen Kaufen-Knopf
+  const isOn = (key) => { const m = payMethods.find((x) => x.key === key); return w[key] === undefined ? m.def : w[key] === true; };
+  const noWay = w.buyEnabled === true && !isOn("cardEnabled") && !isOn("creditsEnabled") && !(isOn("bankEnabled") && String(w.bankIban ?? "").trim());
+  const warn = noWay ? `<div class="pay-method pay-warn"><b>⚠ Kaufen ist eingeschaltet, aber keine Zahlart</b><small>Auf der Hauptseite fehlen deshalb die Kaufen-Knöpfe. Schalte mindestens eine Zahlart ein${isOn("bankEnabled") ? " (Banküberweisung braucht noch eine IBAN)" : ""}.</small></div>` : "";
+  $("payMethods").innerHTML = warn + shown.map((m) => {
     const on = w[m.key] === undefined ? m.def : w[m.key] === true;
     return `<div class="pay-method"><b>${m.label}</b><span class="state ${on ? "on" : "off"}">${on ? "● Aktiv" : "○ Deaktiviert"}</span><small>${m.hint}</small><button type="button" class="${on ? "danger" : "primary"}" data-pay="${m.key}" data-on="${on ? "1" : "0"}">${on ? "Deaktivieren" : "Aktivieren"}</button></div>`;
   }).join("");
@@ -2066,7 +2090,7 @@ const permList = [
   ["rules", "📏 Mining-Regeln", "Mining an/aus, Pause, Halbieren, Tageslimit"],
   ["market", "📈 Markt & Coinwert", "Kurs, Grenzen, Gebühren (ohne IBAN)"],
   ["tabs", "🗂 Tabs", "Tabs der Hauptseite ein-/ausblenden"],
-  ["payments", "💳 Zahlarten", "Karte und Credits ein-/ausschalten"],
+  ["payments", "💳 Zahlarten", "Karte, Credits und Banküberweisung ein-/ausschalten"],
   ["server", "🖥 Server-Einstellungen", "Reserve-Miner, Browser-Miner-Kerne"],
   ["miner", "⛏ Server-Miner", "Miner auf dem Server starten/stoppen"],
   ["verify", "✔ Kette prüfen", "Prüfung der ganzen Kette starten"],
@@ -2556,6 +2580,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   const KEY = "gibb-ssh";
   let saved = {}; try { saved = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch { /* privat */ }
   $("sshUser").value = saved.user ?? ""; $("sshHost").value = saved.host ?? location.hostname; $("sshPort").value = saved.port ?? 22;
+  let sshDefaults = { user: "", host: "", port: 22 };
   const clean = (v, re) => (re.test(v) ? v : "");
   const sshUpdate = () => {
     const user = clean($("sshUser").value.trim(), /^[a-z_][a-z0-9._-]{0,31}$/i), host = clean($("sshHost").value.trim(), /^[a-z0-9.-]{1,253}$|^\[?[0-9a-f:]+\]?$/i);
@@ -2563,10 +2588,60 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const target = user ? `${user}@${host}` : host;
     $("sshCmd").textContent = host ? `ssh ${port !== 22 ? `-p ${port} ` : ""}${target}` : "Server eintragen";
     $("sshGo").href = host ? `ssh://${target}${port !== 22 ? `:${port}` : ""}` : "#";
+    $("sshPassHint").innerHTML = user
+      ? `Passwort = das Passwort des Server-Benutzers <b>${user}</b> (das gleiche wie für sudo). Ohne Passwort: unten „Ohne Passwort verbinden“.`
+      : `<b>Benutzer fehlt:</b> ohne Benutzer nimmt SSH deinen Windows-Namen – das gibt „Permission denied“. Trag den Server-Benutzer ein${document.body.classList.contains("is-owner") ? " und klick „Für alle vorgeben“" : " (bekommst du vom Owner)"}.`;
     try { localStorage.setItem(KEY, JSON.stringify({ user: $("sshUser").value.trim(), host: $("sshHost").value.trim(), port })); } catch { /* privat */ }
   };
   ["sshUser", "sshHost", "sshPort"].forEach((id) => $(id).addEventListener("input", sshUpdate));
   sshUpdate();
+  const sshErrors = { invalid_ssh_key: "Das ist kein gültiger öffentlicher SSH-Schlüssel (beginnt mit ssh-ed25519 oder ssh-rsa). Nie den privaten Schlüssel einfügen!", invalid_ssh_user: "Ungültiger Benutzername.", invalid_ssh_host: "Ungültiger Server." };
+  const when = (t) => new Date(t).toLocaleString("de-CH", { dateStyle: "short", timeStyle: "short" });
+  // Vorgaben des Owners übernehmen; Schlüssel-Status laden
+  window.sshLoad = async () => {
+    if (!canUse("a:ssh")) return;
+    try {
+      const r = await api("/api/ssh", {});
+      sshDefaults = r.config ?? sshDefaults;
+      if (sshDefaults.user) $("sshUser").value = sshDefaults.user;
+      if (sshDefaults.host) $("sshHost").value = sshDefaults.host;
+      if (sshDefaults.user || sshDefaults.host) $("sshPort").value = sshDefaults.port ?? 22;
+      sshUpdate();
+      $("sshKeyState").textContent = r.myKey ? `Gespeichert: ${r.myKey.type} …${r.myKey.tail} (${when(r.myKey.at)}). Funktioniert es noch nicht, muss der Owner ihn freischalten.` : "Noch kein Schlüssel gespeichert.";
+      $("sshKeyDel").hidden = !r.myKey;
+      if (Array.isArray(r.keys)) {
+        $("sshKeyList").innerHTML = r.keys.length ? r.keys.map((k) => `<div><b>${h(k.name)}</b><code>${h(k.type)} …${h(k.tail)}</code><span class="off">${k.active ? when(k.at) : "SSH-Karte nicht erlaubt – wird nicht freigeschaltet"}</span><button type="button" class="danger compact" data-key-del="${h(k.address)}">Entfernen</button></div>`).join("") : `<small class="muted">Noch keine Schlüssel.</small>`;
+      }
+    } catch (e) { say("sshMsg", sshErrors[e.message] || e.message, true); }
+  };
+  $("sshSaveDefault").onclick = async () => {
+    try {
+      await api("/api/ssh/config", { user: $("sshUser").value.trim(), host: $("sshHost").value.trim(), port: $("sshPort").value });
+      say("sshMsg", "Gespeichert – alle Konten mit der SSH-Karte sehen jetzt diese Angaben.");
+    } catch (e) { say("sshMsg", sshErrors[e.message] || e.message, true); }
+  };
+  $("sshKeySave").onclick = async () => {
+    const key = $("sshKey").value.trim();
+    if (/PRIVATE KEY/.test(key)) { $("sshKey").value = ""; say("sshMsg", "Das ist der PRIVATE Schlüssel – der bleibt auf deinem PC! Bitte die .pub-Datei bzw. die Zwischenablage aus „Windows einrichten“ nehmen.", true); return; }
+    if (!key) { say("sshMsg", "Bitte zuerst den Schlüssel einfügen.", true); return; }
+    try { await api("/api/ssh/key", { key }); $("sshKey").value = ""; say("sshMsg", "Schlüssel gespeichert. Der Owner muss ihn noch einmal freischalten."); await window.sshLoad(); }
+    catch (e) { say("sshMsg", sshErrors[e.message] || e.message, true); }
+  };
+  $("sshKeyDel").onclick = async () => {
+    try { await api("/api/ssh/key", { key: "" }); say("sshMsg", "Schlüssel entfernt (gilt auf dem Server nach dem nächsten Freischalten)."); await window.sshLoad(); }
+    catch (e) { say("sshMsg", sshErrors[e.message] || e.message, true); }
+  };
+  $("sshKeyList").addEventListener("click", async (e) => {
+    const b = e.target.closest("button[data-key-del]"); if (!b) return;
+    try { await api("/api/ssh/key/remove", { address: b.dataset.keyDel }); say("sshMsg", "Entfernt – jetzt „Schlüssel freischalten“ klicken, damit es auch auf dem Server gilt."); await window.sshLoad(); }
+    catch (err) { say("sshMsg", sshErrors[err.message] || err.message, true); }
+  });
+  $("sshKeysApply").onclick = () => {
+    const base = $("sshGo").getAttribute("href");
+    if (base === "#") { say("sshMsg", "Bitte zuerst den Server eintragen.", true); return; }
+    location.href = `${base}/?gibb=keys`;
+    say("sshMsg", "SSH wird geöffnet und führt „gibb-ssh-keys“ aus … (passiert nichts? zuerst „Windows einrichten“ – neue Version nötig)");
+  };
   const copy = async (text) => { try { await navigator.clipboard.writeText(text); say("sshMsg", `Kopiert: ${text}`); } catch { say("sshMsg", "Kopieren nicht möglich – bitte von Hand markieren.", true); } };
   $("sshCopy").onclick = () => void copy($("sshCmd").textContent);
   // Einmalige Einrichtung für Windows: ssh://-Links öffnen PowerShell mit ssh.
@@ -2574,7 +2649,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
   $("sshWin").onclick = () => {
     const opener = [
       "param([string]$Url)",
-      "$m = [regex]::Match($Url, '^ssh://(?:([a-z_][a-z0-9._-]{0,31})@)?([a-z0-9][a-z0-9.-]{0,252})(?::([0-9]{1,5}))?/?(?:\\?gibb=(update|help|backup|version|code))?$', 'IgnoreCase')",
+      "$m = [regex]::Match($Url, '^ssh://(?:([a-z_][a-z0-9._-]{0,31})@)?([a-z0-9][a-z0-9.-]{0,252})(?::([0-9]{1,5}))?/?(?:\\?gibb=(update|help|backup|version|code|keys))?$', 'IgnoreCase')",
       "if (-not $m.Success) { Write-Host 'Ungueltiger SSH-Link:' $Url; Read-Host 'Enter zum Schliessen'; exit 1 }",
       "$target = if ($m.Groups[1].Success) { $m.Groups[1].Value + '@' + $m.Groups[2].Value } else { $m.Groups[2].Value }",
       "$sshArgs = @($target)",
@@ -2582,8 +2657,12 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
       "$host.UI.RawUI.WindowTitle = 'GIBB Server - ' + $target",
       "Write-Host ('Verbinde mit ' + $target + ' ...')",
       "$gibb = if ($m.Groups[4].Success) { $m.Groups[4].Value.ToLower() } else { '' }",
-      "if ($gibb) { $run = 'sudo /usr/local/bin/gibb-' + $gibb; if ($gibb -eq 'help') { $run += '; exec bash -l' }; Write-Host ('Fuehre aus: sudo gibb-' + $gibb); $sshArgs = @('-t') + $sshArgs + @($run) }",
+      "$k = Join-Path $env:USERPROFILE '.ssh\\gibb_ed25519'",
+      "if (Test-Path $k) { $sshArgs = @('-i', $k) + $sshArgs }",
+      "if ($gibb -eq 'keys') { $run = '/usr/local/bin/gibb-ssh-keys'; Write-Host 'Fuehre aus: gibb-ssh-keys'; $sshArgs = @('-t') + $sshArgs + @($run) }",
+      "elseif ($gibb) { $run = 'sudo /usr/local/bin/gibb-' + $gibb; if ($gibb -eq 'help') { $run += '; exec bash -l' }; Write-Host ('Fuehre aus: sudo gibb-' + $gibb); $sshArgs = @('-t') + $sshArgs + @($run) }",
       "& ssh.exe @sshArgs",
+      "if ($gibb -eq 'keys') { Read-Host 'Fertig - Enter zum Schliessen'; exit $LASTEXITCODE }",
       "if ($gibb -and $gibb -ne 'help') { exit $LASTEXITCODE }",
       "Read-Host 'Verbindung beendet - Enter zum Schliessen'",
     ].join("\r\n");
@@ -2606,13 +2685,25 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     const bytes = new Uint8Array(setup.length * 2);
     for (let i = 0; i < setup.length; i++) { const c = setup.charCodeAt(i); bytes[i * 2] = c & 255; bytes[i * 2 + 1] = c >> 8; }
     let bin = ""; bytes.forEach((b) => { bin += String.fromCharCode(b); });
-    const cmdFile = `@echo off\r\nrem GIBB Coin: ssh://-Links unter Windows oeffnen (nur fuer dieses Windows-Konto)\r\npowershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${btoa(bin)}\r\npause\r\n`;
+    // Danach: persönlichen SSH-Schlüssel anlegen (ohne Passphrase, nur einmal) und den öffentlichen Teil in die Zwischenablage legen
+    const keyLines = [
+      'if not exist "%USERPROFILE%\\.ssh" mkdir "%USERPROFILE%\\.ssh"',
+      'if not exist "%USERPROFILE%\\.ssh\\gibb_ed25519" ssh-keygen -q -t ed25519 -N "" -f "%USERPROFILE%\\.ssh\\gibb_ed25519" -C "gibb-%COMPUTERNAME%"',
+      'if exist "%USERPROFILE%\\.ssh\\gibb_ed25519.pub" (',
+      '  type "%USERPROFILE%\\.ssh\\gibb_ed25519.pub" | clip',
+      '  echo.',
+      '  echo Dein SSH-Schluessel ist in der Zwischenablage. Auf der Chain-Seite unter',
+      '  echo Server - Ohne Passwort verbinden einfuegen und speichern:',
+      '  type "%USERPROFILE%\\.ssh\\gibb_ed25519.pub"',
+      ')',
+    ].join("\r\n");
+    const cmdFile = `@echo off\r\nrem GIBB Coin: ssh://-Links unter Windows oeffnen (nur fuer dieses Windows-Konto)\r\npowershell -NoProfile -ExecutionPolicy Bypass -EncodedCommand ${btoa(bin)}\r\n${keyLines}\r\npause\r\n`;
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([cmdFile], { type: "application/octet-stream" }));
     a.download = "gibb-ssh-einrichten.cmd";
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    say("sshMsg", "Datei gibb-ssh-einrichten.cmd heruntergeladen – öffne sie einmal, danach funktioniert „Jetzt verbinden“.");
+    say("sshMsg", "Datei gibb-ssh-einrichten.cmd heruntergeladen – öffne sie einmal, danach funktioniert „Jetzt verbinden“. Sie legt auch deinen SSH-Schlüssel in die Zwischenablage: unten einfügen und speichern.");
   };
   $("sshGo").addEventListener("click", (e) => { if ($("sshGo").getAttribute("href") === "#") { e.preventDefault(); say("sshMsg", "Bitte zuerst den Server eintragen.", true); } else say("sshMsg", "SSH-Programm wird geöffnet …"); });
   $("sshQuick").addEventListener("click", (e) => {

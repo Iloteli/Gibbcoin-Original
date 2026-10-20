@@ -16,7 +16,7 @@ export const PERMISSION_CATALOG = [
     ["s:startPrice", "Startpreis Chain-Markt"], ["s:startingCash", "Startguthaben Chain-Wallets"], ["s:minOrderAmount", "Min. Ordermenge"],
   ] },
   { group: "🗂 Hauptseite: Tabs, Zahlarten & Registrieren", items: [
-    ["w:disabledTabs", "Tabs der Hauptseite ein/aus"], ["w:cardEnabled", "Karte / TWINT an/aus"], ["w:creditsEnabled", "Mit Credits kaufen an/aus"], ["w:registrationEnabled", "Registrieren an/aus"],
+    ["w:disabledTabs", "Tabs der Hauptseite ein/aus"], ["w:cardEnabled", "Karte / TWINT an/aus"], ["w:creditsEnabled", "Mit Credits kaufen an/aus"], ["w:bankEnabled", "Banküberweisung an/aus"], ["w:registrationEnabled", "Registrieren an/aus"],
   ] },
   { group: "🎨 Hauptseite: Aussehen", items: [
     ["w:siteDesign", "Design der Hauptseite (Farbwelt, Modus, Animationen)"], ["w:chainDesign", "Design der Chain-Seite (Farbwelt, Animationen)"], ["w:madeBy", "Fusszeile „Made by“ bearbeiten"],

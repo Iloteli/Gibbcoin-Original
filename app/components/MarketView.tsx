@@ -167,6 +167,10 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
   const prices = (state?.history ?? []).map((h) => Number(h.p));
   const max = state?.max_trade ?? 1000;
   const stripeOk = Boolean(quote?.ok && quote.buy_possible && (quote.buy_rappen ?? 0) >= 50);
+  // Kaufen ist an, aber keine Zahlart eingeschaltet -> sonst stünde die Box ohne Knopf da
+  const showCard = !cardUnavailable && bank?.card_enabled === true;
+  const showCredits = bank?.credits_enabled !== false;
+  const noBuyMethod = state?.buy_enabled !== false && !showCard && !showCredits && !bank?.enabled;
 
   return (
     <div className="market">
@@ -204,10 +208,12 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
             <h3>Kaufen</h3>
             <p className="market-sum">{quote?.ok ? rp(quote.buy_rappen ?? 0) : "–"}<small>{quote?.ok ? ` = ${chf(quote.buy_rappen ?? 0)}` : ""}</small></p>
             <small className="field-hint">Kurs danach: {quote?.ok ? rp(quote.price_after_buy ?? 0) : "–"}</small>
-            {!cardUnavailable && bank?.card_enabled === true && <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>}
-            {bank?.credits_enabled !== false && <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (state?.my_credits ?? 0) < (quote.buy_rappen ?? 0)} onClick={() => void act("credits")}>{busy === "credits" ? "Kauft …" : "Mit Credits kaufen"}</button>}
+            {showCard && <button className="primary" type="button" disabled={!!busy || !stripeOk || state?.buy_enabled === false} onClick={() => void act("stripe")}>{busy === "stripe" ? "Weiter zu Stripe …" : "Mit Karte / TWINT kaufen"}</button>}
+            {showCredits && <button className="secondary" type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (state?.my_credits ?? 0) < (quote.buy_rappen ?? 0)} onClick={() => void act("credits")}>{busy === "credits" ? "Kauft …" : "Mit Credits kaufen"}</button>}
             {bank?.enabled && <button className={bank.card_enabled ? "secondary" : "primary"} type="button" disabled={!!busy || state?.buy_enabled === false || !quote?.ok || !quote.buy_possible || (quote.buy_rappen ?? 0) < 100} onClick={() => void orderBank()}>{busy === "bank" ? "Bestellung wird erstellt …" : "Per Banküberweisung kaufen"}</button>}
-            {!cardUnavailable && bank?.card_enabled === true && quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
+            {noBuyMethod && <small className="field-hint">Gerade ist keine Zahlart eingeschaltet – Kaufen ist erst wieder möglich, wenn der Owner eine Zahlart aktiviert.</small>}
+            {state?.buy_enabled === false && <small className="field-hint">Kaufen ist gerade pausiert.</small>}
+            {showCard && quote?.ok && (quote.buy_rappen ?? 0) < 50 && <small className="field-hint">Mit Karte erst ab CHF 0.50.</small>}
             {bank?.enabled && quote?.ok && (quote.buy_rappen ?? 0) < 100 && <small className="field-hint">Per Überweisung erst ab CHF 1.00.</small>}
           </article>
           <article className="market-box sell">
