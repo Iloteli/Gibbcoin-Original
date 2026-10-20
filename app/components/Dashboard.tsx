@@ -200,7 +200,8 @@ export function Dashboard({ user }: Props) {
   const hiddenTabs = seesHiddenTabs ? [] : disabledTabs;
   const visibleViews = dashboardViews.filter((view) => !hiddenTabs.includes(view.key));
   if (activeView !== "home" && activeView !== "admin" && hiddenTabs.includes(activeView)) setActiveView("home");
-  if (activeView === "admin") setActiveView("home");
+  // Adminpanel nur für Admins und Owner
+  if (activeView === "admin" && profile && profile.role === "user") setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -741,6 +742,12 @@ export function Dashboard({ user }: Props) {
         {!offlineMode && <TransferApprovalCenter />}
         </div>
 
+        <div className="dashboard-view" hidden={activeView !== "admin"} aria-label="Adminpanel" id="admin-panel">
+        <div className="view-heading"><span>NUR FÜR ADMINS</span><h1>Adminpanel</h1><p>Die Verwaltung (Konten, Coins, Spiele, Einstellungen) läuft auf der Chain-Seite. Hier holst du den Anmelde-Code dafür.</p></div>
+        {activeView === "admin" && profile?.role === "super_admin" && <div id="security">{offlineMode ? <section className="card card-pad"><p className="field-hint">Im Offline-Modus gibt es keinen Code – zuerst „Neu verbinden“.</p></section> : <OwnerChainCode />}</div>}
+        {activeView === "admin" && profile?.role === "admin" && <section className="card card-pad" id="security"><p className="field-hint">Den Anmelde-Code für die Chain-Seite gibt es nur für Owner mit Full-Zugang.</p></section>}
+        </div>
+
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">
         <div className="view-heading only-original"><span>DEIN KONTO</span><h1>Profil & App</h1><p>Kontostatus prüfen und GIBB Coin auf deinem Gerät installieren.</p></div>
         <div className="acct-hero-new"><AccountHero userId={user.id} profile={profile} wallet={wallet} transactions={transactions} onNavigate={openView} /></div>
@@ -748,7 +755,6 @@ export function Dashboard({ user }: Props) {
         {profile && !offlineMode && <section className="card card-pad my-badges-card"><div className="card-head"><h2>Deine Abzeichen</h2><button type="button" className="secondary compact" onClick={() => openUserProfile(user.id)}>Öffentliches Profil ansehen</button></div><ProfileBadges userId={user.id} balance={wallet?.balance ?? 0} role={profile.role} showLocked /></section>}
         {profile && <AccountReadiness profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && <AccountEssentials user={user} profile={profile} wallet={wallet} transactions={transactions} onRefresh={loadData} onNavigate={openView} />}
-        {profile?.role === "super_admin" && !offlineMode && seen("account") && <OwnerChainCode />}
         {profile && <SecurityOverview user={user} profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && !offlineMode && seen("account") && <Suspense fallback={<ViewLoading />}><ProfileEditor userId={user.id} profile={profile} onChanged={loadData} /></Suspense>}
         <PwaInstallCard />
