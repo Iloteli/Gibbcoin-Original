@@ -57,6 +57,8 @@
   .accounts .item { grid-template-columns: 1fr auto; cursor: default; }
   .log { display: grid; gap: 5px; max-height: 260px; overflow: auto; font-size: 12px; }
   .log div { display: grid; grid-template-columns: 62px 1fr; gap: 10px; color: var(--muted); }
+  .log div.muted { display: block; }
+  .verify-card .msg:empty { display: none; }
   .log div.block b { color: var(--green); } .log div.error b, .log div.tamper b { color: var(--red); } .log div.tx b { color: var(--amber); }
   .check { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin-top: 10px; }
   .check input { width: auto; accent-color: var(--green); }
@@ -624,6 +626,38 @@
   html[data-motion="reduced"] .ambient *, html[data-motion="reduced"] .ambient { animation: none !important; }
   html[data-motion="off"] *, html[data-motion="off"] *::before, html[data-motion="off"] *::after { animation: none !important; transition: none !important; }
   html[data-motion="off"] .ambient-waves, html[data-motion="off"] .ambient-dot { display: none !important; }
+  /* ===== Handy: alles passt ohne seitliches Scrollen, kompakter, gut tippbar ===== */
+  @media (max-width: 640px) {
+    /* Bereichs-Leiste unten: alle Bereiche gleich breit nebeneinander, kurze Namen */
+    .page-nav { display: grid !important; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 2px !important; overflow: hidden !important; padding-left: 4px !important; padding-right: 4px !important; }
+    .page-nav button { min-width: 0 !important; padding: 7px 0 !important; font-size: 0 !important; gap: 3px !important; }
+    .page-nav button::after { content: attr(data-short); font-size: 11px; line-height: 1.1; }
+    .page-nav button span { font-size: 19px !important; line-height: 1; }
+    /* Speichern-Leiste nicht hinter der Bereichs-Leiste verstecken */
+    .savebar { bottom: calc(80px + env(safe-area-inset-bottom)); }
+    main { padding-bottom: 16px !important; }
+    .site-footer { padding-bottom: calc(100px + env(safe-area-inset-bottom)) !important; }
+    /* Kennzahlen kompakter */
+    #stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+    #stats div { padding: 10px 12px !important; border-radius: 14px !important; }
+    #stats strong { font-size: 18px !important; }
+    .stats strong { overflow-wrap: anywhere; }
+    .market-stats { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .stats.mini strong { font-size: 14px !important; }
+    /* iPhone zoomt bei Eingabefeldern unter 16 px automatisch hinein */
+    input, select, textarea { font-size: 16px !important; }
+    /* Unter-Leisten (Admin, Einstellungen): seitlich wischen, Rand zeigt, dass es weitergeht */
+    .subnav { -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); scroll-snap-type: x proximity; }
+    .subnav button { scroll-snap-align: start; }
+    .card h2 { gap: 8px; flex-wrap: wrap; }
+    .actions { gap: 8px; }
+    .actions > button, .actions > a.btn-link { flex: 1 1 auto; }
+  }
+  @media (max-width: 430px) {
+    /* Formulare einspaltig, damit Felder nicht abgeschnitten werden */
+    .sgrid { grid-template-columns: 1fr !important; }
+    .card { padding: 14px !important; }
+  }
 </style>
 </head>
 <body>
@@ -660,12 +694,12 @@
   </div>
 </header>
 <nav class="page-nav" id="pageNav" aria-label="Bereiche der Chain-Seite">
-  <button type="button" data-page="uebersicht"><span aria-hidden="true">⌂</span>Übersicht</button>
-  <button type="button" data-page="markt"><span aria-hidden="true">📈</span>Markt</button>
-  <button type="button" data-page="chain"><span aria-hidden="true">⛓</span>Blockchain</button>
-  <button type="button" data-page="verwaltung" class="nav-admin"><span aria-hidden="true">🛡</span>Verwaltung</button>
-  <button type="button" data-page="einstellungen" class="nav-admin"><span aria-hidden="true">⚙</span>Einstellungen</button>
-  <button type="button" data-page="infos" class="nav-admin"><span aria-hidden="true">ℹ</span>Infos</button>
+  <button type="button" data-page="uebersicht" data-short="Start"><span aria-hidden="true">⌂</span>Übersicht</button>
+  <button type="button" data-page="markt" data-short="Markt"><span aria-hidden="true">📈</span>Markt</button>
+  <button type="button" data-page="chain" data-short="Chain"><span aria-hidden="true">⛓</span>Blockchain</button>
+  <button type="button" data-page="verwaltung" data-short="Admin" class="nav-admin"><span aria-hidden="true">🛡</span>Verwaltung</button>
+  <button type="button" data-page="einstellungen" data-short="Optionen" class="nav-admin"><span aria-hidden="true">⚙</span>Einstellungen</button>
+  <button type="button" data-page="infos" data-short="Infos" class="nav-admin"><span aria-hidden="true">ℹ</span>Infos</button>
 </nav>
 <main>
   <section class="card basic-info" id="basicInfo">
