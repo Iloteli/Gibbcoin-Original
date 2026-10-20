@@ -456,6 +456,9 @@
   select option { background: #1b2730; }
   html.fx-glow body::before { content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none; background: radial-gradient(520px circle at var(--mx, 50%) var(--my, 30%), rgba(126,245,163,.10), rgba(95,212,255,.05) 40%, transparent 70%); }
   header, .page-nav, main { position: relative; z-index: 1; }
+  /* Navigation bleibt über dem Inhalt (sonst scrollen Reiter und Karten darüber) */
+  header { z-index: 31; } .page-nav { z-index: 30; }
+  @media (min-width: 641px) { .page-nav { width: min(1232px, calc(100% - 48px)); } }
   header { position: sticky; }
   .page-nav { position: sticky; }
   .card { transition: transform .28s cubic-bezier(.2,.8,.2,1), border-color .25s, box-shadow .25s; }
