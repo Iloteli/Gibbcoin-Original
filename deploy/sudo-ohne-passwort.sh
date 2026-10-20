@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Erlaubt dem eigenen Server-Benutzer, genau diese GIBB-Befehle OHNE sudo-Passwort auszuführen
-# (für die Knöpfe auf der Chain-Seite): gibb-update, gibb-help, gibb-backup, gibb-version, gibb-code.
-# Nur ohne zusätzliche Angaben – "sudo gibb-backup zurueck …" usw. fragen weiter nach dem Passwort.
+# Erlaubt dem Server-Benutzer (z. B. m431-g002 – alle verbinden sich damit), die GIBB-Befehle OHNE
+# sudo-Passwort auszuführen (auch über die Knöpfe der Chain-Seite). Alle anderen sudo-Befehle brauchen
+# weiterhin das Passwort, ebenso "gibb-backup zurueck …", "gibb-chain-key" und "gibb-wartung 30m …".
 #   sudo gibb-sudo            -> einschalten (für den Benutzer, der sudo aufruft)
 #   sudo gibb-sudo aus        -> wieder ausschalten
 set -euo pipefail
@@ -32,13 +32,24 @@ pruefe() {
 }
 for p in "$APP_DIR" "$APP_DIR/deploy"; do pruefe "$p"; done
 LINES=""
-for name in update help backup version code; do
+# gibb-Befehle ohne Passwort, jeweils nur genau mit diesen Angaben ("" = ohne Angaben).
+# Bleiben mit Passwort: gibb-backup zurueck (überschreibt Daten), gibb-chain-key (neuer Schlüssel),
+# gibb-wartung mit Dauer/Text und alle anderen sudo-Befehle.
+ERLAUBT=(
+  'update|' 'help|' 'version|' 'code|' 'neuladen|'
+  'backup|' 'backup|liste' 'backup|auto an' 'backup|auto aus'
+  'autoupdate|' 'autoupdate|an' 'autoupdate|aus'
+  'wartung|aus'
+)
+GEPRUEFT=" "
+for eintrag in "${ERLAUBT[@]}"; do
+  name="${eintrag%%|*}"; angaben="${eintrag#*|}"
   link="/usr/local/bin/gibb-$name"
   [ -e "$link" ] || { echo "Fehlt: $link – zuerst sudo gibb-update ausführen." >&2; exit 1; }
-  pruefe "$(readlink -f "$link")"
-  # "" = keine zusätzlichen Argumente erlaubt
-  LINES="$LINES$NUTZER ALL=(root) NOPASSWD: $link \"\"
-"
+  case "$GEPRUEFT" in *" $name "*) ;; *) pruefe "$(readlink -f "$link")"; GEPRUEFT="$GEPRUEFT$name ";; esac
+  if [ -z "$angaben" ]; then LINES="$LINES$NUTZER ALL=(root) NOPASSWD: $link \"\"
+"; else LINES="$LINES$NUTZER ALL=(root) NOPASSWD: $link $angaben
+"; fi
 done
 
 TMP="$(mktemp)"
@@ -47,5 +58,7 @@ if ! visudo -cf "$TMP" >/dev/null; then rm -f "$TMP"; echo "Abbruch: sudoers-Pr�
 install -m 0440 -o root -g root "$TMP" "$FILE"
 rm -f "$TMP"
 echo "Fertig: $NUTZER kann jetzt ohne Passwort ausführen:"
-echo "  sudo gibb-update · sudo gibb-help · sudo gibb-backup · sudo gibb-version · sudo gibb-code"
+echo "  sudo gibb-update · gibb-help · gibb-version · gibb-code · gibb-neuladen"
+echo "  sudo gibb-backup [liste | auto an | auto aus] · gibb-autoupdate [an | aus] · gibb-wartung aus"
+echo "Alle anderen sudo-Befehle fragen weiterhin nach dem Passwort."
 echo "Ausschalten: sudo gibb-sudo aus"
