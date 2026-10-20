@@ -159,6 +159,11 @@ test("basic can get admin rights one by one (accounts, games, coins); roles stay
   assert.notEqual((await post("/api/admin/call", { token: basic.token, fn: "get_game_center_state" })).data.error, "not_owner");
   assert.notEqual((await post("/api/admin/call", { token: basic.token, fn: "admin_verify_pin", args: { p_pin: "1234" } })).data.error, "not_owner");
   assert.notEqual((await post("/api/website/users", { token: basic.token })).data.error, "not_owner");
+  // Überall abmelden und Bannen mit eigener Dauer (Recht "Konten")
+  assert.equal((await post("/api/admin/logout-user", { token: basic.token, userId: "11111111-1111-4111-8111-111111111111", name: "lea" })).data.ok, true);
+  assert.equal((await post("/api/admin/logout-user", { userId: "11111111-1111-4111-8111-111111111111" })).data.error, "not_owner");
+  assert.equal((await post("/api/admin/status", { token: basic.token, userId: "11111111-1111-4111-8111-111111111111", status: "locked", minutes: 0 })).data.error, "invalid_lock_duration");
+  assert.equal((await post("/api/admin/status", { token: basic.token, userId: "11111111-1111-4111-8111-111111111111", status: "locked", minutes: 45, reason: "Test" })).data.ok, true);
   // Rollen ändern, PIN setzen, Konten löschen/erstellen und Tools bleiben gesperrt
   assert.equal((await post("/api/admin/call", { token: basic.token, fn: "admin_set_role", args: {} })).data.error, "not_owner");
   assert.equal((await post("/api/admin/call", { token: basic.token, fn: "owner_reset_admin_pin", args: {} })).data.error, "not_owner");

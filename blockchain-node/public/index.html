@@ -1991,7 +1991,7 @@ setInterval(() => { if (document.visibilityState === "visible") void bankLoad();
 
 // ---------- Admin (Hauptseite) ----------
 let adminPin = "", adUsers = [], adAuditRows = [], adDays = 7, adVerified = new Set();
-const adErrors = { case_not_found: "Support-Fall nicht gefunden (schon gelöscht?).",  admin_pin_invalid: "Admin-PIN falsch.", admin_pin_locked: "Admin-PIN nach zu vielen Fehlversuchen gesperrt – lege einen neuen fest.", admin_pin_not_set: "Noch kein Admin-PIN – lege oben einen fest.", admin_pin_required: "Bitte zuerst den Admin-PIN eingeben.", account_is_protected: "Dieses Konto ist geschützt.", cannot_lock_own_account: "Das eigene Konto kann nicht gebannt werden.", email_delivery_failed: "Die E-Mail konnte nicht verschickt werden.", function_not_allowed: "Diese Aktion ist nicht erlaubt.", ...caErrors };
+const adErrors = { invalid_lock_duration: "Ungültige Bann-Dauer (1 Minute bis 5 Jahre).", account_is_protected: "Dieses Konto ist geschützt und kann nicht gebannt oder abgemeldet werden.", case_not_found: "Support-Fall nicht gefunden (schon gelöscht?).",  admin_pin_invalid: "Admin-PIN falsch.", admin_pin_locked: "Admin-PIN nach zu vielen Fehlversuchen gesperrt – lege einen neuen fest.", admin_pin_not_set: "Noch kein Admin-PIN – lege oben einen fest.", admin_pin_required: "Bitte zuerst den Admin-PIN eingeben.", account_is_protected: "Dieses Konto ist geschützt.", cannot_lock_own_account: "Das eigene Konto kann nicht gebannt werden.", email_delivery_failed: "Die E-Mail konnte nicht verschickt werden.", function_not_allowed: "Diese Aktion ist nicht erlaubt.", ...caErrors };
 const adFail = (e) => say("adMsg", adErrors[e.message] || errors[e.message] || e.message, true);
 const adCall = async (fn, args = {}) => {
   const r = await api("/api/admin/call", { fn, args });
@@ -2018,6 +2018,16 @@ $("adPinSet").onclick = async () => {
 };
 
 const roleLabel = (r) => r === "super_admin" ? "Owner" : r === "admin" ? "Admin" : "Benutzer";
+// Bann-Dauer: "30m", "2h", "3d", "2w" oder Minuten als Zahl -> Minuten (1 Min. bis 5 Jahre), sonst null
+function parseDuration(text) {
+  const m = /^\s*(\d+(?:[.,]\d+)?)\s*(m|min|minuten?|h|std|stunden?|d|t|tage?|w|wochen?)?\s*$/i.exec(String(text ?? ""));
+  if (!m) return null;
+  const n = Number(m[1].replace(",", "."));
+  const unit = (m[2] ?? "m").toLowerCase()[0];
+  const minutes = Math.round(n * ({ m: 1, h: 60, s: 60, d: 1440, t: 1440, w: 10080 })[unit]);
+  return minutes >= 1 && minutes <= 2_628_000 ? minutes : null;
+}
+const durationText = (min) => min % 10080 === 0 ? `${min / 10080} Woche(n)` : min % 1440 === 0 ? `${min / 1440} Tag(e)` : min % 60 === 0 ? `${min / 60} Stunde(n)` : `${min} Minute(n)`;
 function adRenderUsers() {
   const q = $("adSearch").value.trim().toLowerCase();
   const list = adUsers.filter((u) => !q || `${u.display_name} ${u.username}`.toLowerCase().includes(q));
@@ -2028,10 +2038,11 @@ function adRenderUsers() {
       <div class="badges"><span class="ad-badge ${u.role === "super_admin" ? "owner" : u.role === "admin" ? "admin" : ""}">${roleLabel(u.role)}</span>${locked ? `<span class="ad-badge locked" title="${h(u.lock_reason || "")}">gebannt${u.locked_until ? " bis " + new Date(u.locked_until).toLocaleString("de-CH") : ""}</span>` : ""}${u.visual_role ? `<span class="ad-badge">Fun-Rang</span>` : ""}${adVerified.has(String(u.user_id).toLowerCase()) ? `<span class="ad-badge admin">✓ QR verifiziert</span>` : ""}</div></div>
       <div class="acts">
         ${isFullView() ? `<select data-act="role"><option value="user"${u.role === "user" ? " selected" : ""}>Benutzer</option><option value="admin"${u.role === "admin" ? " selected" : ""}>Admin</option><option value="super_admin"${u.role === "super_admin" ? " selected" : ""}>Owner</option></select>` : ""}
-        ${locked ? `<button data-act="unban">Entbannen</button>` : `<select data-act="ban"><option value="">Bannen …</option><option value="60">1 Stunde</option><option value="1440">1 Tag</option><option value="10080">7 Tage</option><option value="forever">dauerhaft</option></select>`}
+        ${locked ? `<button data-act="unban">Entbannen</button>` : `<select data-act="ban"><option value="">Bannen …</option><option value="60">1 Stunde</option><option value="1440">1 Tag</option><option value="10080">7 Tage</option><option value="custom">Eigene Dauer …</option><option value="forever">dauerhaft</option></select>`}
         <select data-act="fun"><option value=""${!u.visual_role ? " selected" : ""}>Kein Fun-Rang</option><option value="demo_admin"${u.visual_role === "demo_admin" ? " selected" : ""}>Fun: Admin</option><option value="demo_owner"${u.visual_role === "demo_owner" ? " selected" : ""}>Fun: Owner</option></select>
         ${isFullView() ? `<button data-act="verify">${adVerified.has(String(u.user_id).toLowerCase()) ? "QR-Verifizierung entfernen" : "Für QR-Rechnung verifizieren"}</button>` : ""}
         <button data-act="reset">Passwort-Reset</button>
+        <button data-act="logout" title="Beendet alle Anmeldungen auf der Hauptseite und der Chain-Seite">Überall abmelden</button>
         ${(() => { const a = accounts.find((x) => x.address === `sb_${String(u.user_id).toLowerCase()}`); if (!a) return ""; return `<button data-act="pic-toggle" data-blocked="${a.avatarBlocked ? "1" : "0"}" class="${a.avatarBlocked ? "danger" : ""}" title="Profilbild auf der Hauptseite">${a.avatarBlocked ? "🚫 Profilbild gesperrt" : "🖼 Profilbild erlaubt"}</button>${a.avatar ? `<button data-act="pic-reset">Profilbild zurücksetzen</button>` : ""}`; })()}
         ${canUse("a:accountsDelete") ? `<button class="danger" data-act="delete">Löschen</button>` : ""}
       </div></div>`;
@@ -2048,10 +2059,17 @@ $("adUsers").addEventListener("change", async (e) => {
       say("adMsg", `${name} ist jetzt ${roleLabel(sel.value)}.`);
     } else if (sel.dataset.act === "ban") {
       if (!sel.value) return;
+      let minutes = sel.value === "forever" ? null : Number(sel.value);
+      if (sel.value === "custom") {
+        const input = prompt(`Wie lange soll ${name} gebannt sein?\nz. B. 30m (Minuten), 2h (Stunden), 3d (Tage), 2w (Wochen) – oder eine Zahl in Minuten`, "2h");
+        minutes = parseDuration(input);
+        if (input === null) { adRenderUsers(); return; }
+        if (!minutes) { say("adMsg", "Ungültige Dauer – z. B. 30m, 2h, 3d oder 2w (höchstens 5 Jahre).", true); adRenderUsers(); return; }
+      }
       const reason = prompt(`Grund für den Bann von ${name}:`, "Verstoss gegen die Regeln");
       if (reason === null) { adRenderUsers(); return; }
-      await api("/api/admin/status", { userId: id, name, status: "locked", minutes: sel.value === "forever" ? null : Number(sel.value), reason });
-      say("adMsg", `${name} wurde gebannt.`);
+      await api("/api/admin/status", { userId: id, name, status: "locked", minutes, reason });
+      say("adMsg", `${name} wurde ${minutes ? `für ${durationText(minutes)}` : "dauerhaft"} gebannt und überall abgemeldet.`);
     } else if (sel.dataset.act === "fun") {
       if (!needPin()) { adRenderUsers(); return; }
       await adCall("admin_set_visual_role", { p_target_user_id: id, p_visual_role: sel.value || null, p_pin: adminPin });
@@ -2076,6 +2094,11 @@ $("adUsers").addEventListener("click", async (e) => {
       await api("/api/admin/avatar-reset", { userId: id });
       say("adMsg", `Profilbild von ${name} wurde zurückgesetzt.`);
       await refresh(); adRenderUsers(); return;
+    }
+    if (btn.dataset.act === "logout") {
+      if (!confirm(`${name} überall abmelden? Alle Anmeldungen auf der Hauptseite und der Chain-Seite werden beendet (das Konto kann sich danach wieder anmelden).`)) return;
+      await api("/api/admin/logout-user", { userId: id, name });
+      say("adMsg", `${name} wurde überall abgemeldet – auf der Hauptseite spätestens nach einer Minute.`);
     }
     if (btn.dataset.act === "unban") { await api("/api/admin/status", { userId: id, name, status: "active" }); say("adMsg", `${name} wurde entbannt.`); }
     if (btn.dataset.act === "verify") {
@@ -2516,6 +2539,7 @@ function accRender() {
     const more = r.kind === "web" && accOpen === r.id ? `<div class="acc-more">
       <div class="acc-facts"><span>Konto<b>Website-Owner</b></span><span>Benutzername<b>@${h(r.username ?? "")}</b></span><span>Stufe<b>${levelName[r.level] ?? r.level}</b></span><span>Wallet<b><code>${h(r.address)}</code></b></span></div>
       ${picSwitch}
+      ${r.owner ? "" : `<div class="actions"><button data-acc="weblogout">Überall abmelden</button></div>`}
     </div>` : r.kind === "chain" && accOpen === r.id ? `<div class="acc-more">
       <div class="acc-facts"><span>Erstellt<b>${u.createdAt ? new Date(u.createdAt).toLocaleDateString("de-CH") : "—"}</b></span><span>Zuletzt angemeldet<b>${u.lastLogin ? new Date(u.lastLogin).toLocaleString("de-CH") : "noch nie"}</b></span><span>Anmeldungen<b>${fmt(u.loginCount ?? 0)}</b></span><span>Aktive Sitzungen<b>${fmt(u.sessions ?? 0)}</b></span><span>Wallet<b><code>${h(u.address)}</code></b></span></div>
       ${picSwitch}
@@ -2577,6 +2601,11 @@ $("nuList").addEventListener("click", async (e) => {
       if (!confirm(`${name} in „${next}“ umbenennen? Die Person meldet sich danach mit dem neuen Namen an.`)) return;
       await api("/api/admin/node-users/rename", { username: id, newName: next });
       accOpen = next; say("adMsg", `${name} heisst jetzt ${next}.`);
+    }
+    if (act === "weblogout") {
+      if (!confirm(`${name} überall abmelden (Hauptseite und Chain-Seite)?`)) return;
+      await api("/api/admin/logout-user", { userId: id, name });
+      say("adMsg", `${name} wurde überall abgemeldet.`);
     }
     if (act === "logout") {
       await api("/api/admin/node-users/logout", { username: id });

@@ -3,7 +3,7 @@
 import type { User } from "@supabase/supabase-js";
 import { defaultNodeUrl, preferredNodeUrl } from "../lib/node-url";
 import Image from "next/image";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createCheckoutSession, getSupabase, getUsableSupabaseSession, isSupabaseAuthError, waitForSupabaseAuthRetry } from "../lib/supabase";
 import type { Profile, Recipient, Transaction, Wallet } from "../lib/types";
 import { CreditsSummary } from "./CreditsSummary";
@@ -217,6 +217,27 @@ export function Dashboard({ user }: Props) {
     return () => { alive = false; };
   }, [profile?.role]);
   const showAdminPanel = profile?.role === "super_admin" && chainFull === true;
+  const logoutRef = useRef<() => Promise<void>>(async () => {});
+  // Von der Chain-Seite "überall abgemeldet" oder gebannt? Dann hier sofort abmelden (Prüfung jede Minute und beim Zurückkehren).
+  useEffect(() => {
+    const supabase = getSupabase();
+    if (!supabase) return;
+    const check = async () => {
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token;
+      if (!token) return;
+      const { data: revokedAt, error } = await supabase.rpc("my_session_revoked_at");
+      if (error || !revokedAt) return;
+      let issuedAt = 0;
+      try { issuedAt = Number(JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/"))).iat) * 1000; } catch { /* unlesbar */ }
+      if (Date.parse(String(revokedAt)) > issuedAt) { await logoutRef.current(); window.location.reload(); }
+    };
+    const timer = window.setInterval(() => void check(), 60_000);
+    const onVisible = () => { if (document.visibilityState === "visible") void check(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const first = window.setTimeout(() => void check(), 5_000);
+    return () => { window.clearInterval(timer); window.clearTimeout(first); document.removeEventListener("visibilitychange", onVisible); };
+  }, [user.id]);
   if (activeView === "admin" && profile && (profile.role !== "super_admin" || chainFull === false)) setActiveView("home");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -572,6 +593,7 @@ export function Dashboard({ user }: Props) {
     if (supabase) await supabase.auth.signOut({ scope: "local" });
     localStorage.removeItem(`gibb-offline-snapshot:${user.id}`);
   }
+  useEffect(() => { logoutRef.current = logout; });
 
   function exportTransactions() {
     const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;

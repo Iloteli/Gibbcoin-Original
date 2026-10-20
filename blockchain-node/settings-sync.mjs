@@ -239,6 +239,8 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   const deleteSupportCase = (caseId, pin) => rpc("node_delete_support_case", { p_case: caseId, p_pin: pin });
   const setAvatarBlocked = (userId, blocked) => rpc("node_set_avatar_blocked", { p_user: userId, p_blocked: blocked === true });
   const deleteAccount = (userId, pin) => rpc("node_delete_account", { p_user: userId, p_pin: pin });
+  // Alle Sitzungen des Kontos auf der Hauptseite beenden
+  const logoutUser = (userId) => rpc("node_logout_user", { p_user: userId });
   async function sendPasswordReset(userId) {
     const auth = await rpc("node_password_reset", { p_user: userId });
     const res = await fetchImpl(`${url}/auth/v1/recover`, {
@@ -283,5 +285,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { isWebsiteUsername, pushReservedNames, ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { isWebsiteUsername, pushReservedNames, ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, logoutUser, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }
