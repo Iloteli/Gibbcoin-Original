@@ -272,7 +272,8 @@ const permissionsOf = (sess) => {
   return normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions);
 };
 // Basic-Konten dürfen keine Coins bewegen (senden, Aufträge, Coins verwalten)
-const forbidBasicTransfers = (sess) => { if (sess?.role === "owner_basic") throw new Error("basic_no_transfers"); };
+// (ausser der Owner schaltet es pro Konto frei: a:send = Coins senden, a:trade = Marktaufträge)
+const forbidBasicTransfers = (sess, perm) => { if (sess?.role === "owner_basic" && !(perm && permissionsOf(sess).includes(perm))) throw new Error("basic_no_transfers"); };
 const requirePermission = (body, perm) => {
   const sess = sessionOf(body);
   if (sess && (sess.role === "super_admin" || (sess.role === "owner_basic" && permissionsOf(sess).includes(perm)))) return sess;
@@ -446,7 +447,7 @@ const routes = {
   "GET /api/market": (url) => chain.market(url.searchParams.get("address")),
   "POST /api/order": (_, body) => {
     const sess = requireSession(body);
-    forbidBasicTransfers(sess);
+    forbidBasicTransfers(sess, "a:trade");
     if (body.address && body.address !== sess.address) throw new Error("not_your_account");
     body.address = sess.address;
     const r = chain.placeOrder(body.address, body.side, body.price, body.amount);
@@ -468,7 +469,7 @@ const routes = {
   },
   "POST /api/transactions": (_, body) => {
     const sess = requireSession(body); // Senden nur angemeldet und nur vom eigenen Konto
-    forbidBasicTransfers(sess);
+    forbidBasicTransfers(sess, "a:send");
     const from = sess.address;
     if (body.from && body.from !== sess.address) throw new Error("not_your_account");
     // Empfänger darf Adresse ODER Benutzername sein.

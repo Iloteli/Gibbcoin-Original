@@ -7,7 +7,7 @@
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { DEFAULT_BASIC_PERMISSIONS, normalizePermissions } from "./permissions.mjs";
+import { DEFAULT_BASIC_PERMISSIONS, VIEW_PERMISSIONS, normalizePermissions } from "./permissions.mjs";
 import { ZERO_HASH, blockHeaderString, leadingZeroBits, merkleRoot } from "../app/lib/blockchain-core.js";
 
 const sha256 = (value) => createHash("sha256").update(value, "utf8").digest("hex");
@@ -128,7 +128,13 @@ export class Blockchain {
       this.ownerDisabled = raw.ownerDisabled ?? {};
       this.sshConfig = { ...this.sshConfig, ...(raw.sshConfig ?? {}) };
       this.sshKeys = raw.sshKeys ?? {};
+      // Neue Rechte für die Übersichts-Karten: bisher sah Basic sie immer -> bestehenden Listen einmal ergänzen
+      if (!this.settings.viewPermissionsAdded) {
+        this.settings.basicPermissions = normalizePermissions([...this.settings.basicPermissions, ...VIEW_PERMISSIONS]);
+        for (const [address, list] of Object.entries(this.userPermissions)) if (Array.isArray(list)) this.userPermissions[address] = normalizePermissions([...list, ...VIEW_PERMISSIONS]);
+      }
     }
+    this.settings.viewPermissionsAdded = true;
     // Bestehende Konten fair mit Startguthaben und Sperr-Feldern nachrüsten.
     for (const a of Object.values(this.accounts)) {
       if (typeof a.cash !== "number") a.cash = this.settings.startingCash;

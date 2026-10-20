@@ -28,6 +28,10 @@ export const PERMISSION_CATALOG = [
     ["a:ssh", "Server verbinden (SSH-Karte)"], ["a:sshUpdate", "Knopf gibb-update"], ["a:sshHelp", "Knopf gibb-help"],
     ["a:sshBackup", "Knopf gibb-backup"], ["a:sshVersion", "Knopf gibb-version"], ["a:sshCode", "Knopf gibb-code"],
   ] },
+  { group: "🧩 Chain-Seite: Übersicht", items: [
+    ["a:minerView", "Karte Server-Miner sehen"], ["a:browserMiner", "Im Browser minen"], ["a:wallets", "Karte Wallets sehen"],
+    ["a:send", "Coins senden (vom eigenen Wallet)"], ["a:mempool", "Mempool sehen"], ["a:trade", "Markt: Aufträge erteilen"],
+  ] },
   { group: "⚙ Chain-Aktionen", items: [
     ["a:miner", "Server-Miner starten/stoppen"], ["a:verify", "Kette prüfen"], ["a:bank", "Banküberweisungen bestätigen"],
   ] },
@@ -64,4 +68,6 @@ export function normalizePermissions(list) {
   return [...out];
 }
 
-export const DEFAULT_BASIC_PERMISSIONS = normalizePermissions(["mining", "rules", "market", "tabs", "payments", "server", "miner", "verify", "a:infos"]);
+// Karten, die Basic schon immer gesehen hat (beim Einführen der Rechte allen bestehenden Rechte-Listen ergänzt)
+export const VIEW_PERMISSIONS = ["a:minerView", "a:browserMiner", "a:wallets", "a:mempool"];
+export const DEFAULT_BASIC_PERMISSIONS = normalizePermissions(["mining", "rules", "market", "tabs", "payments", "server", "miner", "verify", "a:infos", ...VIEW_PERMISSIONS]);

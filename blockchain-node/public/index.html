@@ -669,13 +669,13 @@
 </nav>
 <main>
   <section class="card basic-info" id="basicInfo">
-    <div class="bi-head"><div><span class="bi-kicker">DEIN ZUGANG</span><h2>Basic-Konto</h2><p class="muted">Du kannst minen und die Bereiche unten verwalten. GIBB senden und am Markt handeln geht mit Basic nicht.</p></div></div>
+    <div class="bi-head"><div><span class="bi-kicker">DEIN ZUGANG</span><h2>Basic-Konto</h2><p class="muted">Du siehst und verwaltest die Bereiche, die der Owner für dein Konto freigegeben hat.</p></div></div>
     <div class="bi-chips" id="basicInfoChips"></div>
   </section>
   <section class="stats" id="stats"></section>
 
   <div class="grid3">
-    <section class="card miner-card" id="minerAnchor">
+    <section class="card miner-card" id="minerAnchor" data-perm="a:minerView">
       <h2>Server-Miner <span id="localState">bereit</span></h2>
       <div data-perm="a:miner" class="perm-block">
       <div class="miner-hero">
@@ -692,7 +692,7 @@
       <div class="stats mini" id="localStats"></div>
       <div class="msg" id="localMsg"></div>
       </div>
-      <details class="fold-soft">
+      <details class="fold-soft" data-perm="a:browserMiner">
         <summary>Alternativ: im Browser minen <span id="minerState"></span></summary>
         <div class="meter" id="meter"><i></i></div>
         <div class="stats mini" id="minerStats"></div>
@@ -708,7 +708,7 @@
       <div class="list" id="recent"></div>
     </section>
 
-    <section class="card wallets-card">
+    <section class="card wallets-card" data-perm="a:wallets">
       <h2>Wallets <span id="walletCount"></span></h2>
       <input id="walletSearch" class="search" placeholder="Name oder Adresse suchen" autocomplete="off" />
       <div class="wallet-filter" id="walletFilter"><button type="button" data-wf="all" class="active">Alle <i></i></button><button type="button" data-wf="web">Website <i></i></button><button type="button" data-wf="chain">Chain <i></i></button><button type="button" data-wf="server">Server <i></i></button></div>
@@ -720,7 +720,8 @@
       <div class="msg" id="walletMsg"></div>
     </section>
 
-    <section class="card no-basic send-card">
+    <section class="card send-card" id="sendCard">
+      <div data-perm="a:send">
       <h2>Coins senden <span>landet im Mempool</span></h2>
       <label>Von</label><select id="txFrom"></select>
       <div class="send-arrow" aria-hidden="true">↓</div>
@@ -731,8 +732,11 @@
       </div>
       <div class="actions"><button class="primary wide" id="sendTx">Transaktion senden</button></div>
       <div class="msg" id="txMsg"></div>
+      </div>
+      <div data-perm="a:mempool">
       <h3 class="sub">Mempool <span id="mempoolCount"></span></h3>
       <div class="list" id="mempool"></div>
+      </div>
     </section>
   </div>
 
@@ -749,7 +753,7 @@
         <svg id="priceChart" viewBox="0 0 600 120" preserveAspectRatio="none"></svg>
         <div class="stats mini market-stats" id="marketStats"></div>
       </section>
-      <section class="card order-card no-basic">
+      <section class="card order-card" data-perm="a:trade">
         <div class="seg" role="tablist" aria-label="Aktion">
           <button type="button" class="seg-btn active" data-side="buy">Kaufen</button>
           <button type="button" class="seg-btn" data-side="sell">Verkaufen</button>
@@ -779,7 +783,7 @@
         <h3 class="sub" style="margin-top:0">Letzte Handel</h3>
         <div class="list" id="trades" style="max-height:260px"></div>
       </section>
-      <section class="card no-basic">
+      <section class="card" data-perm="a:trade">
         <h3 class="sub" style="margin-top:0">Meine offenen Aufträge</h3>
         <div class="list" id="myOrders"></div>
       </section>
@@ -1333,7 +1337,7 @@ const api = async (path, body) => {
   return data;
 };
 const errors = {
-  basic_no_transfers: "Basic-Konten können keine Coins senden oder Aufträge erstellen.",
+  basic_no_transfers: "Dieses Konto darf keine Coins senden bzw. keine Aufträge erstellen – der Owner kann es unter Chain-Konten → Rechte freischalten.",
   mining_disabled: "Mining ist ausgeschaltet (Einstellungen → Mining-Regeln).", mining_cooldown: "Pause nach dem letzten Block dieses Miners (Einstellungen → Mining-Regeln).", mining_daily_limit: "Tageslimit an Blöcken für diesen Miner erreicht.", no_pending_transactions: "Keine Transaktionen im Mempool – „Nur mit echten Transaktionen minen“ ist an.",
   insufficient_funds: "Nicht genug Guthaben (Mempool-Ausgaben eingerechnet).", unknown_sender: "Absender unbekannt.", unknown_recipient: "Empfänger unbekannt.",
   same_account: "Absender und Empfänger sind gleich.", invalid_amount: "Betrag muss eine positive ganze Zahl sein.", miner_busy: "Es wird gerade gemint.",
@@ -1670,7 +1674,8 @@ function applyPermissions(perms) {
       [myPermissions.includes("a:bank"), "🏦 Banküberweisungen", "bankCard"],
       [myPermissions.includes("a:stats"), "📊 Statistik", "statsCard"],
       [myPermissions.includes("a:announce") || myPermissions.includes("a:bulk"), "📣 Ankündigung & Bonus", "announceCard"],
-      [myPermissions.includes("a:miner"), "⛏ Server-Miner", "minerAnchor"],
+      [myPermissions.includes("a:miner") && myPermissions.includes("a:minerView"), "⛏ Server-Miner", "minerAnchor"],
+      [myPermissions.includes("a:send"), "💸 Coins senden", "sendCard"],
     ].filter(([ok]) => ok);
     $("basicInfoChips").innerHTML = areas.length ? areas.map(([, label, id]) => `<a href="#${id}" class="bi-chip">${label}</a>`).join("") : `<span class="muted">Dir wurden noch keine Bereiche freigegeben – frag den Owner.</span>`;
   }
@@ -1694,6 +1699,7 @@ function applyPermissions(perms) {
   const adFirst = [...document.querySelectorAll(".adtab")].find((b) => !b.classList.contains("perm-off") && !(isBasic && b.classList.contains("full-only")));
   $("adminCard").classList.toggle("perm-off", isBasic && !adFirst);
   $("announceCard").classList.toggle("perm-off", isBasic && !allowed("a:announce") && !allowed("a:bulk"));
+  $("sendCard").classList.toggle("perm-off", isBasic && !allowed("a:send") && !allowed("a:mempool"));
   const adActive = document.querySelector(".adtab.active");
   if (adFirst && adActive && (adActive.classList.contains("perm-off") || (isBasic && adActive.classList.contains("full-only")))) adFirst.click();
   else { try { if (adUsers.length) adRenderUsers(); } catch { /* noch nicht geladen */ } }
