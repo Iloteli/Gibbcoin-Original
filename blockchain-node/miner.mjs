@@ -73,6 +73,7 @@ if (isMainThread) {
     try { template = await api("/api/template", { address: wallet }); }
     catch (error) {
       console.error(`Vorlage fehlgeschlagen: ${error.message}`);
+      emit({ event: "waiting", reason: error.message });
       if (error.message === "unknown_miner") process.exit(1);
       await sleep(3000); continue;
     }
@@ -150,4 +151,5 @@ function parseArgs(list) {
   }
   return out;
 }
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+// Als Funktion (nicht const): wird schon in der Hauptschleife oben gebraucht.
+function sleep(ms) { return new Promise((resolve) => setTimeout(resolve, ms)); }
