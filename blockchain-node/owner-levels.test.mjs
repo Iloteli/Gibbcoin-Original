@@ -80,8 +80,15 @@ test("website owners get a basic chain login; full needs an upgrade and every fu
   assert.equal(full.role, "super_admin");
   assert.ok(Array.isArray((await post("/api/admin/node-users", { token: full.token })).data.users));
 
+  // Code über die Hauptseite (wechselt alle 5 Minuten) – nur für Full-Owner
+  assert.equal((await post("/api/owner-code", { supabaseToken: "tok-lea@x.ch-xxxxxxxxxxxxxxxx" })).data.error, "not_owner");
+  const web = (await post("/api/owner-code", { supabaseToken: "tok-robyn@x.ch-xxxxxxxxxxxxxxxx" })).data;
+  assert.match(web.code, /^\d{6}$/);
+  assert.equal((await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass", code: web.code })).data.role, "super_admin");
+
   // Zurückstufen
   await post("/api/admin/owner-level", { token: ilja.token, userId: ROBYN, level: "basic" });
+  assert.equal((await post("/api/owner-code", { supabaseToken: "tok-robyn@x.ch-xxxxxxxxxxxxxxxx" })).data.error, "not_full");
   assert.equal((await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data.role, "owner_basic");
 });
 

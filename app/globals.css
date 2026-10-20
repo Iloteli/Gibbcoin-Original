@@ -3703,3 +3703,9 @@ html[data-style="original"] .view-heading.only-original { display: block; }
 
 /* Profilbilder anderer Benutzer (Empfängersuche, Rangliste) */
 img.recipient-pic, img.lb-pic { object-fit: cover; padding: 0; border-radius: 50%; aspect-ratio: 1; }
+
+/* Anmelde-Code für die Chain-Seite (Konto, nur Full-Owner) */
+.owner-code-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.owner-code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 38px; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
+.owner-code-bar { height: 4px; margin: 12px 0 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
+.owner-code-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent, #35e070); transition: width 1s linear; }

@@ -18,6 +18,7 @@ import { createSettingsSync } from "./settings-sync.mjs";
 import { createNotifier } from "./notify.mjs";
 import { ALL_PERMISSIONS, PERMISSION_CATALOG, normalizePermissions } from "./permissions.mjs";
 import { keyLabel, parsePublicKey } from "./ssh-keys.mjs";
+import { createOwnerCodes } from "./owner-code.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -162,6 +163,10 @@ const dropSessionsOf = (username) => {
 // Zweiter Faktor für den Owner: Einmal-Code vom Server ("sudo gibb-code"), 5 Minuten gültig, einmal nutzbar.
 const OWNER_2FA = process.env.OWNER_2FA !== "0";
 const OWNER_CODE_FILE = process.env.OWNER_CODE_FILE ?? join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "owner-login-code.json");
+// Code von der Hauptseite (wechselt alle 5 Minuten, pro Full-Konto) – siehe owner-code.mjs
+const ownerCodes = createOwnerCodes({ file: join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "owner-code-secret") });
+// Zweiter Faktor: Code von "sudo gibb-code" ODER der aktuelle Code des Kontos von der Hauptseite
+const checkSecondFactor = (code, websiteUserId) => checkOwnerCode(code) || Boolean(OWNER_2FA && websiteUserId && ownerCodes.check(websiteUserId, String(code)));
 const checkOwnerCode = (code) => {
   if (!OWNER_2FA) return true;
   if (typeof code !== "string" || !/^\d{6,8}$/.test(code.trim())) return false;
@@ -256,7 +261,7 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
   // Jedes Full-Konto braucht den Server-Code ("sudo gibb-code")
   if (level === "full" && OWNER_2FA) {
     if (!body.code) throw new Error("second_factor_required");
-    if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
+    if (!checkSecondFactor(String(body.code), user.userId)) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
   }
   loginFailures.delete(nameKey);
   const address = `sb_${user.userId}`;
@@ -374,13 +379,23 @@ const routes = {
     // Jedes Full-Konto (Ilja und alle auf Full gesetzten) braucht den Server-Code
     if (u.role === "super_admin" && OWNER_2FA) {
       if (!body.code) throw new Error("second_factor_required");
-      if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
+      // Chain-Konto mit Website-Wallet (sb_<id>): auch der Code von der Hauptseite gilt
+      const webId = String(u.address ?? "").startsWith("sb_") ? String(u.address).slice(3) : null;
+      if (!checkSecondFactor(String(body.code), webId)) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
       note("auth", `${isPrimaryOwner ? "Owner" : "Full-Konto"} ${u.username} mit Server-Code angemeldet`);
       u.twoFactor = true;
     }
     loginFailures.delete(nameKey);
     const token = newSession(u);
     return { token, ...u };
+  },
+  // Hauptseite: aktueller Anmelde-Code für die Chain-Seite (nur Full-Owner, mit ihrem Website-Login)
+  "POST /api/owner-code": async (_, body) => {
+    const user = await websiteUser(body.supabaseToken);
+    if (!user || user.role !== "super_admin") throw new Error("not_owner");
+    if (ownerLevelOf(user.userId, user.email) !== "full") throw new Error("not_full");
+    if (chain.ownerDisabled[user.userId] && user.email !== PRIMARY_OWNER_EMAIL) throw new Error("account_disabled");
+    return { ...ownerCodes.current(user.userId), required: OWNER_2FA };
   },
   "POST /api/auth/logout": (_, body) => {
     if (typeof body.token === "string") { sessions.delete(tokenKey(body.token)); saveSessions(); }

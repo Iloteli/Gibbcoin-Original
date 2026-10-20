@@ -17,6 +17,7 @@ import { PwaInstallCard } from "./PwaInstallCard";
 import { TransactionDetails } from "./TransactionDetails";
 import { TransferApprovalCenter } from "./TransferApprovalCenter";
 import { SecurityOverview } from "./SecurityOverview";
+import { OwnerChainCode } from "./OwnerChainCode";
 import { openUserProfile, UserProfileModal } from "./UserProfileModal";
 import { HomePriceCard } from "./PriceChart";
 import { ThemeToggle } from "./ThemeToggle";
@@ -747,6 +748,7 @@ export function Dashboard({ user }: Props) {
         {profile && !offlineMode && <section className="card card-pad my-badges-card"><div className="card-head"><h2>Deine Abzeichen</h2><button type="button" className="secondary compact" onClick={() => openUserProfile(user.id)}>Öffentliches Profil ansehen</button></div><ProfileBadges userId={user.id} balance={wallet?.balance ?? 0} role={profile.role} showLocked /></section>}
         {profile && <AccountReadiness profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && <AccountEssentials user={user} profile={profile} wallet={wallet} transactions={transactions} onRefresh={loadData} onNavigate={openView} />}
+        {profile?.role === "super_admin" && !offlineMode && seen("account") && <OwnerChainCode />}
         {profile && <SecurityOverview user={user} profile={profile} wallet={wallet} onNavigate={openView} />}
         {profile && !offlineMode && seen("account") && <Suspense fallback={<ViewLoading />}><ProfileEditor userId={user.id} profile={profile} onChanged={loadData} /></Suspense>}
         <PwaInstallCard />

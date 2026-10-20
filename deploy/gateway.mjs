@@ -71,7 +71,7 @@ window.addEventListener("online", check);
 // Die Chain-Seite selbst und alle Owner-Funktionen gibt es nur unter chain.<domain> (mit Browser-Passwort).
 const NODE_PUBLIC = new Set([
   "GET /api/stats", "GET /api/blocks", "GET /api/block", "GET /api/miner-status", "GET /api/server-mining", "GET /api/verify",
-  "POST /api/template", "POST /api/submit", "POST /api/register", "POST /api/server-mining", "OPTIONS *",
+  "POST /api/template", "POST /api/submit", "POST /api/register", "POST /api/server-mining", "POST /api/owner-code", "OPTIONS *",
 ]);
 function nodeAllowed(method, path) {
   if (method === "OPTIONS") return true;
