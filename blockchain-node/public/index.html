@@ -2548,7 +2548,7 @@ $("accFilter").addEventListener("click", (e) => {
 $("nuList").addEventListener("change", async (e) => {
   const sel = e.target.closest('select[data-acc="level"]'); if (!sel) return;
   const row = sel.closest(".acc-row"); const { kind, id, name } = row.dataset;
-  if (sel.value === "full" && !confirm(`${name} auf Full setzen? Dann hat das Konto alle Rechte wie du (ohne Server-Code, den braucht nur Ilja).`)) { accRender(); return; }
+  if (sel.value === "full" && !confirm(`${name} auf Full setzen? Dann hat das Konto alle Rechte wie du und braucht beim Anmelden den Server-Code (sudo gibb-code).`)) { accRender(); return; }
   try {
     if (kind === "web") await api("/api/admin/owner-level", { userId: id, name, level: sel.value });
     else await api("/api/admin/node-users/level", { username: id, level: sel.value });

@@ -174,7 +174,7 @@ const checkOwnerCode = (code) => {
 };
 const newSession = (u) => {
   const token = _rnd(32).toString("hex");
-  sessions.set(tokenKey(token), { address: u.address, username: u.username, role: u.role, ...(u.level ? { level: u.level } : {}), expires: Date.now() + SESSION_TTL_MS });
+  sessions.set(tokenKey(token), { address: u.address, username: u.username, role: u.role, ...(u.level ? { level: u.level } : {}), ...(u.twoFactor ? { twoFactor: true } : {}), expires: Date.now() + SESSION_TTL_MS });
   saveSessions();
   return token;
 };
@@ -211,7 +211,9 @@ const sessionOf = (body) => {
   const nodeUser = sess ? chain.users[String(sess.username ?? "").toLowerCase()] : null;
   const expired = Boolean(nodeUser && nodeUser.role !== "super_admin" && nodeUser.expiresAt && nodeUser.expiresAt <= Date.now());
   const blocked = sess && (expired || (sess.role !== "super_admin" && sess.role !== "owner_basic" && (chain.settings.chainLoginsEnabled === false || nodeUser?.disabled)));
-  if (sess && !blocked && sess.expires > Date.now()) {
+  // Full-Konten (super_admin) nur mit Server-Code angemeldet; ältere Sitzungen ohne Code gelten nicht mehr
+  const noSecondFactor = Boolean(sess && OWNER_2FA && sess.role === "super_admin" && sess.twoFactor !== true);
+  if (sess && !blocked && !noSecondFactor && sess.expires > Date.now()) {
     // Bei jeder Benutzung verlängern (gespeichert höchstens alle 10 Minuten)
     const renewed = Date.now() + SESSION_TTL_MS;
     if (renewed - sess.expires > 10 * 60 * 1000) { sess.expires = renewed; saveSessions(); }
@@ -251,14 +253,15 @@ async function loginWebsiteOwner(body, nameKey, ipKey) {
   if (!user || user.role !== "super_admin") { loginFailed(nameKey, ipKey); throw new Error("not_owner_account"); }
   const level = ownerLevelOf(user.userId, user.email);
   if (chain.ownerDisabled[user.userId] && String(user.email ?? "").toLowerCase() !== PRIMARY_OWNER_EMAIL) { loginFailed(nameKey, ipKey); throw new Error("account_disabled"); }
-  if (String(user.email ?? "").toLowerCase() === PRIMARY_OWNER_EMAIL && OWNER_2FA) {
+  // Jedes Full-Konto braucht den Server-Code ("sudo gibb-code")
+  if (level === "full" && OWNER_2FA) {
     if (!body.code) throw new Error("second_factor_required");
     if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
   }
   loginFailures.delete(nameKey);
   const address = `sb_${user.userId}`;
   if (!chain.accounts[address]) chain.upsertWebsiteAccount(user.userId, user.username, 0);
-  const u = { address, username: user.username, role: level === "full" ? "super_admin" : "owner_basic", level, supabaseId: user.userId };
+  const u = { address, username: user.username, role: level === "full" ? "super_admin" : "owner_basic", level, supabaseId: user.userId, ...(level === "full" && OWNER_2FA ? { twoFactor: true } : {}) };
   const token = newSession(u);
   note("auth", `Owner ${user.username} (${level === "full" ? "Full" : "Basic"}) angemeldet`);
   return { token, ...u };
@@ -345,6 +348,7 @@ const routes = {
     if (settingsSync.isWebsiteUsername?.(body.username)) throw new Error("username_taken");
     try { u = chain.registerUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { if (error.message === "owner_name_reserved") loginFailed(ipKey); throw error; }
+    if (u.role === "super_admin") u.twoFactor = true; // Owner-Einrichtung nur mit Setup-Code vom Server
     const token = newSession(u);
     note("auth", `Neuer Nutzer registriert: ${u.username}${u.role === "super_admin" ? " (Owner)" : ""}`);
     return { token, ...u };
@@ -363,15 +367,16 @@ const routes = {
     let u;
     try { u = chain.verifyUser(body.username, body.password, { setupCode: body.setupCode }); }
     catch (error) { loginFailed(nameKey, ipKey); throw error; }
-    // Nur Ilja (das geschützte Owner-Konto) braucht den Server-Code
     const isPrimaryOwner = u.role === "super_admin";
     // Stufe: Full = alle Rechte (wie der Owner), Basic = eingeschränkte Owner-Rechte
     if (u.role !== "super_admin" && u.level === "full") u.role = "super_admin";
     else if (u.role !== "super_admin") u.role = "owner_basic"; // jedes Chain-Konto ist mindestens Basic
-    if (isPrimaryOwner && OWNER_2FA) {
+    // Jedes Full-Konto (Ilja und alle auf Full gesetzten) braucht den Server-Code
+    if (u.role === "super_admin" && OWNER_2FA) {
       if (!body.code) throw new Error("second_factor_required");
       if (!checkOwnerCode(String(body.code))) { loginFailed(nameKey, ipKey); throw new Error("invalid_second_factor"); }
-      note("auth", `Owner ${u.username} mit Server-Code angemeldet`);
+      note("auth", `${isPrimaryOwner ? "Owner" : "Full-Konto"} ${u.username} mit Server-Code angemeldet`);
+      u.twoFactor = true;
     }
     loginFailures.delete(nameKey);
     const token = newSession(u);
