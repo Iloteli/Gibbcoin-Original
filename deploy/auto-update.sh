@@ -22,6 +22,8 @@ if [ -f /etc/systemd/system/gibb-website.service ]; then
   fi
   chmod -R a+rX "$PWD"
 fi
+# Neue Datenbank-Migrationen (nur bei eigener Supabase-Datenbank auf diesem Server)
+bash "$PWD/deploy/apply-migrations.sh" || echo "WARNUNG: Datenbank-Update fehlgeschlagen."
 systemctl restart gibb-node.service
 [ -f /etc/systemd/system/gibb-gateway.service ] && systemctl restart gibb-gateway.service
 # Offene Seiten laden die neue Version automatisch (sobald die Website wieder antwortet).
@@ -30,7 +32,7 @@ if [ -f /etc/systemd/system/gibb-website.service ]; then
   mkdir -p /var/lib/gibbcoin && date +%s%N > /var/lib/gibbcoin/reload && chmod 644 /var/lib/gibbcoin/reload
 fi
 # Kurzbefehle aktuell halten (auch wenn nur das automatische Update läuft)
-for pair in update:update wartung:maintenance chain-key:chain-key neuladen:reload-clients code:login-code backup:backup help:help version:version autoupdate:autoupdate-switch; do
+for pair in update:update wartung:maintenance chain-key:chain-key neuladen:reload-clients code:login-code backup:backup help:help version:version autoupdate:autoupdate-switch ssh-keys:ssh-keys; do
   ln -sf "$PWD/deploy/${pair#*:}.sh" "/usr/local/bin/gibb-${pair%%:*}" 2>/dev/null || true
 done
 chmod +x "$PWD"/deploy/*.sh 2>/dev/null || true
