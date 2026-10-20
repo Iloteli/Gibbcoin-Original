@@ -104,6 +104,8 @@ export class Blockchain {
     this.ownerLevels = {}; // Supabase-ID eines Website-Owners -> "basic" | "full"
     this.ownerDisabled = {}; // Supabase-ID eines Website-Owners -> true = darf sich auf der Chain-Seite nicht anmelden
     this.userPermissions = {}; // Adresse eines Basic-Kontos -> eigene Rechte (sonst gelten die Basic-Standardrechte)
+    this.sshConfig = { user: "", host: "", port: 22 }; // Server-Angaben für die SSH-Karte (setzt der Owner für alle)
+    this.sshKeys = {}; // Adresse -> { name, key, at } öffentlicher SSH-Schlüssel (Anmelden ohne Passwort)
     this.load();
   }
 
@@ -124,6 +126,8 @@ export class Blockchain {
       this.ownerLevels = raw.ownerLevels ?? {};
       this.userPermissions = raw.userPermissions ?? {};
       this.ownerDisabled = raw.ownerDisabled ?? {};
+      this.sshConfig = { ...this.sshConfig, ...(raw.sshConfig ?? {}) };
+      this.sshKeys = raw.sshKeys ?? {};
     }
     // Bestehende Konten fair mit Startguthaben und Sperr-Feldern nachrüsten.
     for (const a of Object.values(this.accounts)) {
@@ -175,7 +179,7 @@ export class Blockchain {
     if (!this.file) return;
     mkdirSync(dirname(this.file), { recursive: true });
     const tmp = `${this.file}.tmp`;
-    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice, ownerLevels: this.ownerLevels, userPermissions: this.userPermissions, ownerDisabled: this.ownerDisabled }, null, 2));
+    writeFileSync(tmp, JSON.stringify({ blocks: this.blocks, mempool: this.mempool, accounts: this.accounts, users: this.users, settings: this.settings, orders: this.orders, trades: this.trades, lastPrice: this.lastPrice, ownerLevels: this.ownerLevels, userPermissions: this.userPermissions, ownerDisabled: this.ownerDisabled, sshConfig: this.sshConfig, sshKeys: this.sshKeys }, null, 2));
     renameSync(tmp, this.file);
   }
 

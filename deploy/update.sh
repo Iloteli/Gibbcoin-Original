@@ -17,6 +17,7 @@ ln -sf "$APP_DIR/deploy/help.sh" /usr/local/bin/gibb-help 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/version.sh" /usr/local/bin/gibb-version 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/autoupdate-switch.sh" /usr/local/bin/gibb-autoupdate 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/sudo-ohne-passwort.sh" /usr/local/bin/gibb-sudo 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/ssh-keys.sh" /usr/local/bin/gibb-ssh-keys 2>/dev/null || true
 FORCE=1 bash "$APP_DIR/deploy/auto-update.sh"
 systemctl reload caddy 2>/dev/null || true
 sleep 3

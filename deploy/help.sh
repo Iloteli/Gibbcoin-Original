@@ -28,6 +28,7 @@ cat <<HELP
     sudo gibb-code                   Server-Code für den Owner-Login (5 Min. gültig)
     sudo gibb-sudo [aus]             Knöpfe der Chain-Seite ohne sudo-Passwort (ein/aus)
     sudo gibb-chain-key              neuen Chain-Schlüssel für Supabase erzeugen
+    gibb-ssh-keys                    SSH-Schlüssel der Chain-Konten freischalten (Login ohne Passwort)
 
   Zustand prüfen
     systemctl status gibb-node       Chain-Server

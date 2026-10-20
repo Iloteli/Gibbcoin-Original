@@ -17,6 +17,7 @@ import { startServerMining } from "./server-mining.mjs";
 import { createSettingsSync } from "./settings-sync.mjs";
 import { createNotifier } from "./notify.mjs";
 import { ALL_PERMISSIONS, PERMISSION_CATALOG, normalizePermissions } from "./permissions.mjs";
+import { keyLabel, parsePublicKey } from "./ssh-keys.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT ?? 8787);
@@ -103,10 +104,20 @@ function startLocalMiner(address, threads) {
     if (event.event === "template") Object.assign(localMiner, { height: event.height, difficulty_bits: event.difficulty_bits, attempts: 0, elapsed: 0 });
     if (event.event === "block") { localMiner.blocks = event.total_blocks; localMiner.reward = event.total_reward; }
     if (event.event === "rejected" && event.reason !== "stale_block") localMiner.lastError = event.reason;
+    if (event.event === "waiting") localMiner.lastError = event.reason;
+    if (event.event === "template") localMiner.lastError = null;
   });
-  createInterface({ input: child.stderr }).on("line", (line) => { localMiner.lastError = line; note("error", `Miner: ${line}`); });
+  // Nur aussagekräftige Zeilen merken (nicht "Node.js v22…", Stack-Zeilen oder Leerzeilen)
+  createInterface({ input: child.stderr }).on("line", (line) => {
+    const text = line.trim();
+    if (!text || /^Node\.js v\d/.test(text) || /^at\s/.test(text) || /^\^+$/.test(text) || /^file:\/\//.test(text)) return;
+    if (/^Vorlage fehlgeschlagen:/.test(text)) return; // kommt schon als "waiting"
+    localMiner.lastError = text;
+    note("error", `Miner: ${text}`);
+  });
   child.on("exit", (code) => {
     if (localMiner.process === child) localMiner.process = null;
+    if (code && !localMiner.lastError) localMiner.lastError = `Miner beendet (Code ${code})`;
     note("miner", `Lokaler Miner beendet (Code ${code ?? "?"}) – ${localMiner.blocks} Blöcke, ${localMiner.reward} GIBB`);
   });
   note("miner", `Lokaler Miner gestartet für ${chain.accounts[address].name} mit ${count} Thread(s) (PID ${child.pid})`);
@@ -131,7 +142,7 @@ function note(kind, message) {
 // Anmelde-Sitzungen: sha256(token) -> { address, username, role, expires }.
 // Werden in sessions.json gespeichert (nur Hashes), damit ein Neustart/Update niemanden abmeldet.
 import { randomBytes as _rnd, createHash as _hash } from "node:crypto";
-import { existsSync as _exists, readFileSync as _read, writeFileSync as _write, renameSync as _rename, unlinkSync as _unlink } from "node:fs";
+import { chmodSync as _chmod, existsSync as _exists, readFileSync as _read, writeFileSync as _write, renameSync as _rename, unlinkSync as _unlink } from "node:fs";
 const SESSION_FILE = join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "sessions.json");
 const tokenKey = (token) => _hash("sha256").update(String(token)).digest("hex");
 const sessions = new Map();
@@ -267,6 +278,18 @@ const requirePermission = (body, perm) => {
   if (sess && (sess.role === "super_admin" || (sess.role === "owner_basic" && permissionsOf(sess).includes(perm)))) return sess;
   throw new Error("not_owner");
 };
+// SSH-Schlüssel: Datei für "gibb-ssh-keys" (nur Konten, die die SSH-Karte noch dürfen; öffentliche Schlüssel, daher lesbar)
+const SSH_KEYS_FILE = join(dirname(process.env.CHAIN_FILE ?? join(here, "data", "chain.json")), "ssh-keys.json");
+const mayUseSsh = (address, role) => role === "super_admin" || (role === "owner_basic" && normalizePermissions(Array.isArray(chain.userPermissions[address]) ? chain.userPermissions[address] : chain.settings.basicPermissions).includes("a:ssh"));
+let sshKeysWritten = "";
+function writeSshKeysFile() {
+  const keys = Object.entries(chain.sshKeys).filter(([address, k]) => mayUseSsh(address, k.role)).map(([, k]) => ({ name: keyLabel(k.name), key: k.key }));
+  const text = JSON.stringify({ keys }, null, 2);
+  if (text === sshKeysWritten) return;
+  try { _write(SSH_KEYS_FILE, text, { mode: 0o644 }); _chmod(SSH_KEYS_FILE, 0o644); sshKeysWritten = text; } catch (error) { note("error", `SSH-Schlüssel-Datei nicht geschrieben: ${error.message}`); }
+}
+setTimeout(writeSshKeysFile, 1000).unref();
+setInterval(writeSshKeysFile, 60_000).unref();
 // Admin der Hauptseite: Full darf alles, Basic nur, was freigegeben ist
 const requireAdminPermission = async (body, perm) => {
   const sess = sessionOf(body);
@@ -580,9 +603,51 @@ const routes = {
     if (Array.isArray(body.permissions)) chain.userPermissions[address] = normalizePermissions(body.permissions);
     else delete chain.userPermissions[address];
     chain.save();
+    writeSshKeysFile();
     note("auth", `Rechte für ${String(body.name ?? address).slice(0, 40)}: ${Array.isArray(body.permissions) ? "eigene" : "Standard für Basic"}`);
     const own = chain.userPermissions[address];
     return { address, custom: Array.isArray(own), permissions: normalizePermissions(Array.isArray(own) ? own : chain.settings.basicPermissions) };
+  },
+  // Server per SSH: Angaben für alle (setzt Full), eigener öffentlicher Schlüssel (Anmelden ohne Passwort)
+  "POST /api/ssh": async (_, body) => {
+    const sess = requirePermission(body, "a:ssh");
+    const mine = chain.sshKeys[sess.address];
+    const keys = sess.role === "super_admin" ? Object.entries(chain.sshKeys).map(([address, k]) => ({ address, name: k.name, type: k.key.split(" ")[0], tail: k.key.slice(-12), at: k.at, active: mayUseSsh(address, k.role) })) : undefined;
+    return { config: chain.sshConfig, myKey: mine ? { type: mine.key.split(" ")[0], tail: mine.key.slice(-12), at: mine.at } : null, keys };
+  },
+  "POST /api/ssh/config": async (_, body) => {
+    await requireOwner(body);
+    const user = String(body.user ?? "").trim(), host = String(body.host ?? "").trim();
+    if (user && !/^[a-z_][a-z0-9._-]{0,31}$/i.test(user)) throw new Error("invalid_ssh_user");
+    if (host && !/^[a-z0-9.-]{1,253}$|^\[?[0-9a-f:]+\]?$/i.test(host)) throw new Error("invalid_ssh_host");
+    const port = Math.min(65535, Math.max(1, Math.trunc(Number(body.port) || 22)));
+    chain.sshConfig = { user, host, port };
+    chain.save();
+    note("auth", `SSH-Angaben für alle: ${user || "–"}@${host || "–"}:${port}`);
+    return { config: chain.sshConfig };
+  },
+  "POST /api/ssh/key": async (_, body) => {
+    const sess = requirePermission(body, "a:ssh");
+    if (!String(body.key ?? "").trim()) {
+      delete chain.sshKeys[sess.address];
+      note("auth", `SSH-Schlüssel von ${sess.username} entfernt`);
+    } else {
+      chain.sshKeys[sess.address] = { name: String(sess.username ?? "konto").slice(0, 40), key: parsePublicKey(body.key), role: sess.role, at: Date.now() };
+      note("auth", `SSH-Schlüssel von ${sess.username} gespeichert – mit gibb-ssh-keys freischalten`);
+    }
+    chain.save();
+    writeSshKeysFile();
+    return { ok: true };
+  },
+  "POST /api/ssh/key/remove": async (_, body) => {
+    await requireOwner(body);
+    const address = String(body.address ?? "");
+    if (!chain.sshKeys[address]) throw new Error("not_found");
+    note("auth", `SSH-Schlüssel von ${chain.sshKeys[address].name} entfernt`);
+    delete chain.sshKeys[address];
+    chain.save();
+    writeSshKeysFile();
+    return { ok: true };
   },
   "POST /api/admin/node-users": async (_, body) => {
     await requireOwner(body);
