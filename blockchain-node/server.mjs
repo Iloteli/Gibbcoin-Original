@@ -150,7 +150,7 @@ try { if (_exists(SESSION_FILE)) for (const [k, v] of Object.entries(JSON.parse(
 const saveSessions = () => {
   try { const tmp = `${SESSION_FILE}.tmp`; _write(tmp, JSON.stringify(Object.fromEntries(sessions)), { mode: 0o600 }); _rename(tmp, SESSION_FILE); } catch { /* nur im Speicher */ }
 };
-const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // Sitzungen laufen nach 12 Stunden ab
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // Sitzung gilt 30 Tage ab der letzten Benutzung (kein automatisches Abmelden)
 // Alle Sitzungen eines Kontos beenden (nach Löschen oder Passwortwechsel)
 const dropSessionsOf = (username) => {
   const name = String(username ?? "").toLowerCase();
@@ -158,7 +158,6 @@ const dropSessionsOf = (username) => {
   for (const [k, sess] of sessions) if (String(sess.username ?? "").toLowerCase() === name) { sessions.delete(k); changed = true; }
   if (changed) saveSessions();
 };
-const OWNER_IDLE_MS = 30 * 60 * 1000;          // Owner wird nach 30 Minuten ohne Aktivität abgemeldet
 
 // Zweiter Faktor für den Owner: Einmal-Code vom Server ("sudo gibb-code"), 5 Minuten gültig, einmal nutzbar.
 const OWNER_2FA = process.env.OWNER_2FA !== "0";
@@ -212,7 +211,10 @@ const sessionOf = (body) => {
   const nodeUser = sess ? chain.users[String(sess.username ?? "").toLowerCase()] : null;
   const expired = Boolean(nodeUser && nodeUser.role !== "super_admin" && nodeUser.expiresAt && nodeUser.expiresAt <= Date.now());
   const blocked = sess && (expired || (sess.role !== "super_admin" && sess.role !== "owner_basic" && (chain.settings.chainLoginsEnabled === false || nodeUser?.disabled)));
-  if (sess && !blocked && sess.expires > Date.now() && !((sess.role === "super_admin" || sess.role === "owner_basic") && Date.now() - (sess.lastSeen ?? Date.now()) > OWNER_IDLE_MS)) {
+  if (sess && !blocked && sess.expires > Date.now()) {
+    // Bei jeder Benutzung verlängern (gespeichert höchstens alle 10 Minuten)
+    const renewed = Date.now() + SESSION_TTL_MS;
+    if (renewed - sess.expires > 10 * 60 * 1000) { sess.expires = renewed; saveSessions(); }
     sess.lastSeen = Date.now();
     return sess;
   }
