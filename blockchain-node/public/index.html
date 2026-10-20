@@ -1072,7 +1072,7 @@
     <div class="msg" id="anMsg"></div>
   </section>
 
-  <section class="card coin-admin-card owner-basic" id="coinAdminCard" data-perm="a:coins">
+  <section class="card coin-admin-card owner-basic" id="coinAdminCard" data-perm="a:coinsSelf|a:coinsOthers">
     <h2>Coins verwalten <span id="caSync">Hauptseite · alle Benutzer</span></h2>
     <p class="muted" style="margin:0 0 12px">Coins geben oder abziehen für Konten der Hauptseite. Jede Änderung wird als Transaktion gebucht und der Person mitgeteilt.</p>
     <div class="coin-admin">
@@ -1835,7 +1835,7 @@ function applyPermissions(perms) {
     const areas = [
       [has("s:") || has("w:"), "⚙ Einstellungen", "settingsCard"],
       [["a:accounts", "a:accountsCreate", "a:accountsDelete", "a:games", "a:tools", "a:audit", "a:visitors"].some((p) => myPermissions.includes(p)), "🛡 Verwaltung der Hauptseite", "adminCard"],
-      [myPermissions.includes("a:coins"), "🪙 Coins verwalten", "coinAdminCard"],
+      [myPermissions.includes("a:coinsSelf") || myPermissions.includes("a:coinsOthers"), "🪙 Coins verwalten", "coinAdminCard"],
       [myPermissions.includes("a:bank"), "🏦 Banküberweisungen", "bankCard"],
       [myPermissions.includes("a:stats"), "📊 Statistik", "statsCard"],
       [myPermissions.includes("a:announce") || myPermissions.includes("a:bulk"), "📣 Ankündigung & Bonus", "announceCard"],
@@ -1844,7 +1844,7 @@ function applyPermissions(perms) {
     ].filter(([ok]) => ok);
     $("basicInfoChips").innerHTML = areas.length ? areas.map(([, label, id]) => `<a href="#${id}" class="bi-chip">${label}</a>`).join("") : `<span class="muted">Dir wurden noch keine Bereiche freigegeben – frag den Owner.</span>`;
   }
-  const allowed = (perm) => !isBasic || myPermissions.includes(perm);
+  const allowed = (perm) => !isBasic || String(perm).split("|").some((p) => myPermissions.includes(p)); // "a|b" = eines davon
   document.querySelectorAll("[data-perm]").forEach((el) => el.classList.toggle("perm-off", !allowed(el.dataset.perm)));
   for (const [id, perm] of Object.entries(FIELD_PERMS)) {
     const el = $(id); if (!el) continue;
@@ -1913,7 +1913,7 @@ $("logout").onclick = () => { if (authToken) api("/api/auth/logout", {}).catch((
 
 // ---------- Coins verwalten (Hauptseite) ----------
 let caUsers = [], caSelectedId = null;
-const caErrors = { no_key: "Die Chain-Seite ist noch nicht mit der Hauptseite verbunden („sudo gibb-chain-key“).", not_configured: "Keine Verbindung zur Hauptseite eingerichtet.", invalid_key: "Schlüssel ungültig – „sudo gibb-chain-key“ erneut ausführen.", insufficient_balance: "Diese Person hat nicht so viele GIBB.", invalid_amount: "Bitte eine ganze Zahl über 0 eingeben.", reason_required: "Bitte einen kurzen Grund eingeben (mind. 3 Zeichen).", wallet_not_found: "Konto nicht gefunden.", not_owner: "Nur für den Owner." };
+const caErrors = { no_coins_self: "Du darfst dir selbst keine Coins geben oder abziehen.", no_coins_others: "Du darfst anderen keine Coins geben oder abziehen.", no_key: "Die Chain-Seite ist noch nicht mit der Hauptseite verbunden („sudo gibb-chain-key“).", not_configured: "Keine Verbindung zur Hauptseite eingerichtet.", invalid_key: "Schlüssel ungültig – „sudo gibb-chain-key“ erneut ausführen.", insufficient_balance: "Diese Person hat nicht so viele GIBB.", invalid_amount: "Bitte eine ganze Zahl über 0 eingeben.", reason_required: "Bitte einen kurzen Grund eingeben (mind. 3 Zeichen).", wallet_not_found: "Konto nicht gefunden.", not_owner: "Nur für den Owner." };
 const caName = (u) => u.display_name || u.username || "Nutzer";
 const caEsc = (t) => String(t).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const caFail = (e) => say("caMsg", caErrors[e.message] || errors[e.message] || e.message, true);
@@ -1926,7 +1926,7 @@ function caRender() {
   $("caGive").disabled = $("caTake").disabled = !sel;
 }
 async function caLoad() {
-  if (!canUse("a:coins")) return;
+  if (!canUse("a:coinsSelf") && !canUse("a:coinsOthers")) return;
   try { caUsers = (await api("/api/website/users", {})).users ?? []; caRender(); }
   catch (e) { $("caUsers").innerHTML = `<div class="muted">${caEsc(caErrors[e.message] ?? e.message)}</div>`; }
 }

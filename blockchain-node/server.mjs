@@ -301,6 +301,13 @@ function writeSshKeysFile() {
 }
 setTimeout(writeSshKeysFile, 1000).unref();
 setInterval(writeSshKeysFile, 60_000).unref();
+const requireAnyPermission = (body, perms) => {
+  const sess = sessionOf(body);
+  if (sess && (sess.role === "super_admin" || (sess.role === "owner_basic" && perms.some((p) => permissionsOf(sess).includes(p))))) return sess;
+  throw new Error("not_owner");
+};
+// Eigenes Website-Konto der Sitzung (Wallet sb_<id>), sonst null
+const ownWebsiteId = (sess) => (String(sess?.address ?? "").startsWith("sb_") ? String(sess.address).slice(3).toLowerCase() : null);
 // Admin der Hauptseite: Full darf alles, Basic nur, was freigegeben ist
 const requireAdminPermission = async (body, perm) => {
   const sess = sessionOf(body);
@@ -805,9 +812,18 @@ const routes = {
     void settingsSync.syncAccounts();
     return result;
   },
-  "POST /api/website/users": async (_, body) => { requirePermission(body, "a:coins"); return { users: await settingsSync.listWebsiteUsers() }; },
+  // Coins verwalten: zwei Rechte – sich selbst (eigenes Website-Konto) und anderen
+  "POST /api/website/users": async (_, body) => {
+    const sess = requireAnyPermission(body, ["a:coinsSelf", "a:coinsOthers"]);
+    const users = await settingsSync.listWebsiteUsers();
+    const perms = permissionsOf(sess);
+    const mine = ownWebsiteId(sess);
+    return { users: users.filter((u) => (String(u.id).toLowerCase() === mine ? perms.includes("a:coinsSelf") : perms.includes("a:coinsOthers"))) };
+  },
   "POST /api/website/adjust": async (_, body) => {
-    requirePermission(body, "a:coins");
+    const sess = requireAnyPermission(body, ["a:coinsSelf", "a:coinsOthers"]);
+    const self = String(body.userId ?? "").toLowerCase() === ownWebsiteId(sess);
+    if (!permissionsOf(sess).includes(self ? "a:coinsSelf" : "a:coinsOthers")) throw new Error(self ? "no_coins_self" : "no_coins_others");
     const amount = Math.trunc(Number(body.amount));
     if (!Number.isFinite(amount) || amount === 0) throw new Error("invalid_amount");
     const reason = String(body.reason ?? "").trim().slice(0, 120);

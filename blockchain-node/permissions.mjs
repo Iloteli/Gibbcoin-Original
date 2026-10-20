@@ -37,7 +37,7 @@ export const PERMISSION_CATALOG = [
   ] },
   { group: "🛡 Verwaltung der Hauptseite", items: [
     ["a:accounts", "Konten ansehen, bannen, Passwort-Reset, Fun-Rang"], ["a:accountsCreate", "Neue Konten erstellen"], ["a:accountsDelete", "Konten löschen"],
-    ["a:coins", "Coins geben und abziehen"], ["a:games", "Spiele: an/aus, Grenzen, Einsätze, Gewinnchancen einstellen"], ["a:infos", "Infos: Gewinnchancen ansehen"], ["a:tools", "Tools & Support-Fälle"],
+    ["a:coinsSelf", "Coins sich selbst geben/abziehen"], ["a:coinsOthers", "Coins anderen geben/abziehen"], ["a:games", "Spiele: an/aus, Grenzen, Einsätze, Gewinnchancen einstellen"], ["a:infos", "Infos: Gewinnchancen ansehen"], ["a:tools", "Tools & Support-Fälle"],
     ["a:audit", "Protokoll ansehen"], ["a:visitors", "Besucher-Statistik"],
     ["a:stats", "Statistik-Dashboard"], ["a:announce", "Ankündigung auf der Hauptseite"], ["a:bulk", "Bonus für alle"],
   ] },
@@ -54,6 +54,8 @@ const LEGACY = {
   payments: ["w:cardEnabled", "w:creditsEnabled"],
   server: ["s:fallbackMinerEnabled", "s:fallbackDelaySeconds", "s:browserMinerThreads"],
   miner: ["a:miner"], verify: ["a:verify"], bank: ["a:bank"],
+  // früher ein Recht für beides (bis Okt. 2026)
+  "a:coins": ["a:coinsSelf", "a:coinsOthers"],
 };
 
 export function normalizePermissions(list) {

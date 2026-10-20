@@ -152,7 +152,8 @@ test("basic can get admin rights one by one (accounts, games, coins); roles stay
 
   await post("/api/settings", { token: ilja.token, basicPermissions: ["a:games", "a:accounts", "a:coins"] });
   const perms = (await post("/api/auth/me", { token: basic.token })).data.permissions;
-  assert.ok(perms.includes("a:games") && perms.includes("a:accounts") && perms.includes("a:coins"));
+  // altes Recht "a:coins" = beide neuen Rechte
+  assert.ok(perms.includes("a:games") && perms.includes("a:accounts") && perms.includes("a:coinsSelf") && perms.includes("a:coinsOthers"));
   assert.notEqual((await post("/api/admin/call", { token: basic.token, fn: "get_game_center_state" })).data.error, "not_owner");
   assert.notEqual((await post("/api/admin/call", { token: basic.token, fn: "admin_verify_pin", args: { p_pin: "1234" } })).data.error, "not_owner");
   assert.notEqual((await post("/api/website/users", { token: basic.token })).data.error, "not_owner");
@@ -170,6 +171,16 @@ test("basic can get admin rights one by one (accounts, games, coins); roles stay
   assert.notEqual((await post("/api/owner/stats", { token: ilja.token, days: 30 })).data.error, "not_owner");
   assert.equal((await post("/api/website/bulk", { token: ilja.token, amount: 0, reason: "Bonus" })).data.error, "invalid_amount");
   assert.equal((await post("/api/website/bulk", { token: ilja.token, amount: 5, reason: "" })).data.error, "reason_required");
+  // Coins sich selbst / anderen geben: zwei getrennte Rechte
+  const LEA = "11111111-1111-4111-8111-111111111111";
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["a:coinsSelf"] });
+  assert.deepEqual((await post("/api/website/users", { token: basic.token })).data.users.map((u) => u.id), [ROBYN]);
+  assert.equal((await post("/api/website/adjust", { token: basic.token, userId: ROBYN, amount: 5, reason: "Test" })).data.error, undefined);
+  assert.equal((await post("/api/website/adjust", { token: basic.token, userId: LEA, amount: 5, reason: "Test" })).data.error, "no_coins_others");
+  await post("/api/settings", { token: ilja.token, basicPermissions: ["a:coinsOthers"] });
+  assert.deepEqual((await post("/api/website/users", { token: basic.token })).data.users.map((u) => u.id), [LEA]);
+  assert.equal((await post("/api/website/adjust", { token: basic.token, userId: ROBYN, amount: 5, reason: "Test" })).data.error, "no_coins_self");
+  assert.equal((await post("/api/website/adjust", { token: basic.token, userId: LEA, amount: 5, reason: "Test" })).data.error, undefined);
   // Chain-Coins senden bleibt für Basic gesperrt
   assert.equal((await post("/api/transactions", { token: basic.token, to: "ilja", amount: 1 })).data.error, "basic_no_transfers");
   await post("/api/settings", { token: ilja.token, basicPermissions: ["mining", "rules", "market", "tabs", "payments"] });
