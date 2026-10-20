@@ -269,7 +269,9 @@ test("moves coin grants and removals from the main site to the chain page", asyn
   // Chain-Seite: Geben und Abziehen nur mit Schlüssel und nur für den Owner.
   assert.match(migration, /function public\.node_adjust_balance/);
   assert.match(migration, /private\.node_key_ok\(p_key\)/);
-  assert.match(server, /"POST \/api\/website\/adjust": async \(_, body\) => \{\s*requirePermission\(body, "a:coins"\);/);
+  // Nur mit Recht: sich selbst (a:coinsSelf) bzw. anderen (a:coinsOthers) Coins geben/abziehen
+  assert.match(server, /"POST \/api\/website\/adjust": async \(_, body\) => \{\s*const sess = requireAnyPermission\(body, \["a:coinsSelf", "a:coinsOthers"\]\);/);
+  assert.match(server, /permissionsOf\(sess\)\.includes\(self \? "a:coinsSelf" : "a:coinsOthers"\)/);
   assert.match(chainPage, /id="coinAdminCard"/);
 });
 
