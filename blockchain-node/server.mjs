@@ -555,11 +555,23 @@ const routes = {
   },
   "POST /api/admin/status": async (_, body) => {
     await requireAdminPermission(body, "a:accounts");
-    const minutes = body.minutes == null || body.minutes === "" ? null : Number(body.minutes);
+    const minutes = body.minutes == null || body.minutes === "" ? null : Math.round(Number(body.minutes));
+    if (minutes !== null && !(minutes >= 1 && minutes <= 2_628_000)) throw new Error("invalid_lock_duration");
     const r = await settingsSync.setAccountStatus(String(body.userId ?? ""), body.status === "locked" ? "locked" : "active", minutes, String(body.reason ?? ""));
-    note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} ${body.status === "locked" ? "gebannt" : "entbannt"}`);
+    note("auth", `Konto ${String(body.name ?? body.userId).slice(0, 40)} ${body.status === "locked" ? `gebannt${minutes ? ` für ${minutes} Min.` : " (dauerhaft)"}` : "entbannt"}`);
+    if (body.status === "locked") dropSessionsOfAddress(`sb_${String(body.userId ?? "").toLowerCase()}`);
     void settingsSync.syncAccounts();
     return r;
+  },
+  // Konto überall abmelden: Hauptseite (Sitzungen widerrufen) und Chain-Seite
+  "POST /api/admin/logout-user": async (_, body) => {
+    await requireAdminPermission(body, "a:accounts");
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("user_not_found");
+    await settingsSync.logoutUser(id);
+    dropSessionsOfAddress(`sb_${id}`);
+    note("auth", `${String(body.name ?? id).slice(0, 40)} überall abgemeldet (Hauptseite und Chain-Seite)`);
+    return { ok: true };
   },
   "POST /api/admin/delete": async (_, body) => {
     await requireAdminPermission(body, "a:accountsDelete");
@@ -931,7 +943,9 @@ const requestHandler = async (req, res) => {
         let size = 0;
         for await (const chunk of req) {
           size += chunk.length;
-          if (size > 1_000_000) return json(res, 413, { error: "request_too_large" });
+          // Zu gross: antworten und die Verbindung schliessen (der Rest der Anfrage wird nicht mehr gelesen –
+          // sonst bliebe eine halb gelesene Verbindung offen und die nächste Anfrage darüber würde scheitern)
+          if (size > 1_000_000) { res.setHeader("connection", "close"); return json(res, 413, { error: "request_too_large" }); }
           chunks.push(chunk);
         }
         const raw = Buffer.concat(chunks).toString("utf8");
