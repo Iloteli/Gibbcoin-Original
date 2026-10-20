@@ -135,6 +135,8 @@ export class Blockchain {
       }
     }
     this.settings.viewPermissionsAdded = true;
+    // Okt. 2026: Standardrechte für Basic auf das Nötigste zurückgesetzt (eigene Rechte einzelner Konten bleiben)
+    if (!this.settings.basicDefaultsV2) { this.settings.basicPermissions = [...DEFAULT_BASIC_PERMISSIONS]; this.settings.basicDefaultsV2 = true; }
     // Bestehende Konten fair mit Startguthaben und Sperr-Feldern nachrüsten.
     for (const a of Object.values(this.accounts)) {
       if (typeof a.cash !== "number") a.cash = this.settings.startingCash;

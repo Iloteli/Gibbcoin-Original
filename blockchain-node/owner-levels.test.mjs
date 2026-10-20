@@ -58,12 +58,14 @@ test("website owners get a basic chain login; full needs an upgrade and every fu
 
   const basic = (await post("/api/auth/login", { username: "robyn@x.ch", password: "robyn-pass" })).data;
   assert.equal(basic.role, "owner_basic");
-  // Basic: Mining-Einstellungen ja, Server-/Bank-Einstellungen nein, Admin nein
+  // Basic standardmässig nur das Nötigste: keine Einstellungen, keine Verwaltung
   const s = (await post("/api/settings", { token: basic.token, reward: 7, chainLoginsEnabled: false, website: { bankIban: "CH9300762011623852957", maxTrade: 50 } })).data;
-  assert.equal(s.reward, 7);
+  assert.notEqual(s.reward, 7);
   assert.equal(s.chainLoginsEnabled, true, "nur Full");
   assert.equal(s.website.bankIban, "");
-  assert.equal(s.website.maxTrade, 50);
+  assert.notEqual(s.website.maxTrade, 50);
+  const basicPerms = (await post("/api/auth/me", { token: basic.token })).data.permissions;
+  assert.deepEqual(new Set(basicPerms), new Set(["a:minerView", "a:browserMiner", "a:wallets", "a:mempool", "a:miner", "a:verify", "a:infos"]));
   assert.equal((await post("/api/admin/node-users", { token: basic.token })).data.error, "not_owner");
 
   // Ilja (lokales Owner-Konto) upgradet robyn auf Full

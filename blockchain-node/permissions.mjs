@@ -72,4 +72,6 @@ export function normalizePermissions(list) {
 
 // Karten, die Basic schon immer gesehen hat (beim Einführen der Rechte allen bestehenden Rechte-Listen ergänzt)
 export const VIEW_PERMISSIONS = ["a:minerView", "a:browserMiner", "a:wallets", "a:mempool"];
-export const DEFAULT_BASIC_PERMISSIONS = normalizePermissions(["mining", "rules", "market", "tabs", "payments", "server", "miner", "verify", "a:infos", ...VIEW_PERMISSIONS]);
+// Standard für Basic: nur das Nötigste – Übersicht sehen, Server-Miner bedienen, Kette prüfen, Gewinnchancen ansehen.
+// Keine Einstellungen, keine Verwaltung, kein Senden/Handeln (gibt der Owner bei Bedarf pro Konto frei).
+export const DEFAULT_BASIC_PERMISSIONS = normalizePermissions([...VIEW_PERMISSIONS, "a:miner", "a:verify", "a:infos"]);

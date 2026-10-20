@@ -10,6 +10,8 @@ test("Basic sieht standardmässig Miner, Wallets und Mempool, darf aber nicht se
   for (const p of VIEW_PERMISSIONS) assert.ok(DEFAULT_BASIC_PERMISSIONS.includes(p), p);
   assert.ok(!DEFAULT_BASIC_PERMISSIONS.includes("a:send"));
   assert.ok(!DEFAULT_BASIC_PERMISSIONS.includes("a:trade"));
+  // keine Einstellungen standardmässig
+  assert.ok(!DEFAULT_BASIC_PERMISSIONS.some((p) => p.startsWith("s:") || p.startsWith("w:")));
 });
 
 test("bestehende Rechte-Listen bekommen die Übersichts-Karten einmal dazu", () => {
