@@ -132,7 +132,7 @@ begin
   end if;
 
   select net.http_post(
-    url := 'https://laduzigqgvvnrqcgfgab.supabase.co/functions/v1/admin-account-status',
+    url := 'https://dlcsraxnofbtquhpnleu.supabase.co/functions/v1/admin-account-status',
     headers := v_edge_headers,
     body := pg_catalog.jsonb_build_object(
       'target_user_id', p_target_user_id,

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stellt die GibbCoin-Website wieder auf die Supabase-CLOUD um (Robyns Projekt).
+# Stellt die GibbCoin-Website auf die Supabase-CLOUD um (Projekt dlcsraxnofbtquhpnleu, seit Okt. 2026).
 # - Website wird ohne eigene Datenbank-Einstellung neu gebaut (nutzt die Cloud).
 # - Eigene Supabase-Instanz wird gestoppt (Daten bleiben erhalten, kein RAM-Verbrauch).
 # - Blockchain-Node prüft Owner-Logins bei der Cloud (öffentlicher Schlüssel), damit
@@ -9,8 +9,8 @@ set -euo pipefail
 if [ "$(id -u)" -ne 0 ]; then echo "Bitte mit sudo ausführen." >&2; exit 1; fi
 DATA_DIR="${DATA_DIR:-/var/lib/gibbcoin}"
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CLOUD_URL="https://laduzigqgvvnrqcgfgab.supabase.co"
-CLOUD_KEY="$(grep -oE 'sb_publishable_[A-Za-z0-9_]+' "$REPO_DIR/app/lib/supabase.ts" | head -1)"
+CLOUD_URL="https://dlcsraxnofbtquhpnleu.supabase.co"
+CLOUD_KEY="$(grep -oE 'sb_publishable_[A-Za-z0-9_-]+' "$REPO_DIR/app/lib/supabase.ts" | head -1)"
 
 echo "==> Website-Einstellung für die eigene Datenbank entfernen"
 rm -f "$DATA_DIR/website.env"

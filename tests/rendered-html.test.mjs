@@ -699,6 +699,8 @@ test("guards the production Supabase migration workflow behind manual confirmati
   assert.doesNotMatch(production, /--password/);
   assert.doesNotMatch(production, /laduzigqgvvnrqcgfgab/);
   assert.doesNotMatch(migrationRunner, /laduzigqgvvnrqcgfgab/);
+  assert.doesNotMatch(production, /dlcsraxnofbtquhpnleu/);
+  assert.doesNotMatch(migrationRunner, /dlcsraxnofbtquhpnleu/);
 
   // Der Staging-Workflow bleibt unangetastet und verweigert weiterhin die Produktion.
   assert.match(staging, /Production project refused/);

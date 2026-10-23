@@ -49,7 +49,7 @@ jobs:
             echo "::error::SUPABASE_ACCESS_TOKEN, SUPABASE_DB_PASSWORD and SUPABASE_PROJECT_ID are required in the staging environment."
             exit 1
           fi
-          if [ "$SUPABASE_PROJECT_ID" = "laduzigqgvvnrqcgfgab" ]; then
+          if [ "$SUPABASE_PROJECT_ID" = "dlcsraxnofbtquhpnleu" ] || [ "$SUPABASE_PROJECT_ID" = "laduzigqgvvnrqcgfgab" ]; then
             echo "::error::Production project refused. Configure a separate staging Supabase project."
             exit 1
           fi

@@ -13,8 +13,8 @@ type SupabaseErrorLike = {
 // Supabase publishable keys are intended for browsers and public source. Sites
 // runtime variables are not always embedded into the browser bundle, so these
 // public project values keep authentication available after deployment.
-const DEFAULT_SUPABASE_URL = "https://laduzigqgvvnrqcgfgab.supabase.co";
-const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bdH33RHJl23SY6qNkUwvhQ_IzQOArAb";
+const DEFAULT_SUPABASE_URL = "https://dlcsraxnofbtquhpnleu.supabase.co";
+const DEFAULT_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_lJja7HWrvaEa0d3-JIqPCQ_zJBCzaCI";
 const AUTH_STORAGE_KEY = "gibb-coin-auth-v2";
 
 // Eine relative Adresse (z. B. "/sb") meint die eigene, selbst gehostete Instanz
