@@ -129,6 +129,7 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   // Website-Konten 1:1 übernehmen: Name und Guthaben von der Hauptseite, neue Konten anlegen,
   // gelöschte Konten entfernen. Die Hauptseite ist für Website-Konten führend.
   let syncing = false;
+  const PLACEHOLDER_ID = "d465d88f-0acb-4bff-ad55-945761acaeea";
   // Benutzernamen der Hauptseite (für eindeutige Namen über beide Websites)
   let websiteNames = new Set();
   const isWebsiteUsername = (name) => websiteNames.has(String(name ?? "").trim().toLowerCase());
@@ -145,6 +146,8 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
       for (const u of users) {
         const id = String(u.id ?? "").toLowerCase();
         if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) continue;
+        // Platzhalter-Konto aus der Datenbank-Einrichtung (kein Login, gesperrt) nicht anzeigen
+        if (id === PLACEHOLDER_ID) { if (chain.accounts[`sb_${id}`]) chain.removeWebsiteAccount(`sb_${id}`); continue; }
         ids.add(id);
         const name = String(u.username || u.display_name || "Nutzer");
         const balance = Math.max(0, Math.round(Number(u.balance) || 0));
