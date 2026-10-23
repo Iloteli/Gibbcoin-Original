@@ -3740,3 +3740,7 @@ img.recipient-pic, img.lb-pic { object-fit: cover; padding: 0; border-radius: 50
 .payout-row .payout-status { margin-left: auto; color: var(--muted); }
 .payout-row.paid .payout-status { color: var(--green, #75f59a); }
 .payout-row.rejected .payout-status { color: var(--red, #ff7878); }
+.payout-amount { display: flex; gap: 6px; }
+.payout-amount .input { flex: 1; min-width: 0; }
+.credits-payout .payout-grid { grid-template-columns: 200px 1fr 1fr; }
+@media (max-width: 700px) { .credits-payout .payout-grid { grid-template-columns: 1fr; } }

@@ -47,7 +47,13 @@ export function CreditsPayout({ onChanged }: { onChanged?: () => void }) {
     const { data, error: rpcError } = await supabase.rpc("request_payout", { p_rappen: rappen, p_iban: iban, p_holder: holder });
     setBusy(false);
     const r = data as { ok?: boolean; error?: string } | null;
-    if (rpcError || !r?.ok) { setError(errors[r?.error ?? ""] ?? "Die Auszahlung konnte nicht angefordert werden."); return; }
+    if (rpcError || !r?.ok) {
+      const have = state?.credits ?? 0;
+      setError(r?.error === "insufficient_credits" ? `So viele Credits hast du nicht – du hast ${chf(have)} (${have} Rp). Tipp auf „Alles“.`
+        : r?.error === "below_minimum" ? `Mindestens ${chf(state?.min_rappen ?? 500)} pro Auszahlung – du wolltest ${chf(rappen)}.`
+        : errors[r?.error ?? ""] ?? "Die Auszahlung konnte nicht angefordert werden.");
+      return;
+    }
     setMessage(`Auszahlung über ${chf(rappen)} angefordert – das Geld kommt per Überweisung, sobald sie bestätigt ist.`);
     setChfAmount("");
     await load(); onChanged?.();
@@ -63,9 +69,9 @@ export function CreditsPayout({ onChanged }: { onChanged?: () => void }) {
   return <section className="card card-pad credits-payout">
     <div className="card-head"><h2>💸 Credits auszahlen</h2><span>als echtes Geld aufs Bankkonto</span></div>
     {state.enabled && !pending && <form className="payout-form" onSubmit={request}>
-      <p className="muted">Du hast <b>{chf(state.credits ?? 0)}</b> Credits. Mindestens {chf(state.min_rappen)} pro Auszahlung. Die Credits werden sofort reserviert; wird die Auszahlung abgelehnt, bekommst du sie zurück.</p>
+      <p className="muted">Du hast <b>{chf(state.credits ?? 0)}</b> Credits ({state.credits ?? 0} Rp = Rappen). Mindestens {chf(state.min_rappen)} pro Auszahlung. Die Credits werden sofort reserviert; wird die Auszahlung abgelehnt, bekommst du sie zurück.</p>
       <div className="payout-grid">
-        <div className="field"><label htmlFor="payout-chf">Betrag (CHF)</label><input id="payout-chf" className="input" inputMode="decimal" value={chfAmount} onChange={(e) => setChfAmount(e.target.value)} placeholder={(state.min_rappen / 100).toFixed(2)} /></div>
+        <div className="field"><label htmlFor="payout-chf">Betrag (CHF)</label><div className="payout-amount"><input id="payout-chf" className="input" inputMode="decimal" value={chfAmount} onChange={(e) => setChfAmount(e.target.value)} placeholder={(state.min_rappen / 100).toFixed(2)} /><button type="button" className="secondary compact" onClick={() => setChfAmount(((state.credits ?? 0) / 100).toFixed(2))}>Alles</button></div><small className="field-hint">{Number.isFinite(rappen) && rappen > 0 ? `= ${rappen} Rp` : "in Franken, z. B. 5.50"}</small></div>
         <div className="field"><label htmlFor="payout-iban">IBAN</label><input id="payout-iban" className="input" autoComplete="off" value={iban} onChange={(e) => setIban(e.target.value.toUpperCase())} placeholder="CH00 0000 0000 0000 0000 0" /></div>
         <div className="field"><label htmlFor="payout-holder">Kontoinhaber/in</label><input id="payout-holder" className="input" autoComplete="name" value={holder} onChange={(e) => setHolder(e.target.value)} placeholder="Vorname Nachname" /></div>
       </div>
