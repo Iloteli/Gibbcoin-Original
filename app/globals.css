@@ -3744,3 +3744,7 @@ img.recipient-pic, img.lb-pic { object-fit: cover; padding: 0; border-radius: 50
 .payout-amount .input { flex: 1; min-width: 0; }
 .credits-payout .payout-grid { grid-template-columns: 200px 1fr 1fr; }
 @media (max-width: 700px) { .credits-payout .payout-grid { grid-template-columns: 1fr; } }
+
+.payout-mode { display: flex; flex-wrap: wrap; gap: 8px; }
+.payout-mode button { padding: 9px 16px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--muted); font-weight: 700; }
+.payout-mode button.active { background: var(--grad, var(--green)); color: #061024; border-color: transparent; }
