@@ -1139,7 +1139,7 @@
   <section class="card settings-card owner-basic" id="settingsCard">
     <h2>Einstellungen <span id="pushStatus"></span></h2>
     <p class="muted" id="syncHint" style="margin:0 0 12px">Gilt für die Chain-Seite und die Hauptseite – beim Speichern wird alles übertragen.</p>
-    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
+    <div class="stabs" role="tablist"><button type="button" class="stab active" data-tab="chain">⛏ Mining</button><button type="button" class="stab" data-tab="site">📏 Mining-Regeln</button><button type="button" class="stab" data-tab="market">📈 Markt & Coinwert</button><button type="button" class="stab full-only" data-tab="bank">🏦 Bankverbindung</button><button type="button" class="stab" data-tab="tabs">🗂 Tabs</button><button type="button" class="stab" data-tab="server">🖥 Server</button></div>
       <div class="spanel" data-panel="chain">
         <p class="muted spanel-desc">Gilt für die Chain-Seite und das Mining auf der Hauptseite.</p>
         <div class="sgrid">
@@ -1178,18 +1178,25 @@
           <div class="field"><label for="wSellLimit">Verkaufslimit pro Person</label><input id="wSellLimit" type="number" min="0" /><small>GIBB pro 24 h · 0 = keins</small></div>
           <div class="field"><label for="sStartPrice">Startpreis Chain-Markt</label><input id="sStartPrice" type="number" min="0" step="0.01" /><small>Rp · bis zum ersten Handel</small></div>
           <div class="field"><label for="sStartCash">Startguthaben Chain-Wallets</label><input id="sStartCash" type="number" min="0" /><small>Rappen pro neuem Wallet</small></div>
-          <div class="field full-only"><label for="wBankIban">IBAN für Überweisungen</label><input id="wBankIban" autocomplete="off" placeholder="CH.. .... .... .... .... ." /><small>Wird Käufer:innen angezeigt; der Code kommt in „Mitteilung an den Empfänger“</small></div>
-          <div class="field full-only"><label for="wBankStreet">Strasse und Nr.</label><input id="wBankStreet" autocomplete="off" maxlength="70" placeholder="optional" /><small>Für die QR-Rechnung</small></div>
-          <div class="field full-only"><label for="wBankZip">PLZ</label><input id="wBankZip" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="z. B. 3000" /><small>Pflicht für die QR-Rechnung</small></div>
-          <div class="field full-only"><label for="wBankCity">Ort</label><input id="wBankCity" autocomplete="off" maxlength="35" placeholder="z. B. Bern" /><small>Pflicht für die QR-Rechnung</small></div>
-          <div class="field full-only"><label for="wBankHolder">Kontoinhaber:in</label><input id="wBankHolder" autocomplete="off" maxlength="80" placeholder="Vorname Nachname" /><small>Empfänger der Überweisung</small></div>
           <div class="field"><label for="sMinOrder">Min. Ordermenge</label><input id="sMinOrder" type="number" min="1" /><small>GIBB · Chain-Markt</small></div>
         </div>
         <div class="switches">
           <label class="switch"><input type="checkbox" id="sMarket" /><span class="knob"></span><span class="switch-text"><b>Markt aktiv</b><small>aus = kein Handel auf beiden Seiten</small></span></label>
           <label class="switch"><input type="checkbox" id="wBuy" /><span class="knob"></span><span class="switch-text"><b>Kaufen erlaubt</b><small>Hauptseite: mit Karte/TWINT und Credits</small></span></label>
-          <label class="switch full-only"><input type="checkbox" id="wBank" /><span class="knob"></span><span class="switch-text"><b>Kauf per Banküberweisung</b><small>IBAN anzeigen, Zahlung hier bestätigen</small></span></label>
           <label class="switch"><input type="checkbox" id="wSell" /><span class="knob"></span><span class="switch-text"><b>Verkaufen erlaubt</b><small>Hauptseite: an die Bank gegen Credits</small></span></label>
+        </div>
+      </div>
+      <div class="spanel" data-panel="bank" hidden>
+        <p class="muted spanel-desc">Deine Bankverbindung für „Kauf per Banküberweisung“ (QR-Rechnung). Käufer:innen sehen sie beim Kaufen. Auszahlungen an Benutzer bearbeitest du unter Verwaltung → 💸 Auszahlungen.</p>
+        <div class="switches">
+          <label class="switch full-only"><input type="checkbox" id="wBank" /><span class="knob"></span><span class="switch-text"><b>Kauf per Banküberweisung</b><small>IBAN anzeigen, Zahlung hier bestätigen</small></span></label>
+        </div>
+        <div class="sgrid">
+          <div class="field full-only"><label for="wBankIban">IBAN für Überweisungen</label><input id="wBankIban" autocomplete="off" placeholder="CH.. .... .... .... .... ." /><small>Wird Käufer:innen angezeigt; der Code kommt in „Mitteilung an den Empfänger“</small></div>
+          <div class="field full-only"><label for="wBankStreet">Strasse und Nr.</label><input id="wBankStreet" autocomplete="off" maxlength="70" placeholder="optional" /><small>Für die QR-Rechnung</small></div>
+          <div class="field full-only"><label for="wBankZip">PLZ</label><input id="wBankZip" autocomplete="off" inputmode="numeric" maxlength="4" placeholder="z. B. 3000" /><small>Pflicht für die QR-Rechnung</small></div>
+          <div class="field full-only"><label for="wBankCity">Ort</label><input id="wBankCity" autocomplete="off" maxlength="35" placeholder="z. B. Bern" /><small>Pflicht für die QR-Rechnung</small></div>
+          <div class="field full-only"><label for="wBankHolder">Kontoinhaber:in</label><input id="wBankHolder" autocomplete="off" maxlength="80" placeholder="Vorname Nachname" /><small>Empfänger der Überweisung</small></div>
         </div>
       </div>
       <div class="spanel" data-panel="tabs" hidden>
@@ -1419,7 +1426,7 @@ const SUBNAV = {
   einstellungen: [
     ["#quickCard", "⚡ Alle Schalter"],
     ["Werte einstellen"],
-    ["#settingsCard|chain", "⛏ Mining"], ["#settingsCard|site", "📏 Mining-Regeln"], ["#settingsCard|market", "📈 Markt & Coinwert"], ["#settingsCard|server", "🖥 Server-Miner"],
+    ["#settingsCard|chain", "⛏ Mining"], ["#settingsCard|site", "📏 Mining-Regeln"], ["#settingsCard|market", "📈 Markt & Coinwert"], ["#settingsCard|bank", "🏦 Bankverbindung"], ["#settingsCard|server", "🖥 Server-Miner"],
     ["Aussehen"],
     ["#designCard", "🎨 Design Hauptseite"], ["#chainDesignCard", "⛓ Design Chain-Seite"], ["#footerCard", "✍ Fusszeile"],
     ["Server & Meldungen"],
