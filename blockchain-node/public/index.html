@@ -1627,7 +1627,7 @@ function renderAccounts() {
   document.querySelectorAll("#walletFilter button").forEach((b) => { b.querySelector("i").textContent = counts[b.dataset.wf]; });
   $("accounts").innerHTML = list.map((a) => {
     const web = a.source === "supabase";
-    const deletable = kindOf(a) === "chain" && document.body.classList.contains("is-owner");
+    const deletable = (kindOf(a) === "chain" || kindOf(a) === "web") && document.body.classList.contains("is-owner");
     const initial = h(String(a.name || "?").trim().charAt(0).toUpperCase() || "?");
     return `<div class="item wallet-row${deletable ? " can-del" : ""}" data-addr="${h(a.address)}">${a.avatar || a.color ? avatarHtml(a.name, a.avatar, a.color, `avatar${web ? " web" : ""}`) : `<div class="avatar${web ? " web" : ""}">${initial}</div>`}<div class="who"><b>${h(a.name)}${web ? '<span class="tag-web">WEBSITE</span>' : ""}</b><code title="${h(a.address)}">${h(a.address)}</code></div><div class="amt"><b>${fmt(a.balance)}</b><small>GIBB · ${fmt(a.cash)} Rp</small></div>${deletable ? `<button type="button" class="wallet-del" data-wdel title="Wallet löschen" aria-label="Wallet ${h(a.name)} löschen">🗑</button>` : ""}</div>`;
   }).join("") || `<div class="muted">Keine Wallets gefunden.</div>`;
@@ -2807,6 +2807,11 @@ $("accounts").addEventListener("click", async (e) => {
   e.stopPropagation();
   const row = btn.closest(".wallet-row"); const acc = accounts.find((a) => a.address === row.dataset.addr); if (!acc) return;
   const bal = acc.balance ?? 0;
+  if (acc.source === "supabase" && !confirm(`„${acc.name}“ ist ein Wallet der Hauptseite.
+
+Gibt es das Konto auf der Hauptseite noch, erscheint es beim nächsten Abgleich wieder (mit dem Guthaben der Hauptseite). Löschen ist vor allem für alte Konten aus der früheren Datenbank gedacht.
+
+Trotzdem fortfahren?`)) return;
   if (!confirm(bal > 0 ? `Wallet „${acc.name}“ löschen?
 
 Achtung: Darauf liegen noch ${fmt(bal)} GIBB – diese gehen verloren. Sende sie vorher weg, wenn du sie behalten willst.` : `Wallet „${acc.name}“ löschen?`)) return;

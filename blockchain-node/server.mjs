@@ -492,7 +492,19 @@ const routes = {
   "POST /api/wallets": async (_, body) => { await requireOwner(body); return chain.createWallet(body.name); },
   "POST /api/wallets/delete": async (_, body) => {
     await requireOwner(body);
-    const r = chain.deleteWallet(String(body.address ?? ""), { force: body.force === true });
+    const address = String(body.address ?? "");
+    // Website-Wallet: nur die Kopie hier entfernen (z. B. alte Konten aus der früheren Datenbank).
+    // Gibt es das Konto auf der Hauptseite noch, kommt es beim nächsten Abgleich wieder.
+    if (address.startsWith("sb_") && chain.accounts[address]?.source === "supabase") {
+      if (Object.values(chain.users).some((u) => u.address === address)) throw new Error("wallet_has_login");
+      const acc = chain.accounts[address];
+      if (chain.orders.some((o) => o.address === address)) throw new Error("wallet_has_orders");
+      if ((acc.balance ?? 0) > 0 && body.force !== true) throw new Error("wallet_not_empty");
+      chain.removeWebsiteAccount(address);
+      note("wallet", `Website-Wallet ${String(acc.name).slice(0, 40)} entfernt${acc.balance ? ` (${acc.balance} GIBB)` : ""}`);
+      return { ok: true, address, name: acc.name, lost: acc.balance ?? 0, website: true };
+    }
+    const r = chain.deleteWallet(address, { force: body.force === true });
     note("wallet", `Wallet ${String(r.name).slice(0, 40)} gelöscht${r.lost ? ` (${r.lost} GIBB verfallen)` : ""}`);
     return r;
   },
