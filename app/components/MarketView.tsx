@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createCheckoutSession, getSupabase } from "../lib/supabase";
 import { PriceChart } from "./PriceChart";
 import { SwissQrBill } from "./SwissQrBill";
+import { CreditsPayout } from "./CreditsPayout";
 
 type MarketState = {
   price: number; enabled: boolean; sell_fee: number; max_trade: number; min_price: number; max_price: number;
@@ -242,7 +243,7 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
             <small className="field-hint">Ohne diesen Code können wir deine Zahlung nicht zuordnen. Sobald sie eingegangen ist (meist 1–2 Werktage), werden dir {newOrder.gibb} GIBB gutgeschrieben – du bekommst eine Mitteilung.</small>
           </div>
         )}
-        <small className="field-hint">Verkäufe werden nicht in echtem Geld ausbezahlt, sondern als Credits gutgeschrieben – damit kannst du später wieder GIBB kaufen.</small>
+        <small className="field-hint">Verkäufe werden als Credits gutgeschrieben – damit kannst du wieder GIBB kaufen oder sie (falls eingeschaltet) unten als Geld auszahlen lassen.</small>
       </section>
 
       {bankOrders.length > 0 && (
@@ -263,6 +264,7 @@ export function MarketView({ onChanged }: { onChanged: () => void }) {
         </section>
       )}
 
+      <CreditsPayout onChanged={() => { onChanged(); void load(); }} />
     </div>
   );
 }

@@ -3709,3 +3709,34 @@ img.recipient-pic, img.lb-pic { object-fit: cover; padding: 0; border-radius: 50
 .owner-code { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 38px; letter-spacing: .08em; font-variant-numeric: tabular-nums; }
 .owner-code-bar { height: 4px; margin: 12px 0 8px; border-radius: 99px; background: rgba(255,255,255,.08); overflow: hidden; }
 .owner-code-bar i { display: block; height: 100%; border-radius: inherit; background: var(--accent, #35e070); transition: width 1s linear; }
+
+/* ===== Kasse für Läden, Bezahlen-Fenster, Credits auszahlen ===== */
+.shop-checkout { margin-bottom: 18px; }
+.shop-form { display: grid; gap: 12px; max-width: 520px; }
+.shop-amount { font-size: 28px; font-weight: 800; text-align: center; }
+.shop-quick { display: flex; flex-wrap: wrap; gap: 8px; }
+.shop-qr, .shop-paid { display: grid; justify-items: center; gap: 10px; text-align: center; padding: 8px 0; }
+.shop-qr-code { padding: 14px; border-radius: 18px; background: #fff; box-shadow: 0 12px 40px rgba(0,0,0,.35); }
+.shop-qr-code svg { display: block; width: min(240px, 70vw); height: auto; }
+.shop-qr-amount { font-size: 34px; font-weight: 850; }
+.shop-waiting { font-size: 13px; color: var(--muted); animation: shop-pulse 1.4s ease-in-out infinite; }
+@keyframes shop-pulse { 50% { opacity: .4; } }
+.shop-paid-icon { width: 84px; height: 84px; border-radius: 50%; display: grid; place-items: center; font-size: 44px; font-weight: 900; color: #06210f; background: var(--green, #75f59a); box-shadow: 0 0 40px color-mix(in srgb, var(--green, #75f59a) 55%, transparent); animation: shop-pop .45s cubic-bezier(.2,1.4,.4,1) both; }
+@keyframes shop-pop { from { transform: scale(.3); opacity: 0; } }
+.shop-paid strong { font-size: 24px; }
+.shop-sales { margin-top: 18px; display: grid; gap: 6px; }
+.shop-sales h3 { margin: 0 0 4px; font-size: 14px; }
+.shop-sale { display: grid; grid-template-columns: 56px 1fr auto; gap: 10px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.shop-sale b { color: var(--green, #75f59a); }
+.shop-pay-modal { width: min(400px, calc(100vw - 32px)); display: grid; gap: 14px; justify-items: center; text-align: center; padding: 24px; border-radius: 22px; border: 1px solid var(--line); background: var(--panel-2, #101614); box-shadow: 0 30px 80px rgba(0,0,0,.5); }
+.shop-pay-modal h2 { margin: 0; }
+.shop-pay-modal button { width: 100%; }
+.credits-payout { margin-top: 18px; }
+.payout-form { display: grid; gap: 12px; }
+.payout-grid { display: grid; grid-template-columns: 140px 1fr 1fr; gap: 12px; }
+@media (max-width: 700px) { .payout-grid { grid-template-columns: 1fr; } }
+.payout-list { display: grid; gap: 6px; margin-top: 12px; }
+.payout-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; font-size: 13px; }
+.payout-row .payout-status { margin-left: auto; color: var(--muted); }
+.payout-row.paid .payout-status { color: var(--green, #75f59a); }
+.payout-row.rejected .payout-status { color: var(--red, #ff7878); }

@@ -24,6 +24,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { WelcomeTour } from "./WelcomeTour";
 import { BrandMark } from "./BrandMark";
 import { AccountHero } from "./AccountHero";
+import { ShopCheckout, ShopPayModal } from "./ShopCheckout";
 import { ProfileBadges } from "./ProfileBadges";
 
 // Bereiche werden erst beim ersten Öffnen geladen (kleinerer Start, schnellere Hauptseite)
@@ -721,7 +722,7 @@ export function Dashboard({ user }: Props) {
 
         </div>
 
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <>{seen("send") && <Suspense fallback={<ViewLoading />}><><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></></Suspense>}</>}
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <>{seen("send") && <Suspense fallback={<ViewLoading />}><><ShopCheckout onChanged={loadData} /><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></></Suspense>}</>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "games"} aria-label="Spiele">
@@ -798,6 +799,7 @@ export function Dashboard({ user }: Props) {
 
       </main>
       <UserProfileModal />
+      <ShopPayModal onPaid={() => void loadData()} />
       {activeView === "home" && <WelcomeTour />}
       {selectedTransaction && <TransactionDetails transaction={selectedTransaction} userId={user.id} onClose={() => setSelectedTransaction(null)} onReceipt={downloadReceipt} />}
     </div>

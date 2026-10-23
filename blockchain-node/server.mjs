@@ -810,6 +810,31 @@ const routes = {
   },
   "POST /api/admin/password-reset": async (_, body) => { await requireAdminPermission(body, "a:accounts"); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
+  // Läden (Kasse) und Auszahlungen
+  "POST /api/shops": async (_, body) => { await requireAdminPermission(body, "a:shops"); return { merchants: await settingsSync.listMerchants(), users: (await settingsSync.listWebsiteUsers()).map((u) => ({ id: u.id, username: u.username, display_name: u.display_name })) }; },
+  "POST /api/shops/set": async (_, body) => {
+    await requireAdminPermission(body, "a:shops");
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("user_not_found");
+    const enabled = body.remove === true ? null : body.enabled !== false;
+    await settingsSync.setMerchant(id, String(body.shopName ?? "").trim().slice(0, 40), enabled);
+    note("wallet", `Laden ${enabled === null ? "entfernt" : enabled ? "aktiv" : "pausiert"}: ${String(body.shopName ?? id).slice(0, 40)}`);
+    return { ok: true };
+  },
+  "POST /api/payouts": async (_, body) => { await requireAdminPermission(body, "a:payouts"); return await settingsSync.listPayouts(); },
+  "POST /api/payouts/decide": async (_, body) => {
+    await requireAdminPermission(body, "a:payouts");
+    const status = body.status === "paid" ? "paid" : "rejected";
+    await settingsSync.decidePayout(String(body.id ?? ""), status);
+    note("wallet", `Auszahlung ${status === "paid" ? "überwiesen" : "abgelehnt"}: ${String(body.label ?? "").slice(0, 60)}`);
+    return { ok: true };
+  },
+  "POST /api/payouts/settings": async (_, body) => {
+    await requireAdminPermission(body, "a:payouts");
+    const r = await settingsSync.setPayouts(body.enabled === true, Math.round(Number(body.minRappen) || 500));
+    note("settings", `Auszahlungen ${body.enabled === true ? "eingeschaltet" : "ausgeschaltet"}`);
+    return r;
+  },
   "POST /api/bank/orders": async (_, body) => { requirePermission(body, "a:bank"); return { orders: await settingsSync.listBankOrders() }; },
   "POST /api/bank/delete": async (_, body) => {
     requirePermission(body, "a:bank");

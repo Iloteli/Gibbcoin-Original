@@ -236,6 +236,12 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
   const updateProfile = async (userId, p) => (await rpc("node_update_profile", { p_user: userId, p_username: p.username, p_display_name: p.display_name, p_bio: p.bio, p_profile_color: p.profile_color, p_remove_avatar: p.remove_avatar === true })).profile;
   // E-Mail eines Owners der Hauptseite zu seinem Benutzernamen (für die Anmeldung mit Benutzername)
   const ownerLoginEmail = async (username) => { try { return (await rpc("node_owner_login_email", { p_username: username })).email ?? null; } catch { return null; } };
+  // Läden (Kasse) und Auszahlungen von Credits
+  const listMerchants = async () => (await rpc("node_list_merchants", {})).merchants ?? [];
+  const setMerchant = (userId, shopName, enabled) => rpc("node_set_merchant", { p_user: userId, p_shop_name: shopName, p_enabled: enabled });
+  const listPayouts = async () => { const r = await rpc("node_list_payouts", {}); return { payouts: r.payouts ?? [], settings: r.settings ?? {} }; };
+  const decidePayout = (id, status) => rpc("node_decide_payout", { p_id: id, p_status: status });
+  const setPayouts = (enabled, minRappen) => rpc("node_set_payouts", { p_enabled: enabled, p_min_rappen: minRappen });
   const deleteSupportCase = (caseId, pin) => rpc("node_delete_support_case", { p_case: caseId, p_pin: pin });
   const setAvatarBlocked = (userId, blocked) => rpc("node_set_avatar_blocked", { p_user: userId, p_blocked: blocked === true });
   const deleteAccount = (userId, pin) => rpc("node_delete_account", { p_user: userId, p_pin: pin });
@@ -285,5 +291,5 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     setInterval(() => { void syncAccounts(); }, accountSyncMs).unref();
   }
 
-  return { isWebsiteUsername, pushReservedNames, ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, logoutUser, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
+  return { listMerchants, setMerchant, listPayouts, decidePayout, setPayouts, isWebsiteUsername, pushReservedNames, ownerLoginEmail, deleteSupportCase, setAvatarBlocked, getProfile, updateProfile, enabled, push, syncAccounts, cleanupAccounts, listWebsiteUsers, adjustWebsiteBalance, listBankOrders, decideBankOrder, deleteBankOrders, getGameOdds, setGameOdds, getWagerLimits, setWagerLimits, ownerStats, bulkAdjust, getAnnouncement, setAnnouncement, ownerCall, setAccountStatus, deleteAccount, logoutUser, sendPasswordReset, createWebsiteAccount, listVerifiedBuyers, setBuyerVerified, status: () => ({ ...state }) };
 }

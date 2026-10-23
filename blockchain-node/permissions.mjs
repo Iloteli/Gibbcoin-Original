@@ -33,7 +33,7 @@ export const PERMISSION_CATALOG = [
     ["a:send", "Coins senden (vom eigenen Wallet)"], ["a:mempool", "Mempool sehen"], ["a:trade", "Markt: Aufträge erteilen"],
   ] },
   { group: "⚙ Chain-Aktionen", items: [
-    ["a:miner", "Server-Miner starten/stoppen"], ["a:verify", "Kette prüfen"], ["a:bank", "Banküberweisungen bestätigen"],
+    ["a:miner", "Server-Miner starten/stoppen"], ["a:verify", "Kette prüfen"], ["a:bank", "Banküberweisungen bestätigen"], ["a:shops", "Läden (Kasse) freischalten"], ["a:payouts", "Auszahlungen bearbeiten"],
   ] },
   { group: "🛡 Verwaltung der Hauptseite", items: [
     ["a:accounts", "Konten ansehen, bannen, Passwort-Reset, Fun-Rang"], ["a:accountsCreate", "Neue Konten erstellen"], ["a:accountsDelete", "Konten löschen"],

@@ -681,6 +681,11 @@
     .sgrid { grid-template-columns: 1fr !important; }
     .card { padding: 14px !important; }
   }
+  .shop-add { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; margin-bottom: 12px; }
+  .pay-settings { display: grid; grid-template-columns: 1fr 160px auto; gap: 12px; align-items: end; margin-bottom: 12px; }
+  @media (max-width: 760px) { .shop-add, .pay-settings { grid-template-columns: 1fr; } }
+  code.iban { font-size: 13px; }
+  .cp-iban { padding: 2px 8px; font-size: 12px; }
 </style>
 </head>
 <body>
@@ -1027,6 +1032,30 @@
     <div class="msg" id="bankMsg"></div>
   </section>
 
+  <section class="card shops-card owner-basic" id="shopsCard" data-perm="a:shops">
+    <h2>Läden <span>mit GIBB bezahlen (Kasse)</span></h2>
+    <p class="muted" style="margin:0 0 12px">Ein Laden-Konto sieht auf der Hauptseite unter <b>Senden</b> eine Kasse: Betrag eingeben, QR-Code zeigen, der Kunde scannt und bezahlt mit GIBB. Kostenlos, ohne Zahlungsanbieter.</p>
+    <form class="shop-add" id="shopAdd" autocomplete="off">
+      <div class="field"><label for="shopUser">Konto der Hauptseite</label><input id="shopUser" list="shopUserList" placeholder="Benutzername suchen" /><datalist id="shopUserList"></datalist></div>
+      <div class="field"><label for="shopName">Name des Ladens</label><input id="shopName" maxlength="40" placeholder="z. B. Kiosk" /></div>
+      <button class="primary" type="submit">Als Laden freischalten</button>
+    </form>
+    <div class="list" id="shopList"><div class="muted">Wird geladen …</div></div>
+    <div class="msg" id="shopMsg"></div>
+  </section>
+
+  <section class="card payouts-card owner-basic" id="payoutsCard" data-perm="a:payouts">
+    <h2>Auszahlungen <span id="payoutCount">Credits → echtes Geld</span></h2>
+    <p class="muted" style="margin:0 0 12px">Benutzer können ihre Credits (aus GIBB-Verkäufen) als Geld anfordern. Überweise den Betrag von deinem Bankkonto an die angegebene IBAN und markiere die Auszahlung danach als <b>überwiesen</b>. Ablehnen gibt die Credits zurück.</p>
+    <div class="pay-settings">
+      <label class="switch"><input type="checkbox" id="poEnabled" /><span class="knob"></span><span class="switch-text"><b>Auszahlungen erlauben</b><small>aus = auf der Hauptseite nicht sichtbar</small></span></label>
+      <div class="field"><label for="poMin">Mindestbetrag (CHF)</label><input id="poMin" type="number" min="1" step="0.5" value="5" /></div>
+      <button type="button" id="poSave">Speichern</button>
+    </div>
+    <div class="list" id="payoutList"><div class="muted">Wird geladen …</div></div>
+    <div class="msg" id="payoutMsg"></div>
+  </section>
+
   <section class="card stats-card owner-basic" id="statsCard" data-perm="a:stats">
     <h2>Statistik <span id="stUpdated">Hauptseite</span></h2>
     <div class="st-head">
@@ -1271,7 +1300,7 @@ const PAGES = {
   uebersicht: ["#basicInfo", "#stats", "main > .grid3"],
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
-  verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#statsCard", "#announceCard"],
+  verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#shopsCard", "#payoutsCard", "#statsCard", "#announceCard"],
   einstellungen: ["#quickCard", "#settingsCard", "#designCard", "#chainDesignCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
   infos: ["#infosCard"],
 };
@@ -1380,7 +1409,7 @@ $("quickCard").addEventListener("change", async (e) => {
 const SUBNAV = {
   verwaltung: [
     ["Hauptseite"],
-    ["#adminCard|users", "👥 Konten"], ["#coinAdminCard", "🪙 Coins geben/abziehen"], ["#bankCard", "🏦 Banküberweisungen"],
+    ["#adminCard|users", "👥 Konten"], ["#coinAdminCard", "🪙 Coins geben/abziehen"], ["#bankCard", "🏦 Banküberweisungen"], ["#shopsCard", "🏪 Läden (Kasse)"], ["#payoutsCard", "💸 Auszahlungen"],
     ["#adminCard|games", "🎮 Spiele"], ["#adminCard|tools", "🛠 Tools & Support"], ["#announceCard", "📣 Ankündigung & Bonus"],
     ["Auswertung"],
     ["#statsCard", "📊 Statistik"], ["#adminCard|visitors", "📈 Besucher"], ["#adminCard|audit", "📜 Protokoll"],
@@ -1988,6 +2017,66 @@ $("bankOrders").addEventListener("click", async (e) => {
   await bankLoad();
 });
 setInterval(() => { if (document.visibilityState === "visible") void bankLoad(); }, 30000);
+
+// ---------- Läden (Kasse) ----------
+let shopUsers = [];
+async function shopLoad() {
+  if (!$("shopsCard") || getComputedStyle($("shopsCard")).display === "none" && !document.body.classList.contains("is-owner")) return;
+  try {
+    const r = await api("/api/shops", {});
+    shopUsers = r.users ?? [];
+    $("shopUserList").innerHTML = shopUsers.map((u) => `<option value="${h(u.username || u.display_name)}">`).join("");
+    $("shopList").innerHTML = (r.merchants ?? []).map((m) => `<div class="item bank-order" data-uid="${h(m.user_id)}" data-name="${h(m.shop_name)}"><div><b>🏪 ${h(m.shop_name)}</b> <small class="muted">@${h(m.username ?? "")}</small>${m.enabled ? "" : ' <span class="ad-badge locked">pausiert</span>'}<br><small class="muted">${fmt(m.sales)} Verkäufe · ${fmt(m.revenue)} GIBB eingenommen</small></div><div class="acts"><button type="button" data-shop="toggle">${m.enabled ? "Pausieren" : "Aktivieren"}</button><button type="button" data-shop="rename">Umbenennen</button><button type="button" class="danger" data-shop="remove">Entfernen</button></div></div>`).join("") || `<div class="muted">Noch keine Läden.</div>`;
+  } catch (e) { $("shopList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
+}
+$("shopAdd").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const q = $("shopUser").value.trim().toLowerCase();
+  const u = shopUsers.find((x) => String(x.username ?? "").toLowerCase() === q) ?? shopUsers.find((x) => String(x.display_name ?? "").toLowerCase() === q);
+  if (!u) { say("shopMsg", "Konto nicht gefunden – Benutzername aus der Liste wählen.", true); return; }
+  const name = $("shopName").value.trim() || u.display_name || u.username;
+  try { await api("/api/shops/set", { userId: u.id, shopName: name, enabled: true }); say("shopMsg", `${name} ist jetzt ein Laden – @${u.username} sieht die Kasse unter Senden.`); $("shopUser").value = ""; $("shopName").value = ""; await shopLoad(); }
+  catch (err) { say("shopMsg", err.message === "invalid_shop_name" ? "Name des Ladens: 2–40 Zeichen." : err.message, true); }
+});
+$("shopList").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-shop]"); if (!b) return;
+  const row = b.closest("[data-uid]"); const { uid, name } = row.dataset;
+  try {
+    if (b.dataset.shop === "toggle") await api("/api/shops/set", { userId: uid, shopName: name, enabled: b.textContent === "Aktivieren" });
+    if (b.dataset.shop === "rename") { const next = prompt("Neuer Name des Ladens:", name); if (!next) return; await api("/api/shops/set", { userId: uid, shopName: next, enabled: !row.querySelector(".locked") }); }
+    if (b.dataset.shop === "remove") { if (!confirm(`Laden „${name}“ entfernen? Die Kasse verschwindet, bisherige Verkäufe bleiben in der Kette.`)) return; await api("/api/shops/set", { userId: uid, remove: true }); }
+    await shopLoad();
+  } catch (err) { say("shopMsg", err.message, true); }
+});
+
+// ---------- Auszahlungen ----------
+const chfFmt = (r) => `CHF ${(Number(r) / 100).toFixed(2)}`;
+async function payoutLoad() {
+  try {
+    const r = await api("/api/payouts", {});
+    $("poEnabled").checked = r.settings?.enabled === true;
+    $("poMin").value = String((Number(r.settings?.min_rappen ?? 500) / 100));
+    const open = (r.payouts ?? []).filter((p) => p.status === "pending").length;
+    $("payoutCount").textContent = open ? `${open} offen` : "Credits → echtes Geld";
+    const label = { pending: "offen", paid: "überwiesen", rejected: "abgelehnt", cancelled: "abgebrochen" };
+    $("payoutList").innerHTML = (r.payouts ?? []).map((p) => `<div class="item bank-order" data-id="${h(p.id)}" data-label="${h(`${chfFmt(p.rappen)} an @${p.username ?? "?"}`)}"><div><b>${chfFmt(p.rappen)}</b> an <b>${h(p.holder)}</b> <small class="muted">@${h(p.username ?? "?")}</small> <span class="ad-badge${p.status === "pending" ? " owner" : ""}">${label[p.status] ?? p.status}</span><br><code class="iban">${h(String(p.iban).replace(/(.{4})/g, "$1 ").trim())}</code> <button type="button" class="cp-iban" data-iban="${h(p.iban)}" title="IBAN kopieren">📋</button><br><small class="muted">${new Date(p.created_at).toLocaleString("de-CH")}</small></div>${p.status === "pending" ? `<div class="acts"><button type="button" class="primary" data-po="paid">Überwiesen ✓</button><button type="button" class="danger" data-po="rejected">Ablehnen</button></div>` : ""}</div>`).join("") || `<div class="muted">Noch keine Auszahlungen.</div>`;
+  } catch (e) { $("payoutList").innerHTML = `<div class="muted">${h(adErrors[e.message] || caErrors[e.message] || e.message)}</div>`; }
+}
+$("poSave").onclick = async () => {
+  try { await api("/api/payouts/settings", { enabled: $("poEnabled").checked, minRappen: Math.round(Number($("poMin").value) * 100) }); say("payoutMsg", $("poEnabled").checked ? "Auszahlungen sind eingeschaltet." : "Auszahlungen sind ausgeschaltet."); }
+  catch (err) { say("payoutMsg", err.message, true); }
+};
+$("payoutList").addEventListener("click", async (e) => {
+  const cp = e.target.closest("button[data-iban]"); if (cp) { try { await navigator.clipboard.writeText(cp.dataset.iban); say("payoutMsg", "IBAN kopiert."); } catch { /* ohne Zwischenablage */ } return; }
+  const b = e.target.closest("button[data-po]"); if (!b) return;
+  const row = b.closest("[data-id]");
+  const paid = b.dataset.po === "paid";
+  if (!confirm(paid ? `${row.dataset.label}: Hast du das Geld wirklich überwiesen?` : `${row.dataset.label} ablehnen? Die Credits gehen zurück.`)) return;
+  try { await api("/api/payouts/decide", { id: row.dataset.id, status: b.dataset.po, label: row.dataset.label }); say("payoutMsg", paid ? "Als überwiesen markiert – die Person bekommt eine Nachricht." : "Abgelehnt – Credits zurückgegeben."); await payoutLoad(); }
+  catch (err) { say("payoutMsg", err.message, true); }
+});
+setTimeout(() => { if (authToken) { void shopLoad(); void payoutLoad(); } }, 800);
+setInterval(() => { if (document.visibilityState === "visible" && authToken) void payoutLoad(); }, 60000);
 
 // ---------- Admin (Hauptseite) ----------
 let adminPin = "", adUsers = [], adAuditRows = [], adDays = 7, adVerified = new Set();

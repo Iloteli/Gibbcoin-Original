@@ -4,6 +4,7 @@ import jsQR from "jsqr";
 import { QRCodeSVG } from "qrcode.react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getSupabase } from "../lib/supabase";
+import { openShopPayment, payIdFromText } from "./ShopCheckout";
 import type { Recipient } from "../lib/types";
 
 type Props = {
@@ -58,6 +59,9 @@ export function QrWallet({ userId, walletId, onRecipient }: Props) {
   }, []);
 
   const handleScannedValue = useCallback(async (rawValue: string) => {
+    // QR-Code einer Laden-Kasse: Bezahlen-Fenster öffnen
+    const payId = payIdFromText(rawValue);
+    if (payId) { stopScanner(); setError(""); openShopPayment(payId); return true; }
     const match = rawValue.match(walletLinkPattern);
     const recipientId = match?.[1];
     if (!recipientId || recipientId === userId) {
