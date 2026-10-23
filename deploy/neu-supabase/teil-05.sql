@@ -1813,6 +1813,14 @@ grant execute on function public.request_payout_gibb(bigint, text, text) to auth
 notify pgrst, 'reload schema';
 
 
+-- ===================== 20261023030000_profiles_updated_at.sql =====================
+-- profiles.updated_at gab es im alten Supabase-Projekt (aus einer frühen, nicht mehr vorhandenen Migration).
+-- Im neuen Projekt fehlte die Spalte -> Profil speichern, Benutzername ändern und Ausrüsten schlugen fehl.
+alter table public.profiles add column if not exists updated_at timestamptz not null default pg_catalog.now();
+
+notify pgrst, 'reload schema';
+
+
 -- ===================== selfhost-final (App-Funktionen) =====================
 -- Abschluss für die SELBST GEHOSTETE Datenbank (nicht für die Supabase-Cloud).
 -- Läuft nach allen Migrationen. Ergänzt Funktionen, die die App aufruft, die aber
