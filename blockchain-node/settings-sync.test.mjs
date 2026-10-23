@@ -82,3 +82,22 @@ test("mirrors website accounts: names, balances, new and deleted accounts", asyn
   assert.ok(chain.accounts[local]);
   assert.equal(chain.verify().valid, true);
 });
+
+test("new empty main-site database: old accounts are kept as orphans, not deleted", async () => {
+  const chain = new Blockchain(null);
+  const ids = ["44444444-4444-4444-8444-444444444441", "44444444-4444-4444-8444-444444444442", "44444444-4444-4444-8444-444444444443", "44444444-4444-4444-8444-444444444444"];
+  ids.forEach((id, i) => chain.upsertWebsiteAccount(id, `alt${i}`, 100 * (i + 1)));
+  const fresh = "55555555-5555-4555-8555-555555555555";
+  const fetchImpl = async (url) => {
+    if (url.endsWith("/node_list_users")) return { ok: true, json: async () => ({ ok: true, users: [{ id: fresh, username: "neu", balance: 0 }] }) };
+    return { ok: true, json: async () => ({ ok: true }) };
+  };
+  const removed = [];
+  const sync = createSettingsSync({ chain, fetchImpl, env: { SUPABASE_URL: "https://x", SUPABASE_ANON_KEY: "k", NODE_SETTINGS_KEY: "s" }, intervalMs: 1e9, onAccountRemoved: (a) => removed.push(a) });
+  const r = await sync.syncAccounts();
+  assert.equal(r.removed, 0);
+  assert.deepEqual(removed, []);
+  for (const id of ids) assert.equal(chain.accounts[`sb_${id}`].orphan, true);
+  assert.equal(chain.accounts[`sb_${ids[3]}`].balance, 400);
+  assert.ok(chain.accounts[`sb_${fresh}`]);
+});

@@ -156,11 +156,15 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
         if (chain.setWebsiteLook?.(id, u.avatar_url, u.profile_color, u.avatar_blocked === true)) updated += 1;
       }
       let removed = 0;
-      for (const address of Object.keys(chain.accounts)) {
-        if (!address.startsWith("sb_") || chain.accounts[address]?.source !== "supabase") continue;
-        if (ids.has(address.slice(3).toLowerCase())) continue;
-        const name = chain.accounts[address]?.name ?? address;
-        if (chain.removeWebsiteAccount(address)) { removed += 1; onAccountRemoved(address); note("wallet", `Gelöschtes Website-Konto entfernt: ${name}`); }
+      const missing = Object.keys(chain.accounts).filter((a) => a.startsWith("sb_") && chain.accounts[a]?.source === "supabase" && !chain.accounts[a]?.orphan && !ids.has(a.slice(3).toLowerCase()));
+      if (tooManyMissing(missing.length)) {
+        // Neue/leere Datenbank der Hauptseite: Konten NICHT löschen, sondern als "alte Konten" aufbewahren
+        markOrphans(missing);
+      } else {
+        for (const address of missing) {
+          const name = chain.accounts[address]?.name ?? address;
+          if (chain.removeWebsiteAccount(address)) { removed += 1; onAccountRemoved(address); note("wallet", `Gelöschtes Website-Konto entfernt: ${name}`); }
+        }
       }
       state.lastAccountSync = Date.now();
       state.accountSyncError = null;
@@ -173,6 +177,17 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
     } finally {
       syncing = false;
     }
+  }
+
+  // Schutz: Fehlen auf einmal viele Konten (z. B. neue Supabase-Datenbank), wird nichts gelöscht.
+  function tooManyMissing(count) {
+    const known = Object.keys(chain.accounts).filter((a) => a.startsWith("sb_") && chain.accounts[a]?.source === "supabase" && !chain.accounts[a]?.orphan).length;
+    return count >= 3 && count > known / 2;
+  }
+  function markOrphans(addresses) {
+    let marked = 0;
+    for (const address of addresses) { if (chain.accounts[address] && !chain.accounts[address].orphan) { chain.accounts[address].orphan = true; marked += 1; } }
+    if (marked) { chain.save(); note("wallet", `${marked} Konten fehlen auf der Hauptseite (neue Datenbank?) – als "alte Konten" aufbewahrt, nichts gelöscht.`); }
   }
 
   // Gelöschte Website-Konten auch hier entfernen (ältere, schmalere Abfrage).
@@ -194,8 +209,9 @@ export function createSettingsSync({ chain, note = () => {}, fetchImpl = globalT
       if (!result?.ok || !Array.isArray(result.existing)) throw new Error(result?.error ?? "invalid_response");
       const existing = new Set(result.existing.map((id) => String(id).toLowerCase()));
       let removed = 0;
-      for (const id of ids) {
-        if (existing.has(id.toLowerCase())) continue;
+      const gone = ids.filter((id) => !existing.has(id.toLowerCase()) && !chain.accounts[`sb_${id}`]?.orphan);
+      if (tooManyMissing(gone.length)) { markOrphans(gone.map((id) => `sb_${id}`)); return { ok: true, removed: 0, orphaned: gone.length }; }
+      for (const id of gone) {
         const address = `sb_${id}`;
         const name = chain.accounts[address]?.name ?? id;
         if (chain.removeWebsiteAccount(address)) { removed += 1; onAccountRemoved(address); note("wallet", `Gelöschtes Website-Konto entfernt: ${name}`); }

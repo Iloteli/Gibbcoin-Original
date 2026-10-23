@@ -1032,6 +1032,14 @@
     <div class="msg" id="bankMsg"></div>
   </section>
 
+  <section class="card old-card owner-only" id="oldCard">
+    <h2>Alte Konten <span id="oldCount">aus der früheren Datenbank</span></h2>
+    <p class="muted" style="margin:0 0 12px">Diese Konten gab es auf der alten Hauptseite. Sobald sich jemand neu registriert hat, kannst du das alte Guthaben auf das neue Konto übertragen. Gleiche Benutzernamen werden automatisch vorgeschlagen.</p>
+    <div class="actions"><button type="button" id="oldAuto" class="primary">Alle mit gleichem Namen übertragen</button></div>
+    <div class="list" id="oldList"><div class="muted">Wird geladen …</div></div>
+    <div class="msg" id="oldMsg"></div>
+  </section>
+
   <section class="card shops-card owner-basic" id="shopsCard" data-perm="a:shops">
     <h2>Läden <span>mit GIBB bezahlen (Kasse)</span></h2>
     <p class="muted" style="margin:0 0 12px">Ein Laden-Konto sieht auf der Hauptseite unter <b>Senden</b> eine Kasse: Betrag eingeben, QR-Code zeigen, der Kunde scannt und bezahlt mit GIBB. Kostenlos, ohne Zahlungsanbieter.</p>
@@ -1307,7 +1315,7 @@ const PAGES = {
   uebersicht: ["#basicInfo", "#stats", "main > .grid3"],
   markt: ["main > .market-wrap"],
   chain: ["main > .verify-card", "#blocksFold", "#log"],
-  verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#shopsCard", "#payoutsCard", "#statsCard", "#announceCard"],
+  verwaltung: ["#adminCard", "#coinAdminCard", "#bankCard", "#oldCard", "#shopsCard", "#payoutsCard", "#statsCard", "#announceCard"],
   einstellungen: ["#quickCard", "#settingsCard", "#designCard", "#chainDesignCard", "#payCard", "#footerCard", "#notifyCard", "#sshCard"],
   infos: ["#infosCard"],
 };
@@ -1416,7 +1424,7 @@ $("quickCard").addEventListener("change", async (e) => {
 const SUBNAV = {
   verwaltung: [
     ["Hauptseite"],
-    ["#adminCard|users", "👥 Konten"], ["#coinAdminCard", "🪙 Coins geben/abziehen"], ["#bankCard", "🏦 Banküberweisungen"], ["#shopsCard", "🏪 Läden (Kasse)"], ["#payoutsCard", "💸 Auszahlungen"],
+    ["#adminCard|users", "👥 Konten"], ["#coinAdminCard", "🪙 Coins geben/abziehen"], ["#bankCard", "🏦 Banküberweisungen"], ["#oldCard", "♻ Alte Konten"], ["#shopsCard", "🏪 Läden (Kasse)"], ["#payoutsCard", "💸 Auszahlungen"],
     ["#adminCard|games", "🎮 Spiele"], ["#adminCard|tools", "🛠 Tools & Support"], ["#announceCard", "📣 Ankündigung & Bonus"],
     ["Auswertung"],
     ["#statsCard", "📊 Statistik"], ["#adminCard|visitors", "📈 Besucher"], ["#adminCard|audit", "📜 Protokoll"],
@@ -2024,6 +2032,52 @@ $("bankOrders").addEventListener("click", async (e) => {
   await bankLoad();
 });
 setInterval(() => { if (document.visibilityState === "visible") void bankLoad(); }, 30000);
+
+// ---------- Alte Konten (frühere Datenbank) ----------
+let oldUsers = [];
+async function oldLoad() {
+  try {
+    const r = await api("/api/old-accounts", {});
+    oldUsers = r.users ?? [];
+    const list = (r.old ?? []).sort((a, b) => (b.balance ?? 0) - (a.balance ?? 0));
+    $("oldCount").textContent = list.length ? `${list.length} offen` : "aus der früheren Datenbank";
+    $("oldAuto").hidden = !list.length;
+    const opts = (sel) => `<option value="">– neues Konto wählen –</option>` + oldUsers.map((u) => `<option value="${h(u.id)}"${sel === u.id ? " selected" : ""}>@${h(u.username || u.display_name)}</option>`).join("");
+    $("oldList").innerHTML = list.map((o) => {
+      const match = oldUsers.find((u) => String(u.username ?? "").toLowerCase() === String(o.name ?? "").toLowerCase());
+      return `<div class="item bank-order" data-addr="${h(o.address)}" data-name="${h(o.name)}" data-balance="${o.balance}"><div><b>${h(o.name)}</b> <small class="muted">altes Konto</small><br><small class="muted">${fmt(o.balance)} GIBB</small></div><div class="acts"><select data-old="target">${opts(match?.id)}</select><button type="button" class="primary" data-old="transfer">Übertragen</button><button type="button" class="danger" data-old="discard">Verwerfen</button></div></div>`;
+    }).join("") || `<div class="muted">Keine alten Konten – alles übertragen.</div>`;
+  } catch (e) { $("oldList").innerHTML = `<div class="muted">${h(e.message)}</div>`; }
+}
+$("oldList").addEventListener("click", async (e) => {
+  const b = e.target.closest("button[data-old]"); if (!b) return;
+  const row = b.closest("[data-addr]");
+  try {
+    if (b.dataset.old === "transfer") {
+      const userId = row.querySelector('select[data-old="target"]').value;
+      if (!userId) { say("oldMsg", "Bitte zuerst das neue Konto wählen.", true); return; }
+      const who = row.querySelector("select option:checked").textContent;
+      if (!confirm(`${fmt(Number(row.dataset.balance))} GIBB von „${row.dataset.name}“ auf ${who} übertragen?`)) return;
+      const r = await api("/api/old-accounts/transfer", { address: row.dataset.addr, userId });
+      say("oldMsg", `${fmt(r.amount)} GIBB auf ${who} übertragen.`);
+    }
+    if (b.dataset.old === "discard") {
+      if (!confirm(`Altes Konto „${row.dataset.name}“ verwerfen? Das Guthaben (${fmt(Number(row.dataset.balance))} GIBB) geht verloren.`)) return;
+      await api("/api/old-accounts/discard", { address: row.dataset.addr });
+    }
+    await oldLoad();
+  } catch (err) { say("oldMsg", err.message, true); }
+});
+$("oldAuto").onclick = async () => {
+  const rows = [...document.querySelectorAll("#oldList [data-addr]")].filter((r) => r.querySelector("select").value);
+  if (!rows.length) { say("oldMsg", "Noch kein altes Konto hat ein neues Konto mit gleichem Namen.", true); return; }
+  if (!confirm(`${rows.length} alte Guthaben auf die Konten mit gleichem Namen übertragen?`)) return;
+  let done = 0;
+  for (const row of rows) { try { await api("/api/old-accounts/transfer", { address: row.dataset.addr, userId: row.querySelector("select").value }); done += 1; } catch { /* nächstes */ } }
+  say("oldMsg", `${done} von ${rows.length} übertragen.`);
+  await oldLoad();
+};
+setTimeout(() => { if (authToken && document.body.classList.contains("is-owner")) void oldLoad(); }, 900);
 
 // ---------- Läden (Kasse) ----------
 let shopUsers = [];

@@ -810,6 +810,36 @@ const routes = {
   },
   "POST /api/admin/password-reset": async (_, body) => { await requireAdminPermission(body, "a:accounts"); return settingsSync.sendPasswordReset(String(body.userId ?? "")); },
   // Banküberweisungen der Hauptseite (nur Owner)
+  // Alte Konten (aus der früheren Supabase-Datenbank): Guthaben auf neue Konten übertragen
+  "POST /api/old-accounts": async (_, body) => {
+    await requireOwner(body);
+    const old = Object.entries(chain.accounts).filter(([, a]) => a.orphan).map(([address, a]) => ({ address, name: a.name, balance: a.balance ?? 0 }));
+    const users = settingsSync.enabled ? await settingsSync.listWebsiteUsers().catch(() => []) : [];
+    return { old, users: users.map((u) => ({ id: u.id, username: u.username, display_name: u.display_name, balance: u.balance })) };
+  },
+  "POST /api/old-accounts/transfer": async (_, body) => {
+    await requireOwner(body);
+    const address = String(body.address ?? "");
+    const acc = chain.accounts[address];
+    if (!acc?.orphan) throw new Error("account_not_found");
+    const id = String(body.userId ?? "").toLowerCase();
+    if (!/^[0-9a-f-]{36}$/.test(id)) throw new Error("user_not_found");
+    const amount = Math.max(0, Math.trunc(acc.balance ?? 0));
+    if (amount > 0) await settingsSync.adjustWebsiteBalance(id, amount, `Guthaben aus dem alten Konto ${acc.name}`);
+    chain.removeWebsiteAccount(address);
+    note("wallet", `Altes Konto ${acc.name}: ${amount} GIBB übertragen`);
+    void settingsSync.syncAccounts();
+    return { ok: true, amount };
+  },
+  "POST /api/old-accounts/discard": async (_, body) => {
+    await requireOwner(body);
+    const address = String(body.address ?? "");
+    if (!chain.accounts[address]?.orphan) throw new Error("account_not_found");
+    const name = chain.accounts[address].name;
+    chain.removeWebsiteAccount(address);
+    note("wallet", `Altes Konto ${name} verworfen`);
+    return { ok: true };
+  },
   // Läden (Kasse) und Auszahlungen
   "POST /api/shops": async (_, body) => { await requireAdminPermission(body, "a:shops"); return { merchants: await settingsSync.listMerchants(), users: (await settingsSync.listWebsiteUsers()).map((u) => ({ id: u.id, username: u.username, display_name: u.display_name })) }; },
   "POST /api/shops/set": async (_, body) => {
