@@ -34,7 +34,7 @@ pg psql "$NEW" -tAc "select 'neu: Datenbank bereit' where to_regclass('public.wa
 
 echo "==> Daten aus dem alten Projekt holen"
 # Nur Daten (die Struktur ist im neuen Projekt schon da). Aus auth nur Benutzer, Logins und 2FA.
-pg pg_dump "$OLD" --data-only --no-owner --no-privileges --disable-triggers \
+pg pg_dump "$OLD" --data-only --no-owner --no-privileges \
   --schema=public --schema=private \
   --table=auth.users --table=auth.identities --table=auth.mfa_factors \
   --exclude-table='private.node_settings_key*' \
