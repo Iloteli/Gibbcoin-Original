@@ -4,6 +4,7 @@
 #   sudo gibb-email            -> einrichten (fragt Adresse und App-Passwort)
 #   sudo gibb-email test [ADRESSE] -> Test-Mail an dich (oder an ADRESSE) schicken
 #   sudo gibb-email status     -> zeigt, ob und womit Mails verschickt werden
+#   sudo gibb-email grenzen    -> Versand-Bremsen lockern (pro Adresse alle 10 s statt 60 s, 100 Mails pro Stunde)
 #   sudo gibb-email aus        -> wieder aus (Konten werden dann ohne Bestätigungs-Mail sofort aktiv)
 # Das Passwort steht nur in /opt/supabase/.env auf dem Server (nur root lesbar), nie im Code oder auf GitHub.
 set -euo pipefail
@@ -26,6 +27,23 @@ set_env() {
     fs.writeFileSync(FILE, out.join("\n"));
   '
   chmod 600 "$ENV_FILE"
+}
+# Supabase bremst Mails: pro Adresse 1 Mail/60 s und wenige Mails pro Stunde. Für die Schule lockern
+# (iCloud erlaubt etwa 1000 Mails pro Tag). Eigene Datei, die docker compose automatisch mitliest.
+OVERRIDE="$SB_DIR/docker-compose.override.yml"
+write_limits() {
+  if [ -f "$OVERRIDE" ] && ! grep -q "gibb-email" "$OVERRIDE"; then
+    echo "Hinweis: $OVERRIDE gibt es schon (nicht von gibb-email) – Versand-Bremsen unverändert." >&2; return 0
+  fi
+  cat > "$OVERRIDE" <<'YAML'
+# Von gibb-email verwaltet (Versand-Bremsen für Mails). Ändern: sudo gibb-email grenzen
+services:
+  auth:
+    environment:
+      GOTRUE_SMTP_MAX_FREQUENCY: "10s"
+      GOTRUE_RATE_LIMIT_EMAIL_SENT: "100"
+YAML
+  chmod 644 "$OVERRIDE"
 }
 restart_auth() {
   echo "Supabase-Anmeldedienst wird neu gestartet …"
@@ -53,6 +71,11 @@ case "${1:-}" in
   test)
     [ "$(get GIBB_SMTP)" = "1" ] || { echo "Noch nicht eingerichtet: sudo gibb-email" >&2; exit 1; }
     send_test "${2:-$(get SMTP_ADMIN_EMAIL)}" "$(get SMTP_HOST)" "$(get SMTP_PORT)" "$(get SMTP_USER)" "$(get SMTP_PASS)" "$(get SMTP_ADMIN_EMAIL)" || { echo "✖ Senden fehlgeschlagen." >&2; exit 1; }
+    exit 0 ;;
+  grenzen|limit)
+    write_limits
+    restart_auth
+    echo "Fertig: pro Adresse höchstens alle 10 Sekunden eine Mail, insgesamt bis 100 Mails pro Stunde."
     exit 0 ;;
   aus|--off)
     set_env GIBB_SMTP 0
@@ -96,6 +119,7 @@ set_env SMTP_PASS "$PASS"
 set_env SMTP_SENDER_NAME "$NAME"
 set_env ENABLE_EMAIL_AUTOCONFIRM false   # Registrieren: Bestätigungs-Mail schicken
 set_env GIBB_SMTP 1
+write_limits
 restart_auth
 echo
 echo "Fertig: Registrieren, Passwort vergessen und E-Mail ändern schicken jetzt Mails von $EMAIL."

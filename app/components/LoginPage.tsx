@@ -114,7 +114,11 @@ export function LoginPage() {
       });
       if (authError) {
         if (isEmailSendRateLimit(authError)) {
-          setError("Die Registrierung konnte gerade nicht abgeschlossen werden, weil der E-Mail-Versand ausgelastet ist. Versuche es in einer Minute erneut.");
+          // Supabase: an dieselbe Adresse nur alle paar Sekunden eine Mail ("… only request this after 42 seconds")
+          const wait = /after (\d+) seconds?/i.exec(authError.message ?? "")?.[1];
+          setError(wait
+            ? `An diese Adresse wurde gerade schon eine Bestätigungs-Mail geschickt – schau im Postfach (auch Spam) nach. Eine neue Mail geht erst in ${wait} Sekunden.`
+            : "Die Registrierung konnte gerade nicht abgeschlossen werden, weil der E-Mail-Versand ausgelastet ist. Versuche es in einer Minute erneut.");
         } else {
           setError(registrationErrorMessage(authError));
         }
