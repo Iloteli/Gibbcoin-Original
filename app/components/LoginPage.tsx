@@ -107,6 +107,13 @@ export function LoginPage() {
       if (authError) setError(loginErrorMessage(authError));
       else window.sessionStorage.removeItem("gibb-account-notice");
     } else {
+      // Registrieren kann auf der Chain-Seite ausgeschaltet sein – dann meldet Supabase nur "Database error saving new user"
+      const { data: features } = await supabase.rpc("get_site_features");
+      if ((features as { registration_enabled?: boolean } | null)?.registration_enabled === false) {
+        setError("Neue Registrierungen sind momentan deaktiviert. Frag einen Owner, ob er dir ein Konto erstellt.");
+        setBusy(false);
+        return;
+      }
       const { data, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,

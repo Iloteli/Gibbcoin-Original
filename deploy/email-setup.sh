@@ -85,6 +85,14 @@ case "${1:-}" in
     exit 0 ;;
 esac
 
+# Nutzt die Website die Supabase-Cloud (keine website.env mit eigener Datenbank)? Dann gilt diese Einstellung nicht.
+if ! grep -qs "NEXT_PUBLIC_SUPABASE_URL=/sb" /var/lib/gibbcoin/website.env; then
+  echo "Achtung: Die Website nutzt die Supabase-CLOUD, nicht die Supabase auf diesem Server."
+  echo "Mails dort im Dashboard einrichten: supabase.com → Projekt → Authentication → Emails → SMTP Settings"
+  echo "  (Host smtp.mail.me.com, Port 587, Benutzer = deine iCloud-Adresse, Passwort = App-Passwort)."
+  read -r -p "Trotzdem für die Supabase auf diesem Server einrichten? [j/N] " WEITER
+  [[ "$WEITER" =~ ^[jJ] ]] || exit 0
+fi
 echo "E-Mails der Hauptseite über deine eigene Adresse verschicken."
 read -r -p "Deine E-Mail-Adresse [ilja.podorieszach@icloud.com]: " EMAIL
 EMAIL="${EMAIL:-ilja.podorieszach@icloud.com}"
