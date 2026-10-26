@@ -29,6 +29,7 @@ cat <<HELP
     sudo gibb-sudo [aus]             gibb-Befehle ohne sudo-Passwort (ein/aus), alles andere mit
     sudo gibb-chain-key              neuen Chain-Schlüssel für Supabase erzeugen
     gibb-ssh-keys                    SSH-Schlüssel der Chain-Konten freischalten (Login ohne Passwort)
+    sudo gibb-email [test|status|aus] E-Mails (Registrieren, Passwort vergessen) über deine Adresse senden
 
   Zustand prüfen
     systemctl status gibb-node       Chain-Server

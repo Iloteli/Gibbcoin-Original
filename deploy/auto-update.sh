@@ -32,7 +32,7 @@ if [ -f /etc/systemd/system/gibb-website.service ]; then
   mkdir -p /var/lib/gibbcoin && date +%s%N > /var/lib/gibbcoin/reload && chmod 644 /var/lib/gibbcoin/reload
 fi
 # Kurzbefehle aktuell halten (auch wenn nur das automatische Update läuft)
-for pair in update:update wartung:maintenance chain-key:chain-key neuladen:reload-clients code:login-code backup:backup help:help version:version autoupdate:autoupdate-switch ssh-keys:ssh-keys; do
+for pair in update:update wartung:maintenance chain-key:chain-key neuladen:reload-clients code:login-code backup:backup help:help version:version autoupdate:autoupdate-switch ssh-keys:ssh-keys email:email-setup; do
   ln -sf "$PWD/deploy/${pair#*:}.sh" "/usr/local/bin/gibb-${pair%%:*}" 2>/dev/null || true
 done
 chmod +x "$PWD"/deploy/*.sh 2>/dev/null || true

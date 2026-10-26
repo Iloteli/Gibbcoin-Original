@@ -19,6 +19,7 @@ ln -sf "$APP_DIR/deploy/autoupdate-switch.sh" /usr/local/bin/gibb-autoupdate 2>/
 ln -sf "$APP_DIR/deploy/supabase-umzug.sh" /usr/local/bin/gibb-umzug 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/sudo-ohne-passwort.sh" /usr/local/bin/gibb-sudo 2>/dev/null || true
 ln -sf "$APP_DIR/deploy/ssh-keys.sh" /usr/local/bin/gibb-ssh-keys 2>/dev/null || true
+ln -sf "$APP_DIR/deploy/email-setup.sh" /usr/local/bin/gibb-email 2>/dev/null || true
 FORCE=1 bash "$APP_DIR/deploy/auto-update.sh"
 systemctl reload caddy 2>/dev/null || true
 sleep 3

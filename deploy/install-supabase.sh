@@ -103,8 +103,9 @@ set_env ADDITIONAL_REDIRECT_URLS "$PUBLIC_URL/**,http://localhost:3000/**,http:/
 set_env API_EXTERNAL_URL "$PUBLIC_URL/sb"
 set_env SUPABASE_PUBLIC_URL "$PUBLIC_URL/sb"
 # Ohne Mailserver: Konten sind sofort aktiv (keine Bestätigungs-Mail nötig).
+# Mit "sudo gibb-email" eingerichtet (GIBB_SMTP=1): Bestätigungs-Mails über die eigene Adresse – nicht überschreiben.
 set_env ENABLE_EMAIL_SIGNUP true
-set_env ENABLE_EMAIL_AUTOCONFIRM true
+if grep -q '^GIBB_SMTP=1' "$SB_DIR/.env"; then set_env ENABLE_EMAIL_AUTOCONFIRM false; else set_env ENABLE_EMAIL_AUTOCONFIRM true; fi
 set_env ENABLE_ANONYMOUS_USERS false
 set_env DISABLE_SIGNUP false
 chmod 600 "$SB_DIR/.env"
