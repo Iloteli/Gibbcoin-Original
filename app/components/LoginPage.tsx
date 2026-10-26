@@ -5,19 +5,12 @@ import { getSupabase } from "../lib/supabase";
 import { ThemeToggle } from "./ThemeToggle";
 import { BrandMark } from "./BrandMark";
 
-const REGISTRATION_COOLDOWN_MS = 60_000;
-const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000;
-const REGISTRATION_COOLDOWN_KEY = "gibb-registration-cooldown-until";
 
 function isEmailSendRateLimit(error?: { code?: string; message?: string; status?: number }) {
   const detail = `${error?.code ?? ""} ${error?.message ?? ""}`.toLocaleLowerCase("de-CH");
   return detail.includes("over_email_send_rate_limit")
     || detail.includes("email rate limit")
     || detail.includes("email_send_rate");
-}
-
-function formatRegistrationCooldown(seconds: number) {
-  return seconds >= 60 ? `${Math.ceil(seconds / 60)} min` : `${seconds}s`;
 }
 
 function loginErrorMessage(error?: { code?: string; message?: string; status?: number }) {
@@ -59,7 +52,6 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [registrationCooldownSeconds, setRegistrationCooldownSeconds] = useState(0);
   // Registrieren nur, wenn der Owner es auf der Chain-Seite eingeschaltet hat
   const [registrationOpen, setRegistrationOpen] = useState(false);
   useEffect(() => {
@@ -85,23 +77,6 @@ export function LoginPage() {
     return () => window.clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    function updateRegistrationCooldown() {
-      let cooldownUntil = Number(window.sessionStorage.getItem(REGISTRATION_COOLDOWN_KEY) ?? 0);
-      if (cooldownUntil - Date.now() > EMAIL_RATE_LIMIT_COOLDOWN_MS) {
-        window.sessionStorage.removeItem(REGISTRATION_COOLDOWN_KEY);
-        cooldownUntil = 0;
-      }
-      const seconds = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000));
-      setRegistrationCooldownSeconds(seconds);
-      if (seconds === 0) window.sessionStorage.removeItem(REGISTRATION_COOLDOWN_KEY);
-    }
-
-    updateRegistrationCooldown();
-    const timer = window.setInterval(updateRegistrationCooldown, 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
   function changeMode(nextMode: "login" | "register" | "forgot") {
     setMode(nextMode);
     setError("");
@@ -114,10 +89,6 @@ export function LoginPage() {
     if (!supabase) { setError("Die Anmeldung ist aktuell nicht konfiguriert."); return; }
     if (!email.trim() || (mode !== "forgot" && password.length < 8)) {
       setError("Bitte gib eine gültige E-Mail und mindestens 8 Passwortzeichen ein.");
-      return;
-    }
-    if (mode === "register" && registrationCooldownSeconds > 0) {
-      setError(`Bitte warte noch ${registrationCooldownSeconds} Sekunden, bevor du erneut registrierst.`);
       return;
     }
 
@@ -136,9 +107,6 @@ export function LoginPage() {
       if (authError) setError(loginErrorMessage(authError));
       else window.sessionStorage.removeItem("gibb-account-notice");
     } else {
-      const cooldownUntil = Date.now() + REGISTRATION_COOLDOWN_MS;
-      window.sessionStorage.setItem(REGISTRATION_COOLDOWN_KEY, String(cooldownUntil));
-      setRegistrationCooldownSeconds(Math.ceil(REGISTRATION_COOLDOWN_MS / 1000));
       const { data, error: authError } = await supabase.auth.signUp({
         email: email.trim(),
         password,
@@ -146,10 +114,7 @@ export function LoginPage() {
       });
       if (authError) {
         if (isEmailSendRateLimit(authError)) {
-          const retryAt = Date.now() + EMAIL_RATE_LIMIT_COOLDOWN_MS;
-          window.sessionStorage.setItem(REGISTRATION_COOLDOWN_KEY, String(retryAt));
-          setRegistrationCooldownSeconds(Math.ceil(EMAIL_RATE_LIMIT_COOLDOWN_MS / 1000));
-          setError("Die Registrierung konnte gerade nicht abgeschlossen werden, weil der E-Mail-Versand ausgelastet ist. Versuche es in 60 Sekunden erneut.");
+          setError("Die Registrierung konnte gerade nicht abgeschlossen werden, weil der E-Mail-Versand ausgelastet ist. Versuche es in einer Minute erneut.");
         } else {
           setError(registrationErrorMessage(authError));
         }
@@ -187,7 +152,7 @@ export function LoginPage() {
             {mode !== "forgot" && <div className="field"><label htmlFor="auth-password">Passwort <span>mindestens 8 Zeichen</span></label><div className="password-control"><input className="input" id="auth-password" type={showPassword ? "text" : "password"} minLength={8} autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="••••••••" required /><button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}>{showPassword ? "Aus" : "An"}</button></div>{mode === "login" && <button className="forgot-password-link" type="button" onClick={() => changeMode("forgot")}>Passwort vergessen?</button>}</div>}
             {mode === "register" && <p className="registration-email-hint">Auch nach einer Kontolöschung darfst du dieselbe E-Mail wiederverwenden. Wir senden eine neue Bestätigungs-E-Mail – bitte nur einmal klicken.</p>}
             {mode === "login" && <p className="auth-persistence-hint"><span aria-hidden="true">✓</span><span><strong>Angemeldet bleiben ist aktiv</strong>Die sichere Sitzung wird in diesem Browser gespeichert. Passwort und 2FA-Code werden nicht von GIBB Coin gespeichert.</span></p>}
-            <button className="primary auth-submit" type="submit" disabled={busy || (mode === "register" && registrationCooldownSeconds > 0)}>{busy ? "Bitte warten …" : mode === "login" ? "Sicher anmelden" : mode === "register" ? registrationCooldownSeconds > 0 ? `Erneut möglich in ${formatRegistrationCooldown(registrationCooldownSeconds)}` : "Kostenloses Konto erstellen" : "Reset-Link per E-Mail senden"}</button>
+            <button className="primary auth-submit" type="submit" disabled={busy}>{busy ? "Bitte warten …" : mode === "login" ? "Sicher anmelden" : mode === "register" ? "Kostenloses Konto erstellen" : "Reset-Link per E-Mail senden"}</button>
           </form>
           {mode === "forgot" && <button className="back-to-login" type="button" onClick={() => changeMode("login")}>← Zurück zur Anmeldung</button>}
           {message && <p className="message success-message" role="status">✓ {message}</p>}

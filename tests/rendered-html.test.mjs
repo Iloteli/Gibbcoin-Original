@@ -404,8 +404,8 @@ test("hard-deletes accounts so their email can be registered again", async () =>
   assert.match(deletionFunction, /deleteUser\(body\.target_user_id, false\)/);
   assert.match(deletionFunction, /email_reusable: true/);
   assert.match(login, /Auch nach einer Kontolöschung darfst du dieselbe E-Mail wiederverwenden/);
-  assert.match(login, /const EMAIL_RATE_LIMIT_COOLDOWN_MS = 60_000/);
-  assert.match(login, /cooldownUntil - Date\.now\(\) > EMAIL_RATE_LIMIT_COOLDOWN_MS/);
+  // Keine Wartesperre mehr nach dem Registrieren; bei Überlastung des Mailversands nur ein Hinweis
+  assert.doesNotMatch(login, /Erneut möglich in/);
   assert.match(login, /E-Mail-Versand ausgelastet/);
 });
 
