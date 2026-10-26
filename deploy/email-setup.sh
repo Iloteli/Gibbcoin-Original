@@ -2,7 +2,7 @@
 # E-Mails der Hauptseite (Registrieren bestätigen, Passwort vergessen, E-Mail ändern) über DEINE E-Mail-Adresse
 # verschicken – für die eigene Supabase auf diesem Server.
 #   sudo gibb-email            -> einrichten (fragt Adresse und App-Passwort)
-#   sudo gibb-email test       -> Test-Mail an dich schicken
+#   sudo gibb-email test [ADRESSE] -> Test-Mail an dich (oder an ADRESSE) schicken
 #   sudo gibb-email status     -> zeigt, ob und womit Mails verschickt werden
 #   sudo gibb-email aus        -> wieder aus (Konten werden dann ohne Bestätigungs-Mail sofort aktiv)
 # Das Passwort steht nur in /opt/supabase/.env auf dem Server (nur root lesbar), nie im Code oder auf GitHub.
@@ -34,7 +34,9 @@ restart_auth() {
 send_test() { # an, host, port, user, pass, absender
   local to="$1" host="$2" port="$3" user="$4" pass="$5" from="$6" msg
   msg="$(mktemp)"; chmod 600 "$msg"
-  printf 'From: GIBB Coin <%s>\r\nTo: <%s>\r\nSubject: GIBB Coin: Test-Mail\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nWenn du das liest, verschickt GIBB Coin E-Mails jetzt über %s.\r\n' "$from" "$to" "$from" > "$msg"
+  # Mit Datum und Message-ID – ohne diese Angaben verwerfen Anbieter wie iCloud Mails oft still
+  printf 'From: GIBB Coin <%s>\r\nTo: <%s>\r\nSubject: GIBB Coin: Test-Mail\r\nDate: %s\r\nMessage-ID: <%s.gibbcoin@%s>\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\nHallo!\r\n\r\nWenn du das liest, verschickt GIBB Coin E-Mails jetzt über %s.\r\n\r\nGIBB Coin\r\n' \
+    "$from" "$to" "$(LC_ALL=C date -R)" "$(date +%s%N)" "${from##*@}" "$from" > "$msg"
   local cfg; cfg="$(mktemp)"; chmod 600 "$cfg"
   printf 'user = "%s:%s"\n' "$user" "$pass" > "$cfg"   # Passwort nicht in der Prozessliste zeigen
   if curl -sS --max-time 30 --ssl-reqd --url "smtp://$host:$port" -K "$cfg" --mail-from "$from" --mail-rcpt "$to" -T "$msg"; then
@@ -50,7 +52,7 @@ case "${1:-}" in
     exit 0 ;;
   test)
     [ "$(get GIBB_SMTP)" = "1" ] || { echo "Noch nicht eingerichtet: sudo gibb-email" >&2; exit 1; }
-    send_test "$(get SMTP_ADMIN_EMAIL)" "$(get SMTP_HOST)" "$(get SMTP_PORT)" "$(get SMTP_USER)" "$(get SMTP_PASS)" "$(get SMTP_ADMIN_EMAIL)" || { echo "✖ Senden fehlgeschlagen." >&2; exit 1; }
+    send_test "${2:-$(get SMTP_ADMIN_EMAIL)}" "$(get SMTP_HOST)" "$(get SMTP_PORT)" "$(get SMTP_USER)" "$(get SMTP_PASS)" "$(get SMTP_ADMIN_EMAIL)" || { echo "✖ Senden fehlgeschlagen." >&2; exit 1; }
     exit 0 ;;
   aus|--off)
     set_env GIBB_SMTP 0
