@@ -43,10 +43,10 @@ const ViewLoading = () => <div className="card card-pad view-loading" role="stat
 
 type Props = { user: User };
 type TransactionFilter = "all" | "received" | "sent";
-type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "account" | "admin";
+type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "shop" | "account" | "admin";
 type OfflineSnapshot = { profile: Profile; wallet: Wallet; transactions: Transaction[]; savedAt: string; statsResetAt?: string | null };
 
-const dashboardViews: Array<{ key: Exclude<DashboardView, "admin">; label: string; icon: string }> = [
+const dashboardViews: Array<{ key: Exclude<DashboardView, "admin" | "shop">; label: string; icon: string }> = [
   { key: "home", label: "Home", icon: "⌂" },
   { key: "send", label: "Senden", icon: "↗" },
   { key: "games", label: "Spiele", icon: "◆" },
@@ -66,6 +66,7 @@ function viewFromHash(hash: string): DashboardView {
   if (["#chain", "#blockchain", "#mining"].includes(hash)) return "chain";
   if (["#market", "#kaufen", "#buy"].includes(hash)) return "market";
   if (hash === "#account") return "account";
+  if (["#kiosk", "#shop", "#kasse"].includes(hash)) return "shop";
   if (hash === "#admin" || hash === "#support") return "community";
   if (["#send-coins", "#qr-code", "#requests", "#buy-coins"].includes(hash)) return "send";
   if (hash === "#game-center") return "games";
@@ -199,7 +200,16 @@ export function Dashboard({ user }: Props) {
   // Ilja sieht auch ausgeschaltete Tabs (markiert), alle anderen nicht
   const seesHiddenTabs = (user.email ?? "").toLowerCase() === "ilja.podorieszach@icloud.com";
   const hiddenTabs = seesHiddenTabs ? [] : disabledTabs;
-  const visibleViews = dashboardViews.filter((view) => !hiddenTabs.includes(view.key));
+  // Konten mit Laden (Kiosk) bekommen einen eigenen Tab mit der Kasse
+  const [isMerchant, setIsMerchant] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getSupabase()?.rpc("shop_status").then(({ data }) => { if (alive) setIsMerchant(Boolean((data as { is_merchant?: boolean } | null)?.is_merchant)); });
+    return () => { alive = false; };
+  }, [user.id]);
+  const baseViews: Array<{ key: Exclude<DashboardView, "admin">; label: string; icon: string }> = dashboardViews.filter((view) => !hiddenTabs.includes(view.key));
+  const visibleViews = isMerchant ? [...baseViews.slice(0, -1), { key: "shop" as const, label: "Kiosk", icon: "🏪" }, ...baseViews.slice(-1)] : baseViews;
+  if (activeView === "shop" && isMerchant === false) setActiveView("home");
   if (activeView !== "home" && activeView !== "admin" && hiddenTabs.includes(activeView)) setActiveView("home");
   const [offlineMode, setOfflineMode] = useState(false);
   // Adminpanel (Anmelde-Code für die Chain-Seite) nur für Owner mit Full – der Chain-Server entscheidet
@@ -722,7 +732,7 @@ export function Dashboard({ user }: Props) {
 
         </div>
 
-        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <>{seen("send") && <Suspense fallback={<ViewLoading />}><><ShopCheckout onChanged={loadData} /><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></></Suspense>}</>}
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>QR-Zahlungen, Anfragen und Kontakte werden wieder aktiviert, sobald eine sichere Serververbindung besteht.</p></section> : <>{seen("send") && <Suspense fallback={<ViewLoading />}><><QrWallet userId={user.id} walletId={wallet?.id} onRecipient={selectQrRecipient} /><PaymentsHub userId={user.id} onRecipient={selectQrRecipient} onChanged={loadData} /></></Suspense>}</>}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "games"} aria-label="Spiele">
@@ -783,6 +793,11 @@ export function Dashboard({ user }: Props) {
         <div className="dashboard-view" hidden={activeView !== "admin" || !showAdminPanel} aria-label="Adminpanel" id="admin-panel">
         <div className="view-heading"><span>NUR FÜR FULL-OWNER</span><h1>Adminpanel</h1><p>Die Verwaltung (Konten, Coins, Spiele, Einstellungen) läuft auf der Chain-Seite. Hier holst du den Anmelde-Code dafür.</p></div>
         {activeView === "admin" && showAdminPanel && <div id="security">{offlineMode ? <section className="card card-pad"><p className="field-hint">Im Offline-Modus gibt es keinen Code – zuerst „Neu verbinden“.</p></section> : <OwnerChainCode />}</div>}
+        </div>
+
+        <div className="dashboard-view" hidden={activeView !== "shop" || !isMerchant} aria-label="Kiosk">
+        <div className="view-heading"><span>DEIN LADEN</span><h1>Kiosk</h1><p>Betrag eingeben, QR-Code zeigen – der Kunde scannt und bezahlt mit GIBB.</p></div>
+        {offlineMode ? <section className="card card-pad offline-placeholder"><strong>Nur Lesen im Offline-Modus</strong><p>Die Kasse ist wieder verfügbar, sobald eine sichere Serververbindung besteht.</p></section> : isMerchant && seen("shop") && <ShopCheckout onChanged={loadData} />}
         </div>
 
         <div className="dashboard-view" hidden={activeView !== "account"} aria-label="Konto">

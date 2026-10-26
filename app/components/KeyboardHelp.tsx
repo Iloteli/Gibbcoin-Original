@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "account" | "admin";
+type DashboardView = "home" | "send" | "games" | "community" | "activity" | "chain" | "market" | "shop" | "account" | "admin";
 
 type Props = {
   activeView: DashboardView;
