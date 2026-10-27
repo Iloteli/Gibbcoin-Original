@@ -2149,7 +2149,15 @@ const adCall = async (fn, args = {}) => {
   if (data && typeof data === "object" && !Array.isArray(data) && data.ok === false) throw new Error(data.error || "failed");
   return data;
 };
-const needPin = () => { if (!/^\d{4}$/.test(adminPin)) { say("adMsg", adErrors.admin_pin_required, true); return false; } return true; };
+// Ohne PIN: Hinweis sichtbar machen (die Meldung steht oben im Admin-Bereich, oft ausserhalb des Bildschirms)
+const needPin = () => {
+  if (/^\d{4}$/.test(adminPin)) return true;
+  say("adMsg", adErrors.admin_pin_required, true);
+  alert("Zuerst die Admin-PIN eingeben: oben im Feld „Admin-PIN“ eintippen und „PIN prüfen“ klicken.");
+  $("adPin")?.scrollIntoView({ behavior: "smooth", block: "center" });
+  $("adPin")?.focus();
+  return false;
+};
 document.querySelectorAll(".adtab").forEach((b) => b.addEventListener("click", () => {
   document.querySelectorAll(".adtab").forEach((x) => x.classList.toggle("active", x === b));
   document.querySelectorAll(".adpanel").forEach((pnl) => { pnl.hidden = pnl.dataset.adp !== b.dataset.ad; });
